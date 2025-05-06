@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bancolombia - Configuración del Sistema</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bancolombia-blue: #004884;
+            --bancolombia-light-blue: #0066CC;
+            --bancolombia-gray: #F5F5F5;
+            --bancolombia-dark-gray: #333333;
+            --bancolombia-green: #28a745;
+            --bancolombia-red: #dc3545;
+            --bancolombia-yellow: #ffc107;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--bancolombia-gray);
+        }
+        
+        .config-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin: 2rem auto;
+            max-width: 1200px;
+        }
+        
+        .config-tabs .nav-link {
+            color: var(--bancolombia-dark-gray);
+            font-weight: 500;
+            border: none;
+            padding: 12px 20px;
+        }
+        
+        .config-tabs .nav-link.active {
+            color: var(--bancolombia-blue);
+            border-bottom: 3px solid var(--bancolombia-blue);
+            background: transparent;
+        }
+        
+        .config-section {
+            padding: 20px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+        }
+        
+        .config-section h4 {
+            color: var(--bancolombia-blue);
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        
+        .field-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .field-item:last-child {
+            border-bottom: none;
+        }
+        
+        .field-actions {
+            margin-left: auto;
+        }
+        
+        .backup-card {
+            border-left: 4px solid var(--bancolombia-green);
+        }
+        
+        .restore-card {
+            border-left: 4px solid var(--bancolombia-blue);
+        }
+        
+        .danger-card {
+            border-left: 4px solid var(--bancolombia-red);
+        }
+        
+        .badge-admin {
+            background-color: var(--bancolombia-blue);
+        }
+        
+        .badge-supervisor {
+            background-color: var(--bancolombia-light-blue);
+        }
+        
+        .permission-badge {
+            font-size: 0.75rem;
+            margin-left: 10px;
+        }
+        
+        .modal-header {
+            background-color: var(--bancolombia-blue);
+            color: white;
+        }
+        
+        .modal-success .modal-header {
+            background-color: var(--bancolombia-green);
+        }
+        
+        .modal-warning .modal-header {
+            background-color: var(--bancolombia-yellow);
+            color: var(--bancolombia-dark-gray);
+        }
+        
+        .modal-danger .modal-header {
+            background-color: var(--bancolombia-red);
+        }
+        
+        .modal-info .modal-header {
+            background-color: var(--bancolombia-light-blue);
+        }
+        
+        .footer {
+            background-color: var(--bancolombia-blue);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            font-size: 0.9rem;
+            margin-top: 40px;
+        }
+        
+        .footer a {
+            color: var(--bancolombia-yellow);
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .user-info {
+            text-align: right;
+            padding: 10px 20px;
+            background-color: var(--bancolombia-gray);
+            color: var(--bancolombia-dark-gray);
+            font-size: 0.9rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        .container-aligned {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            width: 100%;
+        }
+        
+        .breadcrumb {
+            background-color: transparent;
+            padding: 0;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        
+        .breadcrumb-item.active {
+            color: var(--bancolombia-blue);
+            font-weight: 600;
+        }
+        
+        .logo-container img {
+            height: 50px;
+            transition: transform 0.3s ease;
+        }
+        
+        .logo-container img:hover {
+            transform: scale(1.05);
+        }
+        
+        .logo-container {
+            text-align: center;
+            padding: 10px 0;
+            margin: 0 auto;
+            max-width: 1200px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container-aligned">
+            <div class="user-info">
+                <span class="role-badge me-3">Administrador</span>
+                <i class="fas fa-user-circle"></i> Usuario Ejemplo
+                | <a href="#"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+            </div>
+            <div class="logo-container">
+                <img src="https://www.uam.edu.co/wp-content/uploads/2022/09/logo-bancolombia1.png" alt="Bancolombia">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="#"><i class="fas fa-home"></i> Menú Principal</a></li>
+                        <li class="breadcrumb-item active" aria-current="page"><i class="fas fa-user-tie"></i> Módulo Pilotos</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <a href="{{ url_for('modulo_pilotos') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Volver
+            </a>
+        </div>
+        
+        <div class="config-container">
+            <h2 class="mb-4"><i class="fas fa-cog me-2"></i>Panel de Configuración del Sistema</h2>
+            
+            <ul class="nav config-tabs mb-4" id="configTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="fields-tab" data-bs-toggle="tab" data-bs-target="#fields" type="button">
+                        <i class="fas fa-list-alt me-2"></i>Campos
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="data-types-tab" data-bs-toggle="tab" data-bs-target="#data-types" type="button">
+                        <i class="fas fa-database me-2"></i>Tipos de Datos
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="validations-tab" data-bs-toggle="tab" data-bs-target="#validations" type="button">
+                        <i class="fas fa-check-circle me-2"></i>Validaciones
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="forms-tab" data-bs-toggle="tab" data-bs-target="#forms" type="button">
+                        <i class="fas fa-file-alt me-2"></i>Formularios
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="database-tab" data-bs-toggle="tab" data-bs-target="#database" type="button">
+                        <i class="fas fa-database me-2"></i>Base de Datos
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="configTabsContent">
+                <div class="tab-pane fade show active" id="fields" role="tabpanel">
+                    <div class="config-section">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4><i class="fas fa-list-ul me-2"></i>Administración de Campos</h4>
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#fieldModal">
+                                <i class="fas fa-plus-circle me-1"></i> Nuevo Campo
+                            </button>
+                        </div>
+                        <div id="fieldsList" class="mb-4"></div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="data-types" role="tabpanel">
+                    <div class="config-section">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4><i class="fas fa-database me-2"></i>Tipos de Datos</h4>
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#dataTypeModal">
+                                <i class="fas fa-plus-circle me-1"></i> Nuevo Tipo
+                            </button>
+                        </div>
+                        <div id="dataTypesList" class="mb-4"></div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="validations" role="tabpanel">
+                    <div class="config-section">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4><i class="fas fa-check-circle me-2"></i>Validaciones</h4>
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#validationModal">
+                                <i class="fas fa-plus-circle me-1"></i> Nueva Validación
+                            </button>
+                        </div>
+                        <div id="validationsList" class="mb-4"></div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="forms" role="tabpanel">
+                    <div class="config-section">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4><i class="fas fa-file-alt me-2"></i>Formularios</h4>
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#formModal">
+                                <i class="fas fa-plus-circle me-1"></i> Nuevo Formulario
+                            </button>
+                        </div>
+                        <div id="formsList" class="mb-4"></div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="database" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="config-section backup-card">
+                                <h4><i class="fas fa-database me-2"></i>Respaldo de Datos</h4>
+                                <p class="text-muted">Genere un archivo de respaldo completo de la base de datos.</p>
+                                <button class="btn btn-success" id="btnBackup">
+                                    <i class="fas fa-file-export me-2"></i>Generar Respaldo
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-4">
+                            <div class="config-section restore-card">
+                                <h4><i class="fas fa-undo me-2"></i>Restauración</h4>
+                                <div class="mb-3">
+                                    <input type="file" class="form-control" id="backupFile" accept=".bck">
+                                    <div id="filePreview" class="file-preview"></div>
+                                </div>
+                                <button class="btn btn-primary" id="btnRestore" disabled>
+                                    <i class="fas fa-file-import me-2"></i>Restaurar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales -->
+    <div class="modal fade" id="fieldModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Nuevo Campo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="fieldForm">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre del Campo</label>
+                            <input type="text" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tipo de Dato</label>
+                            <select class="form-select" id="fieldType" required></select>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="fieldRequired">
+                            <label class="form-check-label" for="fieldRequired">Campo Requerido</label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" form="fieldForm" class="btn btn-primary">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="dataTypeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-database me-2"></i>Nuevo Tipo de Dato</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="dataTypeForm">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre del Tipo</label>
+                            <input type="text" class="form-control" id="dataTypeName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Formato</label>
+                            <select class="form-select" id="dataTypeFormat" required onchange="toggleOptionsField()">
+                                <option value="">Seleccionar...</option>
+                                <option>String</option>
+                                <option>Number</option>
+                                <option>Date</option>
+                                <option>Boolean</option>
+                                <option>Lista Desplegable</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="optionsContainer" style="display: none;">
+                            <label class="form-label">Opciones (separadas por comas)</label>
+                            <input type="text" class="form-control" id="dataTypeOptions">
+                            <small class="text-muted">Ejemplo: Opción 1, Opción 2, Opción 3</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" form="dataTypeForm" class="btn btn-primary">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="validationModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>Nueva Validación</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="validationForm">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre de la Validación</label>
+                            <input type="text" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Expresión Regular</label>
+                            <input type="text" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Mensaje de Error</label>
+                            <textarea class="form-control" rows="3" required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" form="validationForm" class="btn btn-primary">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="formModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-file-alt me-2"></i>Nuevo Formulario</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formForm">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre del Formulario</label>
+                            <input type="text" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Campos Disponibles</label>
+                            <select class="form-select" multiple id="availableFields"></select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" form="formForm" class="btn btn-primary">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="messageModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body"></div>
+                <div class="modal-footer"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="container-aligned">
+            <p>© 2025 Bancolombia. Todos los derechos reservados.</p>
+            <p>
+                <a href="#">Términos y condiciones</a> | 
+                <a href="#">Política de privacidad</a> | 
+                <a href="#">Ayuda</a>
+            </p>
+            <p>
+                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 | 
+                <i class="fas fa-map-marker-alt"></i> Sede principal: Medellín, Colombia
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let appState = {
+            campos: [],
+            dataTypes: [],
+            validaciones: [],
+            formularios: []
+        };
+
+        function showModal(title, message, type = 'info') {
+            const modal = document.getElementById('messageModal');
+            modal.querySelector('.modal-header').className = `modal-header modal-${type}`;
+            modal.querySelector('.modal-title').textContent = title;
+            modal.querySelector('.modal-body').textContent = message;
+            new bootstrap.Modal(modal).show();
+        }
+
+        function renderFields() {
+            const container = document.getElementById('fieldsList');
+            container.innerHTML = appState.campos.map((campo, index) => `
+                <div class="field-item">
+                    <div>
+                        <strong>${campo.nombre}</strong>
+                        <span class="badge bg-secondary">${campo.tipo}</span>
+                        ${campo.requerido ? '<span class="badge bg-success">Requerido</span>' : ''}
+                    </div>
+                    <div class="field-actions">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="editField(${index})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteField(${index})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderDataTypes() {
+            const container = document.getElementById('dataTypesList');
+            container.innerHTML = appState.dataTypes.map((tipo, index) => `
+                <div class="field-item">
+                    <div>
+                        <strong>${tipo.nombre}</strong>
+                        <span class="badge bg-info">${tipo.formato}</span>
+                    </div>
+                    <div class="field-actions">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="editDataType(${index})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteDataType(${index})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderValidations() {
+            const container = document.getElementById('validationsList');
+            container.innerHTML = appState.validaciones.map((validacion, index) => `
+                <div class="validation-item list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${validacion.nombre}</strong>
+                        <div class="text-muted small">${validacion.expresion}</div>
+                    </div>
+                    <div class="field-actions">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="editValidation(${index})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteValidation(${index})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderForms() {
+            const container = document.getElementById('formsList');
+            container.innerHTML = appState.formularios.map((formulario, index) => `
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">${formulario.nombre}</h5>
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="editForm(${index})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteForm(${index})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            ${formulario.campos.map(campo => `
+                                <li class="list-group-item">${campo}</li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('fieldForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const nuevoCampo = {
+                nombre: formData.get('nombre'),
+                tipo: formData.get('tipo'),
+                requerido: formData.get('fieldRequired') === 'on'
+            };
+            appState.campos.push(nuevoCampo);
+            renderFields();
+            showModal('Éxito', 'Campo creado exitosamente', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('fieldModal')).hide();
+            e.target.reset();
+        });
+
+        document.getElementById('dataTypeForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const nuevoTipo = {
+                nombre: document.getElementById('dataTypeName').value,
+                formato: document.getElementById('dataTypeFormat').value
+            };
+            appState.dataTypes.push(nuevoTipo);
+            renderDataTypes();
+            showModal('Éxito', 'Tipo de dato creado exitosamente', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('dataTypeModal')).hide();
+            e.target.reset();
+        });
+
+        document.getElementById('validationForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const nuevaValidacion = {
+                nombre: formData.get('nombre'),
+                expresion: formData.get('expresion'),
+                mensaje: formData.get('mensaje')
+            };
+            appState.validaciones.push(nuevaValidacion);
+            renderValidations();
+            showModal('Éxito', 'Validación creada exitosamente', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('validationModal')).hide();
+            e.target.reset();
+        });
+
+        document.getElementById('btnBackup').addEventListener('click', async () => {
+            try {
+                const backupData = JSON.stringify(appState);
+                const blob = new Blob([backupData], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `backup_${new Date().toISOString()}.bck`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                showModal('Éxito', 'Respaldo generado exitosamente', 'success');
+            } catch (error) {
+                showModal('Error', 'Error al generar respaldo', 'danger');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            appState.campos = [
+                { nombre: 'Nombre del Proyecto', tipo: 'Texto', requerido: true },
+                { nombre: 'Monto Aprobado', tipo: 'Número', requerido: false }
+            ];
+            appState.dataTypes = [
+                { nombre: 'Texto', formato: 'String' },
+                { nombre: 'Número', formato: 'Number' }
+            ];
+            appState.validaciones = [
+                { nombre: 'Email válido', expresion: '/^\\S+@\\S+\\.\\S+$/', mensaje: 'Ingrese un correo válido' }
+            ];
+            appState.formularios = [
+                { nombre: 'Formulario Principal', campos: ['Nombre del Proyecto', 'Monto Aprobado'] }
+            ];
+            renderFields();
+            renderDataTypes();
+            renderValidations();
+            renderForms();
+        });
+        // Funciones de eliminación
+        function deleteField(index) {
+            showModal('Confirmar eliminación', '¿Eliminar este campo permanentemente?', 'warning', () => {
+                appState.campos.splice(index, 1);
+                renderFields();
+                showModal('Éxito', 'Campo eliminado exitosamente', 'success');
+            });
+        }
+
+        function deleteDataType(index) {
+            showModal('Confirmar eliminación', '¿Eliminar este tipo de dato permanentemente?', 'warning', () => {
+                appState.dataTypes.splice(index, 1);
+                renderDataTypes();
+                loadDataTypeOptions();
+                showModal('Éxito', 'Tipo de dato eliminado exitosamente', 'success');
+            });
+        }
+
+        function deleteValidation(index) {
+            showModal('Confirmar eliminación', '¿Eliminar esta validación permanentemente?', 'warning', () => {
+                appState.validaciones.splice(index, 1);
+                renderValidations();
+                showModal('Éxito', 'Validación eliminada exitosamente', 'success');
+            });
+        }
+
+        function deleteForm(index) {
+            showModal('Confirmar eliminación', '¿Eliminar este formulario permanentemente?', 'warning', () => {
+                appState.formularios.splice(index, 1);
+                renderForms();
+                showModal('Éxito', 'Formulario eliminado exitosamente', 'success');
+            });
+        }
+
+        // Funciones de edición
+        function editField(index) {
+            const campo = appState.campos[index];
+            const modal = new bootstrap.Modal(document.getElementById('fieldModal'));
+            const form = document.getElementById('fieldForm');
+            
+            form.querySelector('input').value = campo.nombre;
+            form.querySelector('select').value = campo.tipo;
+            form.querySelector('#fieldRequired').checked = campo.requerido;
+            
+            form.onsubmit = (e) => {
+                e.preventDefault();
+                const formData = new FormData(form);
+                
+                appState.campos[index] = {
+                    nombre: formData.get('nombre'),
+                    tipo: formData.get('tipo'),
+                    requerido: formData.get('fieldRequired') === 'on'
+                };
+                
+                renderFields();
+                modal.hide();
+                showModal('Éxito', 'Campo actualizado exitosamente', 'success');
+            };
+            
+            modal.show();
+        }
+
+        function editDataType(index) {
+            const tipo = appState.dataTypes[index];
+            const modal = new bootstrap.Modal(document.getElementById('dataTypeModal'));
+            const form = document.getElementById('dataTypeForm');
+            
+            form.querySelector('#dataTypeName').value = tipo.nombre;
+            form.querySelector('#dataTypeFormat').value = tipo.formato;
+            
+            if (tipo.formato === 'Lista Desplegable') {
+                form.querySelector('#dataTypeOptions').value = tipo.opciones?.join(', ') || '';
+                document.getElementById('optionsContainer').style.display = 'block';
+            } else {
+                document.getElementById('optionsContainer').style.display = 'none';
+            }
+            
+            form.onsubmit = (e) => {
+                e.preventDefault();
+                const updatedTipo = {
+                    nombre: form.querySelector('#dataTypeName').value,
+                    formato: form.querySelector('#dataTypeFormat').value
+                };
+                
+                if (updatedTipo.formato === 'Lista Desplegable') {
+                    updatedTipo.opciones = form.querySelector('#dataTypeOptions').value.split(',').map(o => o.trim());
+                }
+                
+                appState.dataTypes[index] = updatedTipo;
+                renderDataTypes();
+                loadDataTypeOptions();
+                modal.hide();
+                showModal('Éxito', 'Tipo de dato actualizado exitosamente', 'success');
+            };
+            
+            modal.show();
+        }
+
+        function editValidation(index) {
+            const validacion = appState.validaciones[index];
+            const modal = new bootstrap.Modal(document.getElementById('validationModal'));
+            const form = document.getElementById('validationForm');
+            
+            form.querySelectorAll('input')[0].value = validacion.nombre;
+            form.querySelectorAll('input')[1].value = validacion.expresion;
+            form.querySelector('textarea').value = validacion.mensaje;
+            
+            form.onsubmit = (e) => {
+                e.preventDefault();
+                const formData = new FormData(form);
+                
+                appState.validaciones[index] = {
+                    nombre: formData.get('nombre'),
+                    expresion: formData.get('expresion'),
+                    mensaje: formData.get('mensaje')
+                };
+                
+                renderValidations();
+                modal.hide();
+                showModal('Éxito', 'Validación actualizada exitosamente', 'success');
+            };
+            
+            modal.show();
+        }
+
+        function editForm(index) {
+            const formulario = appState.formularios[index];
+            const modal = new bootstrap.Modal(document.getElementById('formModal'));
+            const form = document.getElementById('formForm');
+            
+            form.querySelector('input').value = formulario.nombre;
+            const select = document.getElementById('availableFields');
+            
+            // Seleccionar los campos actuales
+            Array.from(select.options).forEach(option => {
+                option.selected = formulario.campos.includes(option.value);
+            });
+            
+            form.onsubmit = (e) => {
+                e.preventDefault();
+                appState.formularios[index] = {
+                    nombre: form.querySelector('input').value,
+                    campos: Array.from(select.selectedOptions).map(o => o.value)
+                };
+                
+                renderForms();
+                modal.hide();
+                showModal('Éxito', 'Formulario actualizado exitosamente', 'success');
+            };
+            
+            modal.show();
+        }
+
+        // Modifica la función showModal para soportar confirmaciones
+        function showModal(title, message, type = 'info', callback = null) {
+            const modal = document.getElementById('messageModal');
+            const modalTitle = modal.querySelector('.modal-title');
+            const modalBody = modal.querySelector('.modal-body');
+            const modalFooter = modal.querySelector('.modal-footer');
+
+            modalTitle.textContent = title;
+            modalBody.textContent = message;
+            modal.classList.remove('modal-success', 'modal-warning', 'modal-danger', 'modal-info');
+            modal.classList.add(`modal-${type}`);
+
+            // Configurar botones
+            modalFooter.innerHTML = callback ? `
+                <button type="button" class="btn btn-danger" onclick="${callback}">Confirmar</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            ` : `
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            `;
+
+            new bootstrap.Modal(modal).show();
+        }
+    </script>
+</body>
+</html>

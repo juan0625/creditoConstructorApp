@@ -1,0 +1,210 @@
+<!-- gestionar.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Proyectos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .card-gestion {
+            border: 2px solid #003366;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .table-custom thead {
+            background-color: #003366;
+            color: white;
+        }
+        
+        .btn-accion {
+            padding: 0.3rem 0.8rem;
+            margin: 0 2px;
+        }
+        
+        .search-box {
+            border: 2px solid #003366;
+            border-radius: 25px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .alert-bancolombia {
+            border: 1px solid #003366;
+            border-left: 4px solid #003366;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-building fa-lg"></i> Bancolombia - Gestión
+            </a>
+            <div class="navbar-nav">
+                <a class="nav-link" href="modificar.html"><i class="fas fa-edit"></i> Módulo de Modificaciones</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido Principal -->
+    <div class="container my-5">
+        <div id="alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 1000;"></div>
+        
+        <div class="card card-gestion">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-tasks me-2"></i>Gestión de Proyectos</h4>
+            </div>
+            
+            <div class="card-body">
+                <!-- Buscador -->
+                <div class="search-box">
+                    <form id="form-busqueda" onsubmit="buscarProyectos(event)">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" id="buscar-proyecto" placeholder="Buscar por proyecto">
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" id="buscar-titular" placeholder="Buscar por titular">
+                            </div>
+                            <div class="col-md-3">
+                                <input type="text" class="form-control" id="buscar-nit" placeholder="NIT">
+                            </div>
+                            <div class="col-md-1">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Tabla de Resultados -->
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Proyecto</th>
+                                <th>Titular</th>
+                                <th>NIT</th>
+                                <th>Arquitecto</th>
+                                <th>Avance</th>
+                                <th>Último Desembolso</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultados-body">
+                            <!-- Dinámico -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pie de tabla -->
+                <div class="d-flex justify-content-between mt-4">
+                    <div class="text-muted" id="contador-resultados">
+                        Mostrando 0 resultados
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" onclick="exportarExcel()">
+                            <i class="fas fa-file-excel me-2"></i>Exportar a Excel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ver Detalles -->
+    <div class="modal fade" id="detalleModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Detalles del Proyecto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="detalle-content">
+                    <!-- Dinámico -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Función para mostrar alertas
+        function mostrarAlerta(mensaje, tipo = 'success') {
+            const alerta = document.createElement('div');
+            alerta.className = `alert alert-${tipo} alert-bancolombia alert-dismissible fade show`;
+            alerta.role = "alert";
+            alerta.innerHTML = `
+                ${mensaje}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.getElementById('alert-container').appendChild(alerta);
+            setTimeout(() => alerta.remove(), 5000);
+        }
+
+        // Función para cargar proyectos
+        async function cargarProyectos(filtros = {}) {
+            try {
+                const response = await fetch('/proyectos', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(filtros)
+                });
+                
+                const proyectos = await response.json();
+                const tbody = document.getElementById('resultados-body');
+                tbody.innerHTML = '';
+
+                proyectos.forEach(proyecto => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${proyecto.nombre}</td>
+                            <td>${proyecto.titular}</td>
+                            <td>${proyecto.nit}</td>
+                            <td>${proyecto.arquitecto}</td>
+                            <td>
+                                <div class="progress">
+                                    <div class="progress-bar" style="width: ${proyecto.avance}%">
+                                        ${proyecto.avance}%
+                                    </div>
+                                </div>
+                            </td>
+                            <td>${proyecto.ultimo_desembolso}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary btn-accion"
+                                    data-bs-toggle="modal" data-bs-target="#detalleModal"
+                                    onclick="cargarDetalles('${proyecto.id}')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-warning btn-accion"
+                                    onclick="location.href='modificar.html?id=${proyecto.id}'">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger btn-accion"
+                                    onclick="eliminarProyecto('${proyecto.id}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('contador-resultados').textContent = 
+                    `Mostrando ${proyectos.length} resultados`;
+            } catch (error) {
+                mostrarAlerta('Error al cargar proyectos', 'danger');
+            }
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => cargarProyectos());
+    </script>
+</body>
+</html>

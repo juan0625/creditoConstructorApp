@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bancolombia - Acceso al Sistema</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bancolombia-blue: #004884;
+            --bancolombia-light-blue: #0066CC;
+            --bancolombia-green: #28a745;
+            --bancolombia-gray: #F5F5F5;
+            --bancolombia-dark-gray: #333333;
+            --bancolombia-red: #d9534f;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--bancolombia-gray);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .login-container {
+            max-width: 400px;
+            margin: auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .bancolombia-logo {
+            width: 250px;
+            margin: 2rem auto;
+            display: block;
+        }
+        
+        /* Estilos mejorados para alertas */
+        .alert-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            max-width: 90%;
+            width: 400px;
+        }
+        
+        .custom-alert {
+            border-left: 5px solid;
+            animation: slideIn 0.3s forwards, fadeOut 0.5s forwards 3s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+        }
+        
+        .alert-success {
+            border-left-color: var(--bancolombia-green);
+            background-color: #f0fff4;
+        }
+        
+        .alert-danger {
+            border-left-color: var(--bancolombia-red);
+            background-color: #fff0f0;
+        }
+        
+        .alert-icon {
+            font-size: 1.8rem;
+            margin-right: 15px;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -30px);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+        
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
+        
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid var(--bancolombia-gray);
+            border-top: 5px solid var(--bancolombia-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        .custom-alert {
+            border-left: 5px solid;
+            animation: slideIn 0.3s forwards, fadeOut 0.5s forwards 3s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .alert-success {
+            border-left-color: #28a745;
+            background-color: #f0fff4;
+        }
+        
+        .alert-danger {
+            border-left-color: #dc3545;
+            background-color: #fff0f0;
+        }
+        
+        .alert-icon {
+            font-size: 1.8rem;
+            margin-right: 15px;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translate(-50%, -20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <body>
+        <!-- Contenedor para mensajes de alerta -->
+        <div class="alert-container" id="alertContainer"></div>
+        
+        <!-- Loading overlay -->
+        <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+            <div class="spinner"></div>
+        </div>
+        
+        <div class="container">
+            <img src="https://www.uam.edu.co/wp-content/uploads/2022/09/logo-bancolombia1.png" 
+                 alt="Bancolombia" 
+                 class="bancolombia-logo">
+                 
+            <div class="login-container">
+                <h2 class="text-center mb-4">Acceso al Sistema</h2>
+                <form id="loginForm" method="POST" action="{{ url_for('login') }}">
+                    <div class="mb-4">
+                        <label class="form-label">Usuario</label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="username"
+                               name="username" 
+                               required
+                               autocomplete="username">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Contraseña</label>
+                        <input type="password" 
+                               class="form-control" 
+                               id="password"
+                               name="password" 
+                               required
+                               autocomplete="current-password">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Rol</label>
+                        <select class="form-select" name="role" id="role" required>
+                            <option value="">Seleccionar rol...</option>
+                            <option value="arquitecto">Arquitecto</option>
+                            <option value="auxiliar">Auxiliar</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-sign-in-alt me-2"></i>Ingresar
+                    </button>
+                </form>
+            </div>
+        </div>
+    
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const loginForm = document.getElementById('loginForm');
+                const alertContainer = document.getElementById('alertContainer');
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                
+                // Manejar el envío del formulario
+                loginForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const username = document.getElementById('username').value;
+                    const password = document.getElementById('password').value;
+                    const role = document.getElementById('role').value;
+                    
+                    // Validación básica del lado del cliente
+                    if (!username || !password || !role) {
+                        showAlert('danger', 'Por favor complete todos los campos');
+                        return;
+                    }
+                    
+                    // Mostrar loading
+                    loadingOverlay.style.display = 'flex';
+                    
+                    // Enviar datos al servidor Flask
+                    fetch(loginForm.action, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: new URLSearchParams(new FormData(loginForm))
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Error en la autenticación');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            showAlert('success', 'Autenticación exitosa. Redirigiendo...');
+                            setTimeout(() => {
+                                window.location.href = data.redirect; // Usar URL del response
+                            }, 1500);
+                        } else {
+                            throw new Error(data.message || 'Credenciales incorrectas');
+                        }
+                    })
+                    .catch(error => {
+                        showAlert('danger', error.message);
+                        document.getElementById('password').value = '';
+                    })
+                    .finally(() => {
+                        loadingOverlay.style.display = 'none';
+                    });
+                });
+                
+                // Función para mostrar alerta
+                function showAlert(type, message, duration = 3000) {
+                    alertContainer.innerHTML = '';
+                    
+                    const iconClass = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = `alert custom-alert alert-${type} p-3`;
+                    alertDiv.innerHTML = `
+                        <i class="fas ${iconClass} alert-icon"></i>
+                        <div>
+                            <strong>${type === 'success' ? 'Éxito' : 'Error'}</strong>
+                            <div class="small">${message}</div>
+                        </div>
+                    `;
+                    
+                    alertContainer.appendChild(alertDiv);
+                    
+                    setTimeout(() => {
+                        alertDiv.remove();
+                    }, duration);
+                }
+            });
+        </script>
+    </body>
+</body>
+</html>

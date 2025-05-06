@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bancolombia - Consulta de Proyectos</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bancolombia-blue: #004884;
+            --bancolombia-light-blue: #0066CC;
+            --bancolombia-yellow: #FFD100;
+            --bancolombia-gray: #F5F5F5;
+            --bancolombia-dark-gray: #333333;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--bancolombia-gray);
+            color: var(--bancolombia-dark-gray);
+        }
+        
+        .header {
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 0;
+            margin-bottom: 20px;
+        }
+        
+        
+        .logo-container img {
+            height: 50px;
+        }
+        
+        .consultar-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+            /* Nuevas propiedades añadidas */
+            position: relative;
+            overflow: visible;
+            z-index: 1;
+        }
+        
+        .section-title {
+            color: var(--bancolombia-blue);
+            border-bottom: 2px solid var(--bancolombia-light-blue);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .btn-bancolombia {
+            background-color: var(--bancolombia-blue);
+            color: white;
+        }
+        
+        .btn-bancolombia:hover {
+            background-color: var(--bancolombia-light-blue);
+            color: white;
+        }
+        
+        .filtro-card {
+            border-left: 4px solid var(--bancolombia-light-blue);
+            margin-bottom: 20px;
+        }
+        
+        .resultados-table {
+            margin-top: 30px;
+        }
+        
+        .resultados-table th {
+            background-color: var(--bancolombia-blue);
+            color: white;
+        }
+        .footer {
+            background-color: var(--bancolombia-blue);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            font-size: 0.9rem;
+            margin-top: 40px;
+        }
+        
+        .footer a {
+            color: var(--bancolombia-yellow);
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        .user-info {
+            text-align: right;
+            padding: 10px 20px;
+            background-color: var(--bancolombia-gray);
+            color: var(--bancolombia-dark-gray);
+            font-size: 0.9rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        /* Ajustes para mejor alineación */
+        .container-aligned {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            width: 100%;
+        }
+        .breadcrumb {
+            background-color: transparent;
+            padding: 0;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        
+        .breadcrumb-item.active {
+            color: var(--bancolombia-blue);
+            font-weight: 600;
+        }
+         /* Efecto hover para el logo */
+         .logo-container img:hover {
+            transform: scale(1.05);
+        }
+        .logo-container {
+            text-align: center;
+            padding: 10px 0;
+            margin: 0 auto;
+            max-width: 1200px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .participante-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+
+        .modal-header {
+            padding: 1rem 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 500;
+        }
+        .acciones-container {
+            position: relative;
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-accion {
+            padding: 5px 10px;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.85rem;
+        }
+
+        .btn-accion-primary {
+            background-color: var(--bancolombia-blue);
+            color: white;
+            border: 1px solid var(--bancolombia-blue);
+        }
+
+        .btn-accion-primary:hover {
+            background-color: var(--bancolombia-light-blue);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0,72,132,0.2);
+        }
+
+        .btn-accion-secondary {
+            background-color: var(--bancolombia-gray);
+            color: var(--bancolombia-dark-gray);
+            border: 1px solid #ccc;
+        }
+
+        .btn-accion-secondary:hover {
+            background-color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        .acciones-extendidas {
+            position: absolute;
+            right: 0;
+            bottom: 100%; /* Cambiamos top por bottom */
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: none;
+            z-index: 1000;
+            min-width: 280px;
+            max-height: 400px;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 8px; /* Espacio entre botón y menú */
+            overflow-y: auto;
+            animation: slideUp 0.3s ease-out; /* Nueva animación */
+        }
+
+        /* Animación para aparecer hacia arriba */
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Clase adicional para cuando hay espacio abajo */
+        .menu-abajo {
+            top: 100%;
+            bottom: auto;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .acciones-container:hover .acciones-extendidas {
+            display: flex;
+        }
+
+        .btn-accion-extendida {
+            width: 100%;
+            justify-content: start;
+            text-align: left;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .acciones-container:hover .acciones-extendidas {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow: visible;
+        }
+
+        /* Ajustes para mejor visibilidad */
+        .btn-accion-extendida:hover {
+            transform: none;
+            background-color: #f8f9fa;
+            box-shadow: none;
+        }
+
+        .btn-accion-extendida i {
+            min-width: 20px;
+            margin-right: 10px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+     <!-- Header con logo y usuario -->
+     <div class="header">
+        <div class="container-aligned">
+            <div class="user-info">
+                <span class="role-badge me-3">{{ session.usuario.rol | title }}</span>
+                <i class="fas fa-user-circle"></i> {{ session.usuario.nombre }}
+                | <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+            </div>
+            <div class="logo-container">
+                <img src="https://www.uam.edu.co/wp-content/uploads/2022/09/logo-bancolombia1.png" 
+                     alt="Bancolombia">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url_for('menu_principal') }}"><i class="fas fa-home"></i> Menú Principal</a></li>
+                        <li class="breadcrumb-item active" aria-current="page"><i class="fas fa-user-tie"></i> Módulo Pilotos</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenido principal -->
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3"><i class="fas fa-search me-2"></i> Consulta de Proyectos</h1>
+            <a href="{{ url_for('modulo_pilotos') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Volver
+            </a>
+        </div>
+        
+        <!-- Card de Filtros -->
+        <div class="consultar-container">
+            <h2 class="section-title"><i class="fas fa-filter me-2"></i>Filtros de Búsqueda</h2>
+            
+            <form id="form-consulta">
+                <div class="row">
+                    <!-- Filtro 1: Datos Generales -->
+                    <div class="col-md-6">
+                        <div class="card filtro-card">
+                            <div class="card-body">
+                                <h5 class="card-title text-bancolombia">Datos Generales</h5>
+                                <div class="mb-3">
+                                    <label class="form-label">Proyecto</label>
+                                    <input type="text" class="form-control" name="proyecto">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Titular</label>
+                                    <input type="text" class="form-control" name="titular">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">NIT</label>
+                                    <input type="text" class="form-control" name="nit">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Filtro 2: Roles -->
+                    <div class="col-md-6">
+                        <div class="card filtro-card">
+                            <div class="card-body">
+                                <h5 class="card-title text-bancolombia">Roles</h5>
+                                <div class="mb-3">
+                                    <label class="form-label">Arquitecto</label>
+                                    <select class="form-select" name="arquitecto">
+                                        <option value="">Todos</option>
+                                        <option>Arquitecto 1</option>
+                                        <option>Arquitecto 2</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Gerente</label>
+                                    <select class="form-select" name="gerente">
+                                        <option value="">Todos</option>
+                                        <option>Gerente 1</option>
+                                        <option>Gerente 2</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Constructor</label>
+                                    <select class="form-select" name="constructor">
+                                        <option value="">Todos</option>
+                                        <option>Constructor 1</option>
+                                        <option>Constructor 2</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Filtro 3: Avances -->
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="card filtro-card">
+                            <div class="card-body">
+                                <h5 class="card-title text-bancolombia">Avances</h5>
+                                <div class="mb-3">
+                                    <label class="form-label">Estado Obra</label>
+                                    <select class="form-select" name="estado_obra">
+                                        <option value="">Todos</option>
+                                        <option>En progreso</option>
+                                        <option>Completado</option>
+                                        <option>Detenido</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">% Avance</label>
+                                    <input type="range" class="form-range" min="0" max="100" name="avance">
+                                    <div class="d-flex justify-content-between">
+                                        <small>0%</small>
+                                        <small>100%</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Filtro 4: Desembolsos -->
+                    <div class="col-md-6">
+                        <div class="card filtro-card">
+                            <div class="card-body">
+                                <h5 class="card-title text-bancolombia">Desembolsos</h5>
+                                <div class="mb-3">
+                                    <label class="form-label">Monto Min.</label>
+                                    <input type="number" class="form-control" name="monto_min">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Monto Max.</label>
+                                    <input type="number" class="form-control" name="monto_max">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Fecha Desde</label>
+                                    <input type="date" class="form-control" name="fecha_desde">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Botones -->
+                <div class="d-flex justify-content-end mt-4">
+                    <button type="reset" class="btn btn-outline-secondary me-3">
+                        <i class="fas fa-eraser me-2"></i>Limpiar
+                    </button>
+                    <button type="submit" class="btn btn-bancolombia">
+                        <i class="fas fa-search me-2"></i>Buscar
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Resultados -->
+        <div class="consultar-container">
+            <h2 class="section-title"><i class="fas fa-table me-2"></i>Resultados</h2>
+            <div class="d-flex justify-content-end mt-4">
+                <button type="button" class="btn btn-success" id="btn-exportar">
+                    <i class="fas fa-file-export me-2"></i>Exportar a Excel
+                </button>
+            </div>         
+            <div class="table-responsive resultados-table">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Proyecto</th>
+                            <th>Titular</th>
+                            <th>NIT</th>
+                            <th>Arquitecto</th>
+                            <th>% Avance</th>
+                            <th>Perito</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultados-body">
+                        <!-- Dinámico -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <!-- Paginación -->
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" tabindex="-1">Anterior</a>
+                    </li>
+                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Script para manejar la búsqueda -->
+
+    <script>
+        
+        // Función de formato de fecha mejorada
+        function formatFecha(valor) {
+            try {
+                if (!valor) return 'Sin registros';
+                
+                // Manejar diferentes formatos de fecha
+                const fecha = new Date(valor);
+                if (isNaN(fecha)) {
+                    // Intentar extraer fecha de cadenas complejas
+                    const match = valor.match(/(\d{2})[/-](\d{2})[/-](\d{4})/);
+                    return match ? `${match[1]}/${match[2]}/${match[3]}` : 'Fecha inválida';
+                }
+                return fecha.toLocaleDateString('es-CO');
+            } catch (e) {
+                console.error('Error formateando fecha:', valor, e);
+                return 'Formato inválido';
+            }
+        }
+
+
+        function obtenerRolUsuario() {
+        return document.querySelector('.role-badge').textContent.trim().toLowerCase();
+        }
+
+        // Función para cargar (y filtrar) proyectos
+        function cargarProyectos(filtros = {}) {
+            const userRole = obtenerRolUsuario();
+            let proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+
+            // Ordena por fecha_creacion descendente
+            proyectos.sort((a, b) => 
+                (b.fecha_creacion || 0) - (a.fecha_creacion || 0)
+            );
+
+            // Aplica filtros solo si hay valor en el formulario
+            proyectos = proyectos.filter(p => {
+                let ok = true;
+
+                // filtro por proyecto: ID o nombre
+                if (filtros.proyecto) {
+                    const busq = filtros.proyecto.toLowerCase();
+                    ok = ok && (
+                        (p.id_proyecto   || '').toString().toLowerCase().includes(busq) ||
+                        (p.nombre_proyecto || '').toLowerCase().includes(busq)
+                    );
+                }
+
+                // filtro por titular
+                if (filtros.titular) {
+                    const busq = filtros.titular.toLowerCase();
+                    ok = ok && (
+                        (p.titular_credito || '').toLowerCase().includes(busq)
+                    );
+                }
+
+                // filtro por NIT (titular o grupo riesgo)
+                if (filtros.nit) {
+                    const busq = filtros.nit.toLowerCase();
+                    ok = ok && (
+                        (p.nit_titular      || '').toLowerCase().includes(busq) ||
+                        (p.nit_grupo_riesgo || '').toLowerCase().includes(busq)
+                    );
+                }
+
+                return ok;
+            });
+
+            const tbody = document.getElementById('resultados-body');
+            tbody.innerHTML = '';
+
+            proyectos.forEach(p => {
+                const datos = {
+                    nombre_proyecto: p.nombre_proyecto || 'Proyecto sin nombre',
+                    titular:         p.titular_credito || 'Sin titular',
+                    nit:             p.nit_titular || p.nit_grupo_riesgo || 'Sin NIT',
+                    arquitecto:      p.arquitecto || p.gerente || 'Sin arquitecto',
+                    avance:          Math.min(Math.max(p.avance || 0, 0), 100),
+                    perito:          p.perito || '—',
+                    estado:          p.estado || 'Activo'
+                };
+                const puedeEditar = ['admin','arquitecto'].includes(userRole);
+                const badge = datos.estado === 'Desistido'
+                    ? '<span class="badge bg-danger">Desistido</span>'
+                    : '<span class="badge bg-success">Activo</span>';
+
+                tbody.innerHTML += `
+                    <tr>
+                    <td>${datos.nombre_proyecto} ${badge}</td>
+                    <td>${datos.titular}</td>
+                    <td>${datos.nit}</td>
+                    <td>${datos.arquitecto}</td>
+                    <td>
+                        <div class="progress">
+                        <div class="progress-bar" style="width:${datos.avance}%">
+                            ${datos.avance}%
+                        </div>
+                        </div>
+                    </td>
+                    <td>${datos.perito}</td>
+                    <td>
+                        <div class="acciones-container">
+                        <button class="btn btn-accion btn-accion-primary"
+                                onclick="verProyecto('${p.id_proyecto}')"
+                                data-bs-toggle="tooltip" title="Ver detalles">
+                            <i class="fas fa-eye"></i> Ver
+                        </button>
+                        ${puedeEditar ? `
+                        <button class="btn btn-accion btn-accion-secondary"
+                                onclick="editarProyecto('${p.id_proyecto}')"
+                                data-bs-toggle="tooltip" title="Editar proyecto">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <div class="dropdown">
+                            <button class="btn btn-accion btn-accion-secondary"
+                                    data-bs-toggle="dropdown" title="Más acciones">
+                            <i class="fas fa-ellipsis-h"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end animate__fadeIn">
+                            <li>
+                                <button class="dropdown-item"
+                                        onclick="mostrarModalGestion('titular','${p.id_proyecto}')">
+                                <i class="fas fa-user-edit me-2 text-primary"></i>
+                                Cambio Titular
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item"
+                                        onclick="mostrarModalGestion('nombre','${p.id_proyecto}')">
+                                <i class="fas fa-signature me-2 text-info"></i>
+                                Cambio Nombre
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item"
+                                        onclick="mostrarModalGestion('unidades','${p.id_proyecto}')">
+                                <i class="fas fa-cubes me-2 text-warning"></i>
+                                Gestión Unidades
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item"
+                                        onclick="mostrarModalGestion('desistimiento','${p.id_proyecto}')">
+                                <i class="fas fa-ban me-2 text-danger"></i>
+                                Desistimiento
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item"
+                                        onclick="mostrarModalGestion('monto','${p.id_proyecto}')">
+                                <i class="fas fa-coins me-2 text-success"></i>
+                                Ampliación de Monto
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item"
+                                        onclick="mostrarModalGestion('vigencia','${p.id_proyecto}')">
+                                <i class="fas fa-calendar-day me-2 text-info"></i>
+                                Ampliación de Vigencia
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item"
+                                        onclick="mostrarModalGestion('plazo','${p.id_proyecto}')">
+                                <i class="fas fa-clock me-2 text-warning"></i>
+                                Ampliación de Plazo
+                                </button>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <button class="dropdown-item text-danger"
+                                        onclick="eliminarProyecto('${p.id_proyecto}')">
+                                <i class="fas fa-trash-alt me-2"></i>
+                                Eliminar Proyecto
+                                </button>
+                            </li>
+                            </ul>
+                        </div>
+                        ` : ''}
+                    </div>
+                    </td>
+                </tr>
+                `;
+            });
+
+            // Si no quedan proyectos, aviso
+            if (proyectos.length === 0) {
+                tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center">— Sin resultados —</td>
+                </tr>
+                `;
+            }
+        }
+
+        // Opcional: al cargar la página muestro todos
+        window.addEventListener('DOMContentLoaded', () => {
+            cargarProyectos({});
+        });
+                
+        // Función para abrir modal de edición
+        function editarProyecto(id) {
+            const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+            const p = proyectos.find(x => x.id_proyecto === id);
+            if (!p) return;
+
+            // Rellenar campos básicos
+            document.getElementById('edit-id').value       = p.id_proyecto;
+            document.getElementById('edit-nombre').value   = p.nombre_proyecto || '';
+            document.getElementById('edit-titular').value  = p.titular_credito || '';
+            document.getElementById('edit-nit').value      = p.nit_titular || '';
+            document.getElementById('edit-avance').value   = p.avance || 0;
+
+            // Rellenar lista de participantes
+            const lista = document.querySelector('.participantes-list');
+            lista.innerHTML = '';
+            if (Array.isArray(p.participantes)) {
+                p.participantes.forEach(pt => {
+                const row = document.createElement('div');
+                row.classList.add('participante-item', 'mb-2', 'row');
+                row.innerHTML = `
+                    <div class="col"><input type="text" class="form-control" placeholder="Nombre" value="${pt.nombre || ''}"></div>
+                    <div class="col"><input type="text" class="form-control" placeholder="Rol"    value="${pt.rol    || ''}"></div>
+                    <div class="col"><input type="number" class="form-control" placeholder="%"    min="0" max="100" value="${pt.participacion || 0}"></div>
+                    <div class="col-auto">
+                    <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.participante-item').remove()">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    </div>`;
+                lista.appendChild(row);
+                });
+            }
+
+            // Mostrar modal
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('editarModal')).show();
+            }
+        
+            // Añade un nuevo bloque de inputs para un participante
+            function agregarParticipante() {
+            const lista = document.querySelector('.participantes-list');
+            const row = document.createElement('div');
+            row.classList.add('participante-item', 'mb-2', 'row');
+            row.innerHTML = `
+                <div class="col"><input type="text" class="form-control" placeholder="Nombre"></div>
+                <div class="col"><input type="text" class="form-control" placeholder="Rol"></div>
+                <div class="col"><input type="number" class="form-control" placeholder="%" min="0" max="100"></div>
+                <div class="col-auto">
+                <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.participante-item').remove()">
+                    <i class="fas fa-trash"></i>
+                </button>
+                </div>`;
+            lista.appendChild(row);
+            }
+
+        function generarMenuAcciones(proyecto) {
+            return `
+                <li>
+                    <button class="dropdown-item" 
+                            onclick="mostrarModalGestion('desistimiento','${proyecto.id}')">
+                        <i class="fas fa-ban me-2 text-danger"></i>
+                        Desistimiento
+                    </button>
+                </li>
+                <li>
+                    <button class="dropdown-item" 
+                            onclick="mostrarModalGestion('monto','${proyecto.id}')">
+                        <i class="fas fa-coins me-2 text-success"></i>
+                        Ampliación de Monto
+                    </button>
+                </li>
+                <li>
+                    <button class="dropdown-item" 
+                            onclick="mostrarModalGestion('vigencia','${proyecto.id}')">
+                        <i class="fas fa-calendar-day me-2 text-info"></i>
+                        Ampliación de Vigencia
+                    </button>
+                </li>
+                <li>
+                    <button class="dropdown-item" 
+                            onclick="mostrarModalGestion('plazo','${proyecto.id}')">
+                        <i class="fas fa-clock me-2 text-warning"></i>
+                        Ampliación de Plazo
+                    </button>
+                </li>
+            `;
+        }
+        
+        
+        // Guarda los cambios del formulario del modal
+        function guardarCambios() {
+            try {
+                const proyectos = JSON.parse(localStorage.getItem('proyectos') || []);
+                const id = document.getElementById('edit-id')?.value;
+                if (!id) throw new Error('ID de proyecto no encontrado');
+
+                const idx = proyectos.findIndex(p => p.id_proyecto === id);
+                if (idx === -1) throw new Error('Proyecto no existe en los registros');
+
+                // Recoger datos del formulario con validación
+                const form = document.getElementById('form-editar');
+                if (!form) throw new Error('Formulario no encontrado');
+
+                const updated = {
+                    ...proyectos[idx],
+                    nombre_proyecto: form.querySelector('#edit-nombre')?.value?.trim() || proyectos[idx].nombre_proyecto,
+                    titular_credito: form.querySelector('#edit-titular')?.value?.trim() || proyectos[idx].titular_credito,
+                    nit_titular: form.querySelector('#edit-nit')?.value?.trim() || proyectos[idx].nit_titular,
+                    avance: parseInt(form.querySelector('#edit-avance')?.value, 10) || proyectos[idx].avance || 0,
+                    participantes: []
+                };
+
+                // Recoger participantes con validación
+                document.querySelectorAll('.participante-item').forEach(item => {
+                    const inputs = item.querySelectorAll('input');
+                    if (inputs.length >= 3) {
+                        updated.participantes.push({
+                            nombre: inputs[0]?.value?.trim() || '',
+                            rol: inputs[1]?.value?.trim() || '',
+                            participacion: parseInt(inputs[2]?.value, 10) || 0
+                        });
+                    }
+                });
+
+                // Actualizar y guardar
+                proyectos[idx] = updated;
+                localStorage.setItem('proyectos', JSON.stringify(proyectos));
+                
+                // Actualizar UI y cerrar modal
+                cargarProyectos({});
+                bootstrap.Modal.getInstance(document.getElementById('editarModal'))?.hide();
+                
+                // Feedback visual
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Guardado!',
+                    text: 'Cambios actualizados correctamente',
+                    timer: 1500
+                });
+
+            } catch (error) {
+                console.error('Error al guardar:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: error.message || 'No se pudieron guardar los cambios'
+                });
+            }
+        }
+        // Función para manejar eliminación
+        function eliminarProyecto(id) {
+            document.getElementById('delete-id').value = id;
+            new bootstrap.Modal(document.getElementById('eliminarModal')).show();
+        }
+
+        function confirmarEliminacion() {
+            const id = document.getElementById('delete-id').value;
+            let proyectos = JSON.parse(localStorage.getItem('proyectos') || '[]');
+            proyectos = proyectos.filter(p => p.id !== id);
+            localStorage.setItem('proyectos', JSON.stringify(proyectos));
+            cargarProyectos();
+            bootstrap.Modal.getInstance(document.getElementById('eliminarModal')).hide();
+        }
+
+        // Funciones para manejar participantes
+        function agregarParticipante() {
+            const container = document.querySelector('.participantes-list');
+            const index = container.children.length;
+            
+            container.innerHTML += `
+                <div class="participante-item mb-2">
+                    <div class="row g-2">
+                        <div class="col-4">
+                            <input type="text" class="form-control" placeholder="Nombre" data-index="${index}">
+                        </div>
+                        <div class="col-3">
+                            <select class="form-select" data-index="${index}">
+                                <option>Arquitecto</option>
+                                <option>Ingeniero</option>
+                                <option>Cliente</option>
+                            </select>
+                        </div>
+                        <div class="col-3">
+                            <input type="number" class="form-control" placeholder="Participación %" data-index="${index}">
+                        </div>
+                        <div class="col-2">
+                            <button class="btn btn-danger btn-sm" onclick="eliminarParticipante(${index})">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function eliminarParticipante(index) {
+            document.querySelectorAll('.participante-item')[index].remove();
+        }
+
+        // Modificar la función verProyecto para usar ID
+        function verProyecto(id) {
+            try {
+                // 1. Buscar proyecto usando id_proyecto
+                const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+                const proyecto = proyectos.find(p => p.id_proyecto === id);
+
+                if (!proyecto) {
+                    Swal.fire('Error', `Proyecto con ID ${id} no existe`, 'error');
+                    return;
+                }
+
+                // 2. Construir contenido dinámico
+                const contenidoHTML = `
+                    <div class="container-fluid">
+                        <h4 class="mb-3">${proyecto.nombre_proyecto || 'Proyecto sin nombre'}</h4>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>ID Proyecto:</strong> ${proyecto.id_proyecto}</p>
+                                <p><strong>Titular:</strong> ${proyecto.titular_credito || 'No registrado'}</p>
+                                <p><strong>NIT:</strong> ${proyecto.nit_titular || proyecto.nit || 'Sin NIT'}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Avance:</strong> 
+                                    <div class="progress">
+                                        <div class="progress-bar" 
+                                            style="width: ${proyecto.avance || 0}%">
+                                            ${proyecto.avance || 0}%
+                                        </div>
+                                    </div>
+                                </p>
+                                <p><strong>Estado:</strong> 
+                                    <span class="badge ${proyecto.estado === 'Desistido' ? 'bg-danger' : 'bg-success'}">
+                                        ${proyecto.estado || 'Activo'}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+
+                       ${proyecto.participantes?.length ? `
+                        <div class="mt-4">
+                            <h5>Participantes</h5>
+                            <ul class="list-group">
+                                ${proyecto.participantes.map(p => `
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        ${p.nombre || 'N/A'}
+                                        <span class="badge bg-primary rounded-pill">
+                                            ${p.rol || 'Sin rol'}
+                                        </span>
+                                        <span class="text-muted">${p.participacion || 0}%</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+                    </div>`;
+
+                // 3. Inyectar contenido y mostrar modal
+                const detalleContent = document.getElementById('detalle-content');
+                detalleContent.innerHTML = contenidoHTML;
+                new bootstrap.Modal(document.getElementById('detalleModal')).show();
+
+            } catch (error) {
+                console.error('Error en verProyecto:', error);
+                Swal.fire('Error', 'No se pudo cargar el detalle del proyecto', 'error');
+            }
+        }
+
+
+        // 2) Al enviar el formulario, evita el submit y llama a cargarProyectos
+        document.getElementById('form-consulta').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const filtros = {
+                proyecto: this.elements.proyecto.value.trim(),
+                titular: this.elements.titular.value.trim(),
+                nit: this.elements.nit.value.trim()
+            };
+            cargarProyectos(filtros);
+        });
+
+        // Exportar a Excel
+        document.getElementById('btn-exportar').addEventListener('click', () => {
+            const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+            let csvContent = "data:text/csv;charset=utf-8,";
+            
+            // Cabeceras
+            csvContent += "Proyecto,Titular,NIT,Arquitecto,Avance%,Fecha Creacion\n";
+            
+            // Datos
+            proyectos.forEach(proyecto => {
+                const row = [
+                    `"${proyecto.nombre_proyecto}"`,
+                    `"${proyecto.titular}"`,
+                    proyecto.nit,
+                    (proyecto.participantes || []).find(p => p.rol === 'Arquitecto')?.nombre || 'N/A',
+                    proyecto.avance || 0,
+                    formatFecha(proyecto.fecha_creacion)
+                ].join(',');
+                csvContent += row + "\n";
+            });
+            
+            // Descargar
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "proyectos.csv");
+            document.body.appendChild(link);
+            link.click();
+        });
+
+        function mostrarModalGestion(tipo, idProyecto) {
+
+        try {
+            // 1. Obtener proyectos de forma segura
+            const proyectos = JSON.parse(localStorage.getItem('proyectos') || []);
+            
+            // 2. Buscar usando id_proyecto como campo principal
+            const proyecto = proyectos.find(p => p.id_proyecto === idProyecto);
+            
+            if (!proyecto) {
+                Swal.fire('Error', 'Proyecto no encontrado', 'error');
+                return;
+            }
+
+            // 3. Configuración del modal
+            const modal = new bootstrap.Modal(document.getElementById('gestionModal'));
+            const titulos = {
+                titular: 'Cambio de Titular',
+                nombre: 'Cambio de Nombre del Proyecto',
+                unidades: 'Gestión de Unidades',
+                desistimiento: 'Registrar Desistimiento',
+                monto: 'Ampliación de Monto Aprobado',
+                vigencia: 'Ampliación de Vigencia',
+                plazo: 'Ampliación de Plazo de Ejecución'
+            };
+
+            // 4. Resetear y preparar contenido
+            document.querySelectorAll('.gestion-contenido').forEach(div => div.style.display = 'none');
+            const contenido = document.getElementById(`contenido-${tipo}`);
+            if (!contenido) {
+                throw new Error(`No se encontró contenido para el tipo: ${tipo}`);
+            }
+            contenido.style.display = 'block';
+            
+            // 5. Llenar datos dinámicos
+            document.getElementById('gestionModalTitle').textContent = titulos[tipo];
+            document.getElementById('gestion-id').value = idProyecto;
+            document.getElementById('gestion-tipo').value = tipo;
+
+            // 6. Manejo específico por tipo
+            switch(tipo) {
+                case 'titular':
+                    document.getElementById('actual-titular').value = proyecto.titular_credito || proyecto.titular || '';
+                    break;
+                case 'nombre':
+                    document.getElementById('actual-nombre').value = proyecto.nombre_proyecto || '';
+                    break;
+                case 'unidades':
+                    document.getElementById('actual-unidades').value = proyecto.total_inmuebles || 0;
+                    break;
+                case 'desistimiento':
+                    document.getElementById('fecha-desistimiento').value = new Date().toISOString().split('T')[0];
+                    break;
+                case 'monto':
+                    document.getElementById('actual-monto').value = proyecto.total_valor_aprobado || 0;
+                    break;
+                case 'vigencia':
+                    document.getElementById('actual-vigencia').value = proyecto.vigencia || '';
+                    break;
+                case 'plazo':
+                    document.getElementById('actual-plazo').value = proyecto.meses_programacion || 0;
+                    break;
+            }
+
+            modal.show();
+
+        } catch (error) {
+            console.error('Error en mostrarModalGestion:', error);
+            Swal.fire('Error', 'No se pudo cargar el formulario de gestión', 'error');
+        }
+    }
+
+    function guardarGestion() {
+        try {
+            // 1. Obtener datos del formulario
+            const proyectos = JSON.parse(localStorage.getItem('proyectos') || []);
+            const idProyecto = document.getElementById('gestion-id').value;
+            const tipo = document.getElementById('gestion-tipo').value;
+            
+            // 2. Buscar proyecto
+            const proyecto = proyectos.find(p => p.id_proyecto === idProyecto);
+            if (!proyecto) {
+                Swal.fire('Error', 'Proyecto no encontrado', 'error');
+                return;
+            }
+
+            // 3. Registrar cambios en histórico
+            const cambios = {};
+            const usuario = JSON.parse(localStorage.getItem('usuario'))?.nombre || 'Usuario desconocido';
+
+            switch(tipo) {
+                case 'titular':
+                    cambios.anterior = datos.titular;
+                    cambios.nuevo = document.getElementById('nuevo-titular').value;
+                    proyecto.datos.titular = cambios.nuevo;
+                    break;
+                    
+                case 'nombre':
+                    cambios.anterior = proyecto.nombre_proyecto;
+                    cambios.nuevo = document.getElementById('nuevo-nombre').value;
+                    proyecto.nombre_proyecto = cambios.nuevo;
+                    break;
+                    
+                case 'unidades':
+                    cambios.anterior = proyecto.total_inmuebles;
+                    cambios.nuevo = parseInt(document.getElementById('nuevo-unidades').value) || 0;
+                    proyecto.total_inmuebles = cambios.nuevo;
+                    break;
+                    
+                case 'desistimiento':
+                    proyecto.estado = 'Desistido';
+                    proyecto.motivo_desistimiento = document.getElementById('motivo-desistimiento').value;
+                    proyecto.fecha_desistimiento = document.getElementById('fecha-desistimiento').value;
+                    cambios = { motivo: proyecto.motivo_desistimiento, fecha: proyecto.fecha_desistimiento };
+                    break;
+                    
+                case 'monto':
+                    cambios.anterior = proyecto.total_valor_aprobado;
+                    cambios.nuevo = parseFloat(document.getElementById('nuevo-monto').value) || 0;
+                    proyecto.total_valor_aprobado = cambios.nuevo;
+                    break;
+                    
+                case 'vigencia':
+                    cambios.anterior = proyecto.vigencia;
+                    cambios.nuevo = document.getElementById('nueva-vigencia').value;
+                    proyecto.vigencia = cambios.nuevo;
+                    break;
+                    
+                case 'plazo':
+                    cambios.anterior = proyecto.meses_programacion;
+                    cambios.nuevo = parseInt(document.getElementById('nuevo-plazo').value) || 0;
+                    proyecto.meses_programacion = cambios.nuevo;
+                    break;
+            }
+
+            // 4. Guardar en histórico
+            const registroHistorico = {
+                tipo: 'modificación',
+                accion: tipo,
+                fecha: new Date().toISOString(),
+                cambios: cambios,
+                usuario: usuario,
+                proyectoId: idProyecto
+            };
+
+            const historico = JSON.parse(localStorage.getItem('historicoModificaciones') || []);
+            historico.push(registroHistorico);
+            localStorage.setItem('historicoModificaciones', JSON.stringify(historico));
+
+            // 5. Actualizar datos y UI
+            localStorage.setItem('proyectos', JSON.stringify(proyectos));
+            cargarProyectos();
+            
+            // 6. Cerrar modal
+            bootstrap.Modal.getInstance(document.getElementById('gestionModal')).hide();
+            
+            Swal.fire('Éxito', 'Cambios guardados correctamente', 'success');
+
+        } catch (error) {
+            console.error('Error en guardarGestion:', error);
+            Swal.fire('Error', 'No se pudieron guardar los cambios', 'error');
+        }
+    }
+        // Cargar inicial
+        document.addEventListener('DOMContentLoaded', () => cargarProyectos());
+    </script>
+    <!-- Modal Detalles -->
+    <div class="modal fade" id="detalleModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Detalles del Proyecto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="detalle-content"></div>
+            </div>
+        </div>
+    </div>
+    <!-- Modal Editar Proyecto -->
+    <div class="modal fade" id="editarModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+            <h5 class="modal-title">Editar Proyecto</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+            <form id="form-editar">
+                <input type="hidden" id="edit-id">
+                <div class="mb-3">
+                <label class="form-label">Nombre del Proyecto</label>
+                <input type="text" class="form-control" id="edit-nombre" required>
+                </div>
+                <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Titular</label>
+                    <input type="text" class="form-control" id="edit-titular" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">NIT</label>
+                    <input type="text" class="form-control" id="edit-nit" required>
+                </div>
+                </div>
+                <div class="mb-3">
+                <label class="form-label">Avance (%)</label>
+                <input type="number" class="form-control" id="edit-avance" min="0" max="100" required>
+                </div>
+                <div class="participantes-container mb-3">
+                <label class="form-label">Participantes</label>
+                <div class="participantes-list"></div>
+                <button type="button" class="btn btn-sm btn-primary mt-2" onclick="agregarParticipante()">
+                    <i class="fas fa-plus"></i> Agregar Participante
+                </button>
+                </div>
+            </form>
+            </div>
+            <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-warning" onclick="guardarCambios()">Guardar Cambios</button>
+            </div>
+        </div>
+        </div>
+    </div>  
+    <!-- Modal Eliminar -->
+    <div class="modal fade" id="eliminarModal" tabindex="-1">
+        <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+            <h5 class="modal-title">Confirmar Eliminación</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+            <p>¿Está seguro que desea eliminar este proyecto? Esta acción no se puede deshacer.</p>
+            <input type="hidden" id="delete-id">
+            </div>
+            <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-danger" onclick="confirmarEliminacion()">Eliminar Definitivamente</button>
+            </div>
+        </div>
+        </div>
+    </div>
+   <!-- Modal para Gestiones -->
+    <div class="modal fade" id="gestionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="gestionModalTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-gestion">
+                        <input type="hidden" id="gestion-id">
+                        <input type="hidden" id="gestion-tipo">
+                        
+                        <!-- Contenido dinámico -->
+                        <div id="contenido-titular" class="gestion-contenido" style="display:none;">
+                            <div class="mb-3">
+                                <label class="form-label">Titular Actual</label>
+                                <input type="text" class="form-control" id="actual-titular" disabled>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Nuevo Titular</label>
+                                <input type="text" class="form-control" id="nuevo-titular" required>
+                            </div>
+                        </div>
+
+                        <div id="contenido-nombre" class="gestion-contenido" style="display:none;">
+                            <div class="mb-3">
+                                <label class="form-label">Nombre Actual</label>
+                                <input type="text" class="form-control" id="actual-nombre" disabled>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Nuevo Nombre</label>
+                                <input type="text" class="form-control" id="nuevo-nombre" required>
+                            </div>
+                        </div>
+
+                        <div id="contenido-unidades" class="gestion-contenido" style="display:none;">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Unidades Actuales</label>
+                                    <input type="number" class="form-control" id="actual-unidades" disabled>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Nuevo Valor</label>
+                                    <input type="number" class="form-control" id="nuevo-unidades" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Tipo de Modificación</label>
+                                <select class="form-select" id="tipo-modificacion" required>
+                                    <option value="">Seleccionar...</option>
+                                    <option value="ajuste">Ajuste de unidades</option>
+                                    <option value="ampliacion">Ampliación</option>
+                                    <option value="reduccion">Reducción</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Contenido para Desistimiento -->
+                            <div id="contenido-desistimiento" class="gestion-contenido" style="display:none;">
+                                    <div class="mb-3">
+                                        <label class="form-label">Motivo del Desistimiento</label>
+                                        <textarea class="form-control" id="motivo-desistimiento" rows="3" required></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Fecha Efectiva</label>
+                                        <input type="date" class="form-control" id="fecha-desistimiento" required>
+                                    </div>
+                            </div>
+        
+                            <!-- Contenido para Ampliación de Monto -->
+                            <div id="contenido-monto" class="gestion-contenido" style="display:none;">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Monto Actual</label>
+                                            <input type="number" class="form-control" id="actual-monto" disabled>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Nuevo Monto</label>
+                                            <input type="number" class="form-control" id="nuevo-monto" required>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Justificación</label>
+                                        <textarea class="form-control" rows="2" required></textarea>
+                                    </div>
+                            </div>
+        
+                            <!-- Contenido para Ampliación de Vigencia -->
+                            <div id="contenido-vigencia" class="gestion-contenido" style="display:none;">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Vigencia Actual</label>
+                                            <input type="date" class="form-control" id="actual-vigencia" disabled>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Nueva Vigencia</label>
+                                            <input type="date" class="form-control" id="nueva-vigencia" required>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Razón de la Ampliación</label>
+                                        <textarea class="form-control" rows="2" required></textarea>
+                                    </div>
+                            </div>
+        
+                             <!-- Contenido para Ampliación de Plazo -->
+                            <div id="contenido-plazo" class="gestion-contenido" style="display:none;">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Plazo Actual (meses)</label>
+                                            <input type="number" class="form-control" id="actual-plazo" disabled>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Nuevo Plazo</label>
+                                            <input type="number" class="form-control" id="nuevo-plazo" required>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Explicación del Cambio</label>
+                                        <textarea class="form-control" rows="2" required></textarea>
+                                    </div>
+                            </div>
+                        <!-- Sección común para todas las gestiones -->
+                        <div class="mt-4">
+                            <label class="form-label">Comentarios</label>
+                            <textarea class="form-control" rows="3" 
+                                    placeholder="Justificación de la modificación" required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarGestion()">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Footer Estándar Bancolombia -->
+     <!-- Footer -->
+     <div class="footer">
+        <div class="container-aligned">
+            <p>© 2025 Bancolombia. Todos los derechos reservados.</p>
+            <p>
+                <a href="#">Términos y condiciones</a> | 
+                <a href="#">Política de privacidad</a> | 
+                <a href="#">Ayuda</a>
+            </p>
+            <p>
+                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 | 
+                <i class="fas fa-map-marker-alt"></i> Sede principal: Medellín, Colombia
+            </p>
+        </div>
+    </div>
+</body>
+</html>

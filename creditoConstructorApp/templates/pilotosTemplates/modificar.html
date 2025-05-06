@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bancolombia - Módulo de Modificaciones</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Estilos consistentes con el ejemplo proporcionado */
+        :root {
+            --bancolombia-blue: #004884;
+            --bancolombia-light-blue: #0066CC;
+            --bancolombia-yellow: #FFD100;
+            --bancolombia-gray: #F5F5F5;
+            --bancolombia-dark-gray: #333333;
+        }
+
+        .modificacion-card {
+            border: 2px solid var(--bancolombia-blue);
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .list-group-modificacion .list-group-item {
+            border: none;
+            border-left: 4px solid var(--bancolombia-light-blue);
+            margin: 8px 0;
+            transition: all 0.3s ease;
+        }
+
+        .list-group-modificacion .list-group-item:hover {
+            transform: translateX(10px);
+            background-color: var(--bancolombia-gray);
+        }
+
+        .modal-modificacion .modal-header {
+            background-color: var(--bancolombia-blue);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header igual al ejemplo -->
+    <div class="header">
+        <!-- Misma estructura de header que en consulta -->
+    </div>
+
+    <!-- Contenido principal -->
+    <div class="container my-5">
+        <div class="modificacion-card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-edit me-2"></i>Módulo de Modificaciones</h4>
+            </div>
+            
+            <div class="card-body">
+                <div class="list-group list-group-modificacion">
+                    <!-- Cada ítem abre su modal correspondiente -->
+                    <a href="#" class="list-group-item list-group-item-action" 
+                       data-bs-toggle="modal" data-bs-target="#modalCambioTitular">
+                        <i class="fas fa-user-tag me-2"></i>Cambio de Titular
+                    </a>
+                    
+                    <a href="#" class="list-group-item list-group-item-action" 
+                       data-bs-toggle="modal" data-bs-target="#modalCambioNombre">
+                        <i class="fas fa-signature me-2"></i>Cambio de Nombre
+                    </a>
+                    
+                    <a href="#" class="list-group-item list-group-item-action" 
+                       data-bs-toggle="modal" data-bs-target="#modalCambioUnidades">
+                        <i class="fas fa-cubes me-2"></i>Cambio de Unidades
+                    </a>
+                    
+                    <a href="#" class="list-group-item list-group-item-action" 
+                       data-bs-toggle="modal" data-bs-target="#modalDesistimiento">
+                        <i class="fas fa-ban me-2"></i>Desistimientos
+                    </a>
+                    
+                    <a href="#" class="list-group-item list-group-item-action" 
+                       data-bs-toggle="modal" data-bs-target="#modalAmpliacionMonto">
+                        <i class="fas fa-coins me-2"></i>Ampliaciones de Monto
+                    </a>
+                    
+                    <a href="#" class="list-group-item list-group-item-action" 
+                       data-bs-toggle="modal" data-bs-target="#modalAmpliacionPlazo">
+                        <i class="fas fa-calendar-plus me-2"></i>Ampliaciones de Plazo
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales para cada tipo de modificación -->
+    <!-- Modal Cambio de Titular -->
+    <div class="modal fade modal-modificacion" id="modalCambioTitular" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-user-tag me-2"></i>Cambio de Titular</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form onsubmit="procesarModificacion(event, 'cambio-titular')">
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Titular Actual</label>
+                                <input type="text" class="form-control" value="Titular Actual S.A.S" readonly>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Nuevo Titular *</label>
+                                <input type="text" class="form-control" name="nuevo_titular" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Documento Soporte *</label>
+                            <input type="file" class="form-control" accept=".pdf,.docx" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ampliación de Plazo -->
+    <div class="modal fade modal-modificacion" id="modalAmpliacionPlazo" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-calendar-plus me-2"></i>Ampliación de Plazo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form onsubmit="procesarModificacion(event, 'ampliacion-plazo')">
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Fecha Actual de Finalización</label>
+                                <input type="date" class="form-control" value="2024-12-31" readonly>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Nueva Fecha de Finalización *</label>
+                                <input type="date" class="form-control" name="nueva_fecha" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Motivo de la Ampliación *</label>
+                            <textarea class="form-control" rows="3" required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Aplicar Ampliación</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Estándar Bancolombia -->
+     <!-- Footer -->
+     <div class="footer">
+        <div class="container-aligned">
+            <p>© 2025 Bancolombia. Todos los derechos reservados.</p>
+            <p>
+                <a href="#">Términos y condiciones</a> | 
+                <a href="#">Política de privacidad</a> | 
+                <a href="#">Ayuda</a>
+            </p>
+            <p>
+                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 | 
+                <i class="fas fa-map-marker-alt"></i> Sede principal: Medellín, Colombia
+            </p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Función para procesar todas las modificaciones
+        async function procesarModificacion(event, tipoModificacion) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            formData.append('tipo_modificacion', tipoModificacion);
+
+            try {
+                const response = await fetch('/procesar-modificacion', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const resultado = await response.json();
+                
+                if(resultado.success) {
+                    mostrarNotificacion('Modificación aplicada exitosamente', 'success');
+                    // Actualizar la vista si es necesario
+                } else {
+                    mostrarNotificacion(resultado.message, 'error');
+                }
+                
+            } catch (error) {
+                mostrarNotificacion('Error de conexión', 'error');
+            }
+        }
+
+        function mostrarNotificacion(mensaje, tipo) {
+            // Implementar lógica de notificaciones estilo Bancolombia
+            alert(`${tipo.toUpperCase()}: ${mensaje}`);
+        }
+    </script>
+</body>
+</html>

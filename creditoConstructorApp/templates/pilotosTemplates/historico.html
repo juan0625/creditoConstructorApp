@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Históricos - Bancolombia</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bancolombia-blue: #004884;
+            --bancolombia-green: #00A859;
+            --bancolombia-orange: #FF6B00;
+            --bancolombia-gray: #F5F5F5;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--bancolombia-gray);
+            color: var(--bancolombia-dark-gray);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 10px 0;
+            margin-bottom: 20px;
+        }
+        
+        .logo-container {
+            text-align: center;
+            padding: 10px 0;
+            margin: 0 auto;
+            max-width: 1200px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo-container img {
+            height: 50px;
+            width: auto;
+        }
+        
+        .breadcrumb {
+            background-color: transparent;
+            padding: 0;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        
+        .breadcrumb-item.active {
+            color: var(--bancolombia-blue);
+            font-weight: 600;
+        }
+
+        .historico-container {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .historico-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+
+        .card-header-hist {
+            padding: 15px 20px;
+            border-bottom: 2px solid var(--bancolombia-gray);
+        }
+
+        .historico-list {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+            margin: 20px 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 7px;
+            top: 0;
+            height: 100%;
+            width: 2px;
+            background: var(--bancolombia-blue);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 30px;
+            padding-left: 30px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -4px;
+            top: 5px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--bancolombia-blue);
+            border: 3px solid white;
+        }
+
+        .timeline-date {
+            font-weight: 600;
+            color: var(--bancolombia-blue);
+            margin-bottom: 5px;
+        }
+
+        .timeline-content {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        .container-aligned {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            width: 100%;
+        }
+
+        .user-info {
+            text-align: right;
+            padding: 10px 20px;
+            background-color: var(--bancolombia-gray);
+            color: var(--bancolombia-dark-gray);
+            font-size: 0.9rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.35rem 0.65rem;
+        }
+        .error-msg {
+            color: #dc3545;
+            font-size: 0.875em;
+            display: none;
+        }
+        
+        .is-invalid {
+            border-color: #dc3545 !important;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right calc(0.375em + 0.1875rem) center;
+            background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+        }
+
+        .error-modal .modal-header {
+            background-color: #dc3545;
+            color: white;
+        }
+        .badge-estado { padding: 8px 12px; border-radius: 20px; }
+        .bg-completado { background-color: #28a745!important; }
+        .bg-progreso { background-color: #ffc107!important; }
+        .bg-pendiente { background-color: #dc3545!important; }
+        
+        /* Para el selector de proyectos */
+        #filtroProyecto, #selectorProyecto {
+            border: 2px solid var(--bancolombia-blue);
+            border-radius: 8px;
+            padding: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+        #filtroProyecto:hover, #selectorProyecto:hover {
+            border-color: var(--bancolombia-light-blue);
+            box-shadow: 0 0 8px rgba(0,104,255,0.1);
+        }
+        .footer {
+            background-color: var(--bancolombia-blue);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            font-size: 0.9rem;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Añadir al principio del body -->
+    <div id="accesoDenegado" class="container text-center mt-5" style="display: none;">
+        <h1 class="text-danger"><i class="fas fa-ban"></i> Acceso Denegado</h1>
+        <p class="lead">No tienes permisos para acceder a esta sección</p>
+        <a href="login.html" class="btn btn-primary">Volver al Login</a>
+    </div>
+    <!-- Header -->
+    <div class="header">
+        <div class="container-aligned">
+            <div class="user-info">
+                <span class="role-badge me-3">{{ session.usuario.rol | title }}</span>
+                <i class="fas fa-user-circle"></i> {{ session.usuario.nombre }}
+                | <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+            </div>
+            <div class="logo-container">
+                <img src="https://www.uam.edu.co/wp-content/uploads/2022/09/logo-bancolombia1.png" 
+                     alt="Bancolombia">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url_for('menu_principal') }}"><i class="fas fa-home"></i> Menú Principal</a></li>
+                        <li class="breadcrumb-item active" aria-current="page"><i class="fas fa-history"></i> Históricos</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+    <body class="bg-light">
+    <!-- Contenido principal -->
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <a href="{{ url_for('modulo_pilotos') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Volver
+                </a>
+        </div>
+        <div class="container py-4">
+            <!-- Botones principales -->
+            <div class="mb-4">
+                <button class="btn btn-success" onclick="mostrarModal('avance')">
+                    <i class="fas fa-hard-hat"></i> Nuevo Avance
+                </button>
+                <button class="btn btn-primary" onclick="mostrarModal('desembolso')">
+                    <i class="fas fa-money-bill-wave"></i> Nuevo Desembolso
+                </button>
+                <button class="btn btn-success" onclick="mostrarModal('venta')">
+                    <i class="fas fa-store"></i> Nueva Venta
+                </button>
+                <button class="btn btn-warning" onclick="mostrarModal('modificacion')">
+                    <i class="fas fa-edit"></i> Nueva Modificación
+                </button>
+            </div>
+             <!-- Selector de Proyecto -->
+            <div class="container mt-4">
+                <div class="card mb-4 shadow">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-3">
+                                <h5 class="mb-0"><i class="fas fa-filter"></i> Filtrar por Proyecto</h5>
+                            </div>
+                            <div class="col-md-9">
+                                <select class="form-select" id="filtroProyecto" onchange="filtrarHistoricos()">
+                                    <option value="">Todos los proyectos</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Secciones de datos -->
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <h3 class="text-primary mb-3"><i class="fas fa-hard-hat"></i> Avances de Obra</h3>
+                    <div id="avances-list" class="card shadow"></div>
+                </div>
+                
+                <div class="col-md-6 mb-4">
+                    <h3 class="text-success mb-3"><i class="fas fa-money-bill-wave"></i> Desembolsos</h3>
+                    <div id="desembolsos-list" class="card shadow"></div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card card-section">
+                        <div class="card-header bg-info text-white">
+                            <h4><i class="fas fa-store"></i> Ventas</h4>
+                        </div>
+                        <div id="ventas-list" class="card-body"></div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-4">
+                    <h3 class="text-danger mb-3"><i class="fas fa-exclamation-triangle"></i> Modificaciones</h3>
+                    <div id="modificaciones-list" class="card shadow"></div>
+                </div>
+            </div>
+    
+            <!-- Modal Dinámico -->
+            <div class="modal fade" id="mainModal">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modalTitle"></h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form id="mainForm" onsubmit="guardarRegistro(event)">
+                            <div class="modal-body" id="modalBody"></div>
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Guardar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+           <!-- Modal de Error -->
+            <div class="modal fade" id="errorModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Error
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p id="errorMensaje"></p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+        <script>
+
+        // Datos Iniciales
+        const inicializarDatos = () => {
+            // Asegurar que cada key almacene un array
+            ['avances', 'desembolsos', 'ventas', 'modificaciones'].forEach(key => {
+                if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify([]));
+            });
+        };
+
+        // Configuración del Modal
+        const mostrarModal = (tipo) => {
+            const modal = new bootstrap.Modal(document.getElementById('mainModal'));
+            const config = {
+                avance: {
+                    titulo: "Registro de Avance de Obra",
+                    campos: `
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label>Fecha</label>
+                                <input type="date" class="form-control" name="fecha" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label>Progreso (%)</label>
+                                <input type="number" class="form-control" name="progreso" min="0" max="100" required>
+                            </div>
+                            <div class="col-12">
+                                <label>Descripción</label>
+                                <textarea class="form-control" name="descripcion" rows="3" required></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label>Responsable</label>
+                                <input type="text" class="form-control" name="responsable" required>
+                            </div>
+                        </div>`
+                },
+                desembolso: {
+                    titulo: "Registro de Desembolso",
+                    campos: `
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label>Fecha</label>
+                                <input type="date" class="form-control" name="fecha" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label>Monto</label>
+                                <input type="number" class="form-control" name="monto" required>
+                            </div>
+                            <div class="col-12">
+                                <label>Beneficiario</label>
+                                <input type="text" class="form-control" name="beneficiario" required>
+                            </div>
+                        </div>`
+                },
+                venta: {
+                    titulo: "Registro de Venta",
+                    campos: `
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label>Fecha</label>
+                                <input type="date" class="form-control" name="fecha" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label>Cliente</label>
+                                <input type="text" class="form-control" name="cliente" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label>Unidades</label>
+                                <input type="number" class="form-control" name="unidades" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label>Ingresos</label>
+                                <input type="number" class="form-control" name="ingresos" required>
+                            </div>
+                        </div>`
+                },
+                modificacion: {
+                    titulo: "Registro de Modificación",
+                    campos: `
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label>Fecha</label>
+                                <input type="date" class="form-control" name="fecha" required>
+                            </div>
+                            <div class="col-12">
+                                <label>Descripción</label>
+                                <textarea class="form-control" name="descripcion" rows="3" required></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label>Impacto</label>
+                                <select class="form-select" name="impacto" required>
+                                    <option value="Alto">Alto</option>
+                                    <option value="Medio">Medio</option>
+                                    <option value="Bajo">Bajo</option>
+                                </select>
+                            </div>
+                        </div>`
+                }
+            };
+
+            document.getElementById('modalTitle').textContent = config[tipo].titulo;
+            document.getElementById('modalBody').innerHTML = config[tipo].campos;
+            modal.show();
+        };
+
+        // Cargar proyectos al iniciar
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarProyectosEnSelector();
+            inicializarDatos();
+            actualizarVistas();
+        });
+
+        function cargarProyectosEnSelector() {
+            const selector = document.getElementById('selectorProyecto');
+            const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+            
+            proyectos.forEach(proyecto => {
+                const option = document.createElement('option');
+                option.value = proyecto.id;
+                option.textContent = `${proyecto.nombre_proyecto}`;
+                selector.appendChild(option);
+            });
+        }
+        
+        function filtrarHistoricos() {
+            const proyectoId = document.getElementById('filtroProyecto').value;
+            
+            // Obtener todos los registros de cada categoría
+            const registros = {
+                avances: JSON.parse(localStorage.getItem('avances')) || [],
+                desembolsos: JSON.parse(localStorage.getItem('desembolsos')) || [],
+                ventas: JSON.parse(localStorage.getItem('ventas')) || [],
+                modificaciones: JSON.parse(localStorage.getItem('modificaciones')) || []
+            };
+
+            // Filtrar por proyecto si está seleccionado
+            const filtrarPorProyecto = (items) => {
+                return proyectoId 
+                    ? items.filter(item => item.proyectoId?.toString() === proyectoId.toString())
+                    : items;
+            };
+
+            // Aplicar filtro a todas las categorías
+            const datosFiltrados = {
+                avances: filtrarPorProyecto(registros.avances),
+                desembolsos: filtrarPorProyecto(registros.desembolsos),
+                ventas: filtrarPorProyecto(registros.ventas),
+                modificaciones: filtrarPorProyecto(registros.modificaciones)
+            };
+
+            actualizarVistas(datosFiltrados);
+        }
+
+        function cargarAvances() {
+            const proyectoId = document.getElementById('filtroProyecto').value;
+            const avances = JSON.parse(localStorage.getItem('avances')) || [];
+            
+            return avances.filter(a => {
+                return proyectoId 
+                    ? a.proyectoId.toString() === proyectoId.toString()
+                    : true;
+            });
+        }
+
+        // Asegurar formato de IDs
+        function cargarProyectosEnFiltro() {
+            const filtro = document.getElementById('filtroProyecto');
+            filtro.innerHTML = '<option value="">Todos los proyectos</option>';
+            
+            const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+            
+            proyectos.forEach(proyecto => {
+                const option = document.createElement('option');
+                option.value = proyecto.id.toString(); // Convertir a string
+                option.textContent = `${proyecto.nombre_proyecto}`;
+                filtro.appendChild(option);
+            });
+        }
+
+        function cargarHistoricoProyecto() {
+            const proyectoId = document.getElementById('selectorProyecto').value;
+            const historicos = JSON.parse(localStorage.getItem('historicos')) || [];
+            
+            const historicoProyecto = historicos.filter(h => h.proyectoId === proyectoId);
+            actualizarVistas(historicoProyecto);
+        }
+
+        // Guardar Registros
+        const guardarRegistro = (e) => {
+            e.preventDefault();
+
+            const proyectoId = document.getElementById('filtroProyecto').value;
+            if (!proyectoId) {
+                mostrarError('Debe seleccionar un proyecto primero');
+                return;
+            }
+
+            const tipo = document.getElementById('modalTitle').textContent.split(' ')[2].toLowerCase();
+            const formData = new FormData(e.target);
+            
+            const nuevoRegistro = {
+                id: Date.now(),
+                proyectoId: Number(proyectoId),
+                fecha: formData.get('fecha'),
+                estado: "PENDIENTE"
+            };
+
+            switch(tipo) {
+                case 'avance':
+                    nuevoRegistro.descripcion = formData.get('descripcion');
+                    nuevoRegistro.progreso = parseInt(formData.get('progreso'));
+                    nuevoRegistro.responsable = formData.get('responsable');
+                    break;
+                case 'desembolso':
+                    nuevoRegistro.monto = parseInt(formData.get('monto'));
+                    nuevoRegistro.beneficiario = formData.get('beneficiario');
+                    break;
+                case 'venta':
+                    nuevoRegistro.cliente = formData.get('cliente');
+                    nuevoRegistro.unidades = parseInt(formData.get('unidades'));
+                    nuevoRegistro.ingresos = parseInt(formData.get('ingresos'));
+                    break;
+                case 'modificación':
+                    nuevoRegistro.descripcion = formData.get('descripcion');
+                    nuevoRegistro.impacto = formData.get('impacto');
+                    break;
+            }
+
+            const key = tipo === 'modificación' ? 'modificaciones' : tipo + 's';
+            const datos = JSON.parse(localStorage.getItem(key)) || [];
+            datos.push(nuevoRegistro);
+            localStorage.setItem(key, JSON.stringify(datos));
+
+            actualizarVistas();
+            bootstrap.Modal.getInstance(document.getElementById('mainModal')).hide();
+        };
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarProyectosEnFiltro();
+            filtrarHistoricos();
+        });
+
+        // Escuchar eventos de actualización
+        window.addEventListener('proyectosActualizados', () => {
+            cargarProyectosEnFiltro(); // o cargarProyectosEnSelector()
+            filtrarHistoricos(); // o cargarSeguimientos()
+        });
+        
+        const generarTabla = (tipo, items) => {
+            const headers = {
+                avances: ['Fecha', 'Descripción', 'Progreso', 'Responsable', 'Estado'],
+                desembolsos: ['Fecha', 'Monto', 'Beneficiario', 'Estado'],
+                ventas: ['Fecha', 'Cliente', 'Unidades', 'Ingresos', 'Estado'],
+                modificaciones: ['Fecha', 'Descripción', 'Impacto', 'Estado']
+            }[tipo];
+
+            return `
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                    </thead>
+                    <tbody>
+                        ${items.map(item => `
+                            <tr>
+                                <td>${new Date(item.fecha).toLocaleDateString('es-CO')}</td>
+                                ${tipo === 'avances' ? `
+                                    <td>${item.descripcion}</td>
+                                    <td>
+                                        <div class="progress">
+                                            <div class="progress-bar" 
+                                                role="progressbar" 
+                                                style="width: ${item.progreso}%" 
+                                                aria-valuenow="${item.progreso}">
+                                                ${item.progreso}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>${item.responsable}</td>
+                                ` : tipo === 'desembolsos' ? `
+                                    <td>$${item.monto?.toLocaleString('es-CO')}</td>
+                                    <td>${item.beneficiario}</td>
+                                ` : tipo === 'ventas' ? `
+                                    <td>${item.cliente}</td>
+                                    <td>${item.unidades}</td>
+                                    <td>$${item.ingresos?.toLocaleString('es-CO')}</td>
+                                ` : `
+                                    <td>${item.descripcion}</td>
+                                    <td>${item.impacto}</td>
+                                `}
+                                <td>
+                                    <span class="badestado bg-${item.estado === 'COMPLETADO' ? 'success' : 
+                                                            item.estado === 'APROBADO' ? 'primary' : 
+                                                            item.estado === 'FACTURADO' ? 'info' : 
+                                                            'warning'}">
+                                        ${item.estado}
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+        };
+        // Actualizar Vistas
+        const actualizarVistas = (datos = {}) => {
+            ['avances', 'desembolsos', 'ventas', 'modificaciones'].forEach(tipo => {
+                const container = document.getElementById(`${tipo}-list`);
+                const items = Array.isArray(datos[tipo]) ? datos[tipo] : [];
+                
+                container.innerHTML = items.length > 0 
+                    ? generarTabla(tipo, items)
+                    : `<div class="alert alert-info m-3">No hay registros en ${tipo.toUpperCase()}</div>`;
+            });
+        };
+        // Exportación de Datos
+        const exportarTodo = async () => {
+            const zip = new JSZip();
+            const formatNumber = (num) => new Intl.NumberFormat().format(num);
+            
+            // Generar archivos para cada categoría
+            await Promise.all(['avances', 'desembolsos', 'ventas', 'modificaciones'].map(async (tipo) => {
+                const datos = JSON.parse(localStorage.getItem(tipo)) || [];
+                const headers = {
+                    avances: ['ID', 'Fecha', 'Descripción', 'Progreso', 'Responsable', 'Estado'],
+                    desembolsos: ['ID', 'Fecha', 'Monto', 'Beneficiario', 'Estado'],
+                    ventas: ['ID', 'Fecha', 'Cliente', 'Unidades', 'Ingresos', 'Estado'],
+                    modificaciones: ['ID', 'Fecha', 'Descripción', 'Impacto', 'Estado']
+                }[tipo];
+
+                const csvContent = [
+                    headers.join(','),
+                    ...datos.map(item => {
+                        const valores = {
+                            avances: [
+                                item.id,
+                                `"${item.fecha}"`,
+                                `"${item.descripcion}"`,
+                                item.progreso,
+                                `"${item.responsable}"`,
+                                item.estado
+                            ],
+                            desembolsos: [
+                                item.id,
+                                `"${item.fecha}"`,
+                                item.monto,
+                                `"${item.beneficiario}"`,
+                                item.estado
+                            ],
+                            ventas: [
+                                item.id,
+                                `"${item.fecha}"`,
+                                `"${item.cliente}"`,
+                                item.unidades,
+                                item.ingresos,
+                                item.estado
+                            ],
+                            modificaciones: [
+                                item.id,
+                                `"${item.fecha}"`,
+                                `"${item.descripcion}"`,
+                                `"${item.impacto}"`,
+                                item.estado
+                            ]
+                        }[tipo];
+
+                        return valores.map(v => typeof v === 'number' ? v : `"${v}"`).join(',');
+                    })
+                ].join('\n');
+
+                zip.file(`${tipo}.csv`, csvContent);
+            }));
+
+            // Generar ZIP
+            const content = await zip.generateAsync({ type: "blob" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(content);
+            link.download = `backup_${new Date().toISOString().split('T')[0]}.zip`;
+            link.click();
+        };
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            inicializarDatos();
+            actualizarVistas();
+        });
+
+        function validarProyectoSeleccionado() {
+            const proyectoId = document.getElementById('selectorProyecto').value;
+            if (!proyectoId) {
+                mostrarErrorModal('Debe seleccionar un proyecto primero');
+                return false;
+            }
+            return true;
+        }
+
+        function mostrarError(mensaje) {
+            const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
+            document.getElementById('errorMensaje').textContent = mensaje;
+            errorModal.show();
+        }
+    </script>
+    <!-- Footer -->
+    <div class="footer">
+        <div class="container-aligned">
+            <p>© 2025 Bancolombia. Todos los derechos reservados.</p>
+            <p>
+                <a href="#">Términos y condiciones</a> | 
+                <a href="#">Política de privacidad</a> | 
+                <a href="#">Ayuda</a>
+            </p>
+            <p>
+                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 | 
+                <i class="fas fa-map-marker-alt"></i> Sede principal: Medellín, Colombia
+            </p>
+        </div>
+    </div>
+</body>
+</html>

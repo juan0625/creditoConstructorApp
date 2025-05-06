@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bancolombia - Menú Principal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bancolombia-blue: #004884;
+            --bancolombia-light-blue: #0066CC;
+            --bancolombia-yellow: #FFD100;
+            --bancolombia-gray: #F5F5F5;
+            --bancolombia-dark-gray: #333333;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--bancolombia-gray);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 0;
+            margin-bottom: 20px;
+        }
+        
+        .logo-container {
+            text-align: center;
+            padding: 15px 0;
+            margin: 0 auto;
+            max-width: 1200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .logo-container img {
+            height: 70px;
+            width: auto;
+            transition: all 0.3s ease;
+        }
+        
+        .menu-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 20px 0;
+        }
+        
+        .menu-title {
+            color: var(--bancolombia-blue);
+            font-weight: 700;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 1.8rem;
+        }
+        
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .menu-card {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border: none;
+            text-align: center;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .menu-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+        }
+        
+        .menu-card .card-icon {
+            background-color: var(--bancolombia-light-blue);
+            color: white;
+            font-size: 2rem;
+            padding: 20px;
+        }
+        
+        .menu-card .card-body {
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .menu-card .card-title {
+            color: var(--bancolombia-blue);
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .menu-card .btn {
+            background-color: var(--bancolombia-blue);
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            margin-top: auto;
+            align-self: center;
+            width: auto;
+            font-weight: 600;
+        }
+        
+        .menu-card .btn:hover {
+            background-color: var(--bancolombia-light-blue);
+        }
+        
+        .footer {
+            background-color: var(--bancolombia-blue);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            font-size: 0.9rem;
+            margin-top: 40px;
+        }
+        
+        .user-info {
+            text-align: right;
+            padding: 10px 20px;
+            background-color: var(--bancolombia-gray);
+            color: var(--bancolombia-dark-gray);
+            font-size: 0.9rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .container-aligned {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            width: 100%;
+        }
+        
+        .logo-container img:hover {
+            transform: scale(1.05);
+        }
+        
+        /* Skeleton loading styles */
+        .skeleton {
+            position: relative;
+            overflow: hidden;
+            background-color: #e0e0e0;
+        }
+        
+        .skeleton::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, 
+                            rgba(255,255,255,0) 0%, 
+                            rgba(255,255,255,0.5) 50%, 
+                            rgba(255,255,255,0) 100%);
+            animation: shimmer 1.5s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .skeleton-icon {
+            width: 100%;
+            height: 80px;
+            background-color: #d0d0d0;
+        }
+        
+        .skeleton-text {
+            height: 15px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        
+        .skeleton-button {
+            width: 100px;
+            height: 40px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+        
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid var(--bancolombia-gray);
+            border-top: 5px solid var(--bancolombia-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+    
+    <!-- Header con logo y usuario -->
+    <div class="header">
+        <div class="container-aligned">
+            <div class="user-info">
+                <span class="role-badge me-3" id="userRole">Administrador</span>
+                <i class="fas fa-user-circle"></i> <span id="userName">Admin</span>
+                | <a href="{{ url_for('logout') }}" id="logoutLink"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+            </div>
+            <div class="logo-container">
+                <img src="https://www.uam.edu.co/wp-content/uploads/2022/09/logo-bancolombia1.png" 
+                     alt="Bancolombia"
+                     onerror="this.onerror=null; this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Bancolombia_logo.svg/1200px-Bancolombia_logo.svg.png'">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contenido principal -->
+    <div class="menu-container">
+        <div class="container-aligned">
+            <h1 class="menu-title">Menú Principal</h1>
+            
+            <div class="menu-grid" id="menuGrid">
+                <!-- Skeleton loading mientras carga -->
+                <div class="menu-card skeleton">
+                    <div class="skeleton-icon"></div>
+                    <div class="card-body">
+                        <div class="skeleton-text" style="width: 70%"></div>
+                        <div class="skeleton-text" style="width: 90%"></div>
+                        <div class="skeleton-text" style="width: 80%"></div>
+                        <div class="skeleton-button"></div>
+                    </div>
+                </div>
+                
+                <div class="menu-card skeleton">
+                    <div class="skeleton-icon"></div>
+                    <div class="card-body">
+                        <div class="skeleton-text" style="width: 70%"></div>
+                        <div class="skeleton-text" style="width: 90%"></div>
+                        <div class="skeleton-text" style="width: 80%"></div>
+                        <div class="skeleton-button"></div>
+                    </div>
+                </div>
+                
+                <div class="menu-card skeleton">
+                    <div class="skeleton-icon"></div>
+                    <div class="card-body">
+                        <div class="skeleton-text" style="width: 70%"></div>
+                        <div class="skeleton-text" style="width: 90%"></div>
+                        <div class="skeleton-text" style="width: 80%"></div>
+                        <div class="skeleton-button"></div>
+                    </div>
+                </div>
+                
+                <div class="menu-card skeleton">
+                    <div class="skeleton-icon"></div>
+                    <div class="card-body">
+                        <div class="skeleton-text" style="width: 70%"></div>
+                        <div class="skeleton-text" style="width: 90%"></div>
+                        <div class="skeleton-text" style="width: 80%"></div>
+                        <div class="skeleton-button"></div>
+                    </div>
+                </div>
+                
+                <div class="menu-card skeleton">
+                    <div class="skeleton-icon"></div>
+                    <div class="card-body">
+                        <div class="skeleton-text" style="width: 70%"></div>
+                        <div class="skeleton-text" style="width: 90%"></div>
+                        <div class="skeleton-text" style="width: 80%"></div>
+                        <div class="skeleton-button"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+        <div class="container-aligned">
+            <p>© 2025 Bancolombia. Todos los derechos reservados.</p>
+            <p>
+                <a href="#">Términos y condiciones</a> | 
+                <a href="#">Política de privacidad</a> | 
+                <a href="#">Ayuda</a>
+            </p>
+            <p>
+                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 | 
+                <i class="fas fa-map-marker-alt"></i> Sede principal: Medellín, Colombia
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+            document.addEventListener('DOMContentLoaded', function() {
+            // Ocultar skeleton y mostrar contenido real
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                
+                // Configurar datos del usuario desde variables de Flask
+                const userRole = "{{ usuario_rol }}";
+                const userName = "{{ usuario_nombre }}";
+                
+                // Actualizar UI
+                document.getElementById('userName').textContent = userName;
+                document.getElementById('userRole').textContent = userRole;
+                
+                // Cargar menú según rol
+                loadMenuItems(userRole);
+                
+                // Configurar logout
+                document.getElementById('logoutLink').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    window.location.href = "{{ url_for('logout') }}";
+                });
+            }, 1000);
+            
+           // Función para cargar items del menú
+            function loadMenuItems(role) {
+                const menuGrid = document.getElementById('menuGrid');
+                menuGrid.innerHTML = '';
+
+                let menuItems = [];
+                
+                if (role === 'admin') {
+                    menuItems = [
+                        {
+                            title: "Pilotos",
+                            icon: "user-tie",
+                            description: "Gestión de pilotos y asignación de créditos constructor",
+                            link: "{{ url_for('modulo_pilotos') }}"
+                        },
+                        {
+                            title: "Cupo Sombrilla",
+                            icon: "umbrella",
+                            description: "Administración de cupos sombrilla para clientes",
+                            link: "#"
+                        },
+                        {
+                            title: "Enroque",
+                            icon: "exchange-alt",
+                            description: "Sistema de intercambio y reasignación",
+                            link: "#"
+                        },
+                        {
+                            title: "Controles",
+                            icon: "sliders-h",
+                            description: "Controles de créditos y asignaciones especificas de los mismos.",
+                            link: "#"
+                        },
+                        {
+                            title: "Informes",
+                            icon: "chart-line",
+                            description: "Informes generales de la aplicación con caracteristicas especiales del proyecto.",
+                            link: "#"
+                        },
+                        {
+                            title: "Venta Cierta",
+                            icon: "hand-holding-usd",
+                            description: "Gestión de ventas y transacciones confirmadas",
+                            link: "{{ url_for('venta_cierta') }}"
+                        }
+                    ];
+                } else {
+                    menuItems = [
+                        {
+                            title: "Pilotos",
+                            icon: "user-tie",
+                            description: "Gestión de pilotos y asignación de créditos constructor",
+                            link: "{{ url_for('modulo_pilotos') }}"
+                        },
+                        {
+                            title: "Enroque",
+                            icon: "exchange-alt",
+                            description: "Sistema de intercambio y reasignación",
+                            link: "#"
+                        },
+                        {
+                            title: "Informes",
+                            icon: "clipboard-list",
+                            description: "Informes generales de la aplicación con caracteristicas especiales del proyecto.",
+                            link: "#"
+                        },
+                        {
+                            title: "Venta Cierta",
+                            icon: "hand-holding-usd",
+                            description: "Gestión de ventas y transacciones confirmadas",
+                            link: "{{ url_for('venta_cierta') }}"
+                        }
+                    ];
+                }
+
+                // Generar tarjetas
+                menuItems.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'menu-card';
+                    card.innerHTML = `
+                        <div class="card-icon">
+                            <i class="fas fa-${item.icon}"></i>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title">${item.title}</h5>
+                            <p class="card-text">${item.description}</p>
+                            <a href="${item.link}" class="btn btn-primary">Acceder</a>
+                        </div>
+                    `;
+                    menuGrid.appendChild(card);
+                });
+            }
+        });
+    </script>
+</body>
+</html>

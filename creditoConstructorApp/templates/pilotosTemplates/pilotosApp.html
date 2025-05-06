@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bancolombia - Módulo Pilotos</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bancolombia-blue: #004884;
+            --bancolombia-light-blue: #0066CC;
+            --bancolombia-yellow: #FFD100;
+            --bancolombia-gray: #F5F5F5;
+            --bancolombia-dark-gray: #333333;
+            --bancolombia-green: #4CAF50;
+            --bancolombia-orange: #FF9800;
+            --bancolombia-red: #F44336;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--bancolombia-gray);
+            color: var(--bancolombia-dark-gray);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 10px 0;
+            margin-bottom: 20px;
+        }
+        
+        .logo-container {
+            text-align: center;
+            padding: 10px 0;
+            margin: 0 auto;
+            max-width: 1200px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo-container img {
+            height: 50px;
+            width: auto;
+        }
+        
+        .breadcrumb {
+            background-color: transparent;
+            padding: 0;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        
+        .breadcrumb-item.active {
+            color: var(--bancolombia-blue);
+            font-weight: 600;
+        }
+        
+        .module-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            padding: 20px 0;
+        }
+        
+        .module-title {
+            color: var(--bancolombia-blue);
+            font-weight: 700;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .module-title i {
+            margin-right: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .module-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .module-card {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border: none;
+            text-align: center;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .module-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+        }
+        
+        .module-card .card-header {
+            background-color: var(--bancolombia-light-blue);
+            color: white;
+            font-size: 1.2rem;
+            padding: 15px;
+            font-weight: 600;
+        }
+        
+        .module-card .card-body {
+            padding: 25px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .module-card .card-list {
+            text-align: left;
+            margin-bottom: 20px;
+            flex: 1;
+        }
+        
+        .module-card .card-list-item {
+            margin-bottom: 10px;
+            padding-left: 25px;
+            position: relative;
+        }
+        
+        .module-card .card-list-item:before {
+            content: "•";
+            color: var(--bancolombia-light-blue);
+            font-weight: bold;
+            position: absolute;
+            left: 10px;
+        }
+        
+        .module-card .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .module-card .btn {
+            border: none;
+            border-radius: 5px;
+            padding: 8px 15px;
+            font-weight: 600;
+            min-width: 100px;
+        }
+        
+        .btn-primary {
+            background-color: var(--bancolombia-blue);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--bancolombia-light-blue);
+        }
+        
+        .btn-success {
+            background-color: var(--bancolombia-green);
+        }
+        
+        .btn-warning {
+            background-color: var(--bancolombia-orange);
+        }
+        
+        .btn-danger {
+            background-color: var(--bancolombia-red);
+        }
+        
+        .footer {
+            background-color: var(--bancolombia-blue);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            font-size: 0.9rem;
+            margin-top: 40px;
+        }
+        
+        .user-info {
+            text-align: right;
+            padding: 10px 20px;
+            background-color: var(--bancolombia-gray);
+            color: var(--bancolombia-dark-gray);
+            font-size: 0.9rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        .container-aligned {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header con logo y usuario -->
+    <div class="header">
+        <div class="container-aligned">
+            <div class="user-info">
+                <span class="role-badge me-3">{{ session.usuario.rol | title }}</span>
+                <i class="fas fa-user-circle"></i> {{ session.usuario.nombre }}
+                | <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+            </div>
+            <div class="logo-container">
+                <img src="https://www.uam.edu.co/wp-content/uploads/2022/09/logo-bancolombia1.png" 
+                     alt="Bancolombia">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url_for('menu_principal') }}"><i class="fas fa-home"></i> Menú Principal</a></li>
+                        <li class="breadcrumb-item active" aria-current="page"><i class="fas fa-user-tie"></i> Módulo Pilotos</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contenido principal -->
+    <div class="module-container">
+        <div class="container-aligned">
+            <h1 class="module-title">
+                <i class="fas fa-user-tie"></i> Módulo de Pilotos
+            </h1>
+            
+            <div class="module-grid">
+                <!-- Gestión de Proyectos -->
+                <div class="module-card">
+                    <div class="card-header">
+                        Gestión de Proyectos
+                    </div>
+                    <div class="card-body">
+                        <div class="card-list">
+                            <div class="card-list-item">Crear nuevo proyecto</div>
+                            <div class="card-list-item">Modificar proyecto existente</div>
+                            <div class="card-list-item">Consultar proyectos</div>
+                            <div class="card-list-item">Filtros avanzados</div>
+                            <div class="card-list-item">Datos generales</div>
+                            <div class="card-list-item">Ficha de proyecto</div>
+                        </div>
+                        <div class="btn-group">
+                            <a href="{{ url_for('consulta_proyectos') }}" class="btn btn-primary">Acceder</a>
+                            <a href="{{ url_for('crear_proyecto') }}" class="btn btn-success">
+                                {% if session.usuario.rol == 'auxiliar' %}
+                                    Continuar proceso
+                                {% else %}
+                                    Nuevo
+                                {% endif %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Roles y Usuarios -->
+                {% if session.usuario.rol == 'admin' %}
+                <div class="module-card">
+                    <div class="card-header">
+                        Roles y Usuarios
+                    </div>
+                    <div class="card-body">
+                        <div class="card-list">
+                            <div class="card-list-item">Identificación de usuarios</div>
+                            <div class="card-list-item">Asignación de roles</div>
+                            <div class="card-list-item">Matriz de roles</div>
+                            <div class="card-list-item">Arquitectos</div>
+                            <div class="card-list-item">Gerentes</div>
+                            <div class="card-list-item">Constructores</div>
+                        </div>
+                        <div class="btn-group">
+                            <a href="{{ url_for('admin_roles') }}" class="btn btn-danger">Acceder</a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Seguimiento -->
+                {% if session.usuario.rol in ['admin', 'arquitecto'] %}
+                <div class="module-card">
+                    <div class="card-header" style="background-color: var(--bancolombia-green);">
+                        Seguimiento
+                    </div>
+                    <div class="card-body">
+                        <div class="card-list">
+                            <div class="card-list-item">Crear seguimiento</div>
+                            <div class="card-list-item">Avances de obra</div>
+                            <div class="card-list-item">Informes de ventas</div>
+                            <div class="card-list-item">Desembolsos</div>
+                            <div class="card-list-item">Historial de modificaciones</div>
+                            <div class="card-list-item">Cumplimiento condiciones</div>
+                        </div>
+                        <div class="btn-group">
+                            <a href="{{ url_for('seguimiento_Proyecto') }}" class="btn btn-success">Nuevo Seguimiento</a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Históricos -->
+                {% if session.usuario.rol in ['admin', 'arquitecto'] %}
+                <!-- <div class="module-card">
+                    <div class="card-header" style="background-color: var(--bancolombia-orange);">
+                        Históricos
+                    </div>
+                    <div class="card-body">
+                        <div class="card-list">
+                            <div class="card-list-item">Histórico avances de obra</div>
+                            <div class="card-list-item">Histórico informes de ventas</div>
+                            <div class="card-list-item">Histórico desembolsos</div>
+                            <div class="card-list-item">Histórico modificaciones</div>
+                            <div class="card-list-item">Formatos históricos</div>
+                        </div>
+                        <div class="btn-group">
+                            <a href="{{ url_for('historicos_Proyectos') }}" class="btn btn-warning">Consultar</a>
+                        </div>
+                    </div>
+                </div> -->
+                {% endif %}
+                
+                <!-- Mantenimientos -->
+                <!-- <div class="module-card">
+                    <div class="card-header" style="background-color: var(--bancolombia-red);">
+                        Modificación
+                    </div>
+                    <div class="card-body">
+                        <div class="card-list">
+                            <div class="card-list-item">Cambio de titular</div>
+                            <div class="card-list-item">Cambio de nombre</div>
+                            <div class="card-list-item">Cambio de unidades</div>
+                            <div class="card-list-item">Desistimientos</div>
+                            <div class="card-list-item">Ampliaciones de monto</div>
+                            <div class="card-list-item">Ampliaciones de vigencia</div>
+                        </div>
+                        <div class="btn-group">
+                            <a href="#" class="btn btn-danger">Gestionar</a>
+                            <a href="#" class="btn btn-warning">Modificar</a>
+                        </div>
+                    </div>
+                </div> -->
+                
+                <!-- Configuración -->
+                {% if session.usuario.rol == 'admin' %}
+                <div class="module-card">
+                    <div class="card-header">
+                        Configuración
+                    </div>
+                    <div class="card-body">
+                        <div class="card-list">
+                            <div class="card-list-item">Identificar campos</div>
+                            <div class="card-list-item">Tipos de datos</div>
+                            <div class="card-list-item">Validaciones</div>
+                            <div class="card-list-item">Formularios</div>
+                            <div class="card-list-item">Proyectos cancelados</div>
+                            <div class="card-list-item">Base de datos</div>
+                        </div>
+                        <div class="btn-group">
+                            <a href="{{ url_for('config_app') }}" class="btn btn-primary">Configurar</a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+        <div class="container-aligned">
+            <p>© 2025 Bancolombia. Todos los derechos reservados.</p>
+            <p>
+                <a href="#">Términos y condiciones</a> | 
+                <a href="#">Política de privacidad</a> | 
+                <a href="#">Ayuda</a>
+            </p>
+            <p>
+                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 | 
+                <i class="fas fa-map-marker-alt"></i> Sede principal: Medellín, Colombia
+            </p>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS (Opcional) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
