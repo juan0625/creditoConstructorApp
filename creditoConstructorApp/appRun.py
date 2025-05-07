@@ -277,19 +277,22 @@ def exportar_excel():
         if not proyectos:
             return jsonify({'success': False, 'message': 'No hay proyectos para exportar'}), 400
 
-        columnas = [
-            'id_proyecto', 'fecha_creacion', 'tipo_producto', 'rango_proyecto',
-            'grupoPrincipal', 'subgrupo_1', 'subgrupo_2', 'subgrupo_3', 
-            'nit_grupo_riesgo', 'nit_titular', 'titular_credito',
-            'nombre_proyecto', 'tipo_inmuebles', 'segmento', 'ciudad', 'tipo_fiducia',
-            'fiduciaria', 'gerente', 'arquitecto', 'auxiliar', 'perito',
-            'monto_solicitado_1_desembolso', 'monto_solicitado_cpi',
-            'monto_solicitado_lote', 'total_valor_aprobado', 'calificacion_it',
-            'costos_financiables', 'valor_lote', 'valor_total_proyecto',
-            'meses_programacion', 'total_inmuebles', 'meses_para_venta'
-        ]
+        # Validar campos obligatorios
+        campos_obligatorios = ['id_proyecto', 'nombre_proyecto', 'fecha_creacion']
+        for proyecto in proyectos:
+            if not all(key in proyecto for key in campos_obligatorios):
+                return jsonify({'success': False, 'message': f'Falta campo obligatorio en proyecto {proyecto.get("id_proyecto")}'}), 400
 
-        df = pd.DataFrame(proyectos, columns=columnas).fillna('')
+            # Convertir condiciones a lista
+            if 'condiciones_aprobacion' in proyecto and isinstance(proyecto['condiciones_aprobacion'], str):
+                proyecto['condiciones_aprobacion'] = proyecto['condiciones_aprobacion'].split('; ')
+
+        # Crear DataFrame dinámico
+        df = pd.DataFrame(proyectos).fillna('')
+
+        # Crear directorio si no existe
+        if not os.path.exists(EXPORTAR_RUTA):
+            os.makedirs(EXPORTAR_RUTA)
 
         output = BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
@@ -303,18 +306,11 @@ def exportar_excel():
         with open(server_path, 'wb') as f:
             f.write(output.getvalue())
 
-        # Obtener último ID procesado
-        last_project_id = proyectos[-1].get('id_proyecto', '') if proyectos else ''    
-
-        return jsonify({'success': True, 'message': 'Archivo exportado correctamente', 'project_id': last_project_id }), 200
-        
+        return jsonify({'success': True, 'message': 'Archivo exportado correctamente'}), 200
 
     except Exception as e:
         print(f"Error en exportar_excel: {str(e)}\n{traceback.format_exc()}")
-        return jsonify({
-            'success': False,
-            'message': f'Error al generar el archivo: {str(e)}'
-        }), 500
+        return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
 
 @app.route('/importar_excel', methods=['POST'])
 def importar_excel():
