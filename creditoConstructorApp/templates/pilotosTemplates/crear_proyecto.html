@@ -1843,29 +1843,42 @@
     function generarExcel(proyectos, usuario) {
         const KEYS = [
             'id_proyecto', 'fecha_creacion', 'tipo_producto', 'rango_proyecto',
-            'grupoPrincipal', 'subgrupo_1', 'subgrupo_2', 'subgrupo_3' , 
+            'grupoPrincipal', 'subgrupo_1', 'subgrupo_2', 'subgrupo_3', 
             'nit_grupo_riesgo', 'nit_titular', 'titular_credito',
             'nombre_proyecto', 'tipo_inmuebles', 'segmento', 'ciudad', 'tipo_fiducia',
             'fiduciaria', 'gerente', 'arquitecto', 'auxiliar', 'perito',
             'monto_solicitado_1_desembolso', 'monto_solicitado_cpi',
             'monto_solicitado_lote', 'total_valor_aprobado', 'calificacion_it',
             'costos_financiables', 'valor_lote', 'valor_total_proyecto',
-            'meses_programacion', 'total_inmuebles', 'meses_para_venta'
+            'meses_programacion', 'total_inmuebles', 'meses_para_venta',
+            // Nuevos campos de aprobaciones GOSO
+            'tipo_credito', 'departamento', 'caso_pcp_bizagi', 'visitas_a_cobrar',
+            'cobrar_estudio_tecnico', 'fecha_aprobacion', 'alerta_fecha_aprobacion',
+            'vigencia_en_meses', 'instancia_aprobacion', 'condiciones_aprobacion',
+            'porcentaje_solicitado_financiables'
         ];
 
         const numericFields = [
             'monto_solicitado_1_desembolso', 'monto_solicitado_cpi',
             'monto_solicitado_lote', 'total_valor_aprobado', 'valor_lote',
             'valor_total_proyecto', 'meses_programacion', 'total_inmuebles',
-            'meses_para_venta'
+            'meses_para_venta', 'visitas_a_cobrar', 'vigencia_en_meses',
+            'porcentaje_solicitado_financiables'
         ];
 
         const proyectosLimpios = proyectos.map(p => {
             let proyecto = {};
             KEYS.forEach(key => {
-                proyecto[key] = numericFields.includes(key) 
-                    ? cleanNumber(p[key]) 
-                    : p[key] || '';
+                if (key === 'condiciones_aprobacion') {
+                    // Convertir a texto separado por comas
+                    proyecto[key] = Array.isArray(p[key]) 
+                        ? p[key].join(', ') 
+                        : p[key] || 'Sin condiciones';
+                } else {
+                    proyecto[key] = numericFields.includes(key) 
+                        ? cleanNumber(p[key]) 
+                        : p[key] || '';
+                }
             });
             return proyecto;
         });
@@ -1876,31 +1889,11 @@
             body: JSON.stringify({ proyectos: proyectosLimpios })
         })
         .then(response => {
-            // Manejar posibles errores HTTP (ej. 500, 400)
             if (!response.ok) {
                 return response.json().then(err => Promise.reject(err));
             }
             return response.json();
         })
-        // .then(data => {
-        //     if (data.success) {
-        //         Swal.fire({
-        //             title: 'Éxito',
-        //             text: 'Archivo guardado en el servidor',
-        //             icon: 'success',
-        //             confirmButtonText: 'Aceptar',
-        //             timer: 10000,
-        //             timerProgressBar: true
-        //         });
-        //     } else {
-        //         Swal.fire({
-        //             title: 'Error',
-        //             text: data.message || 'No se pudo guardar el archivo',
-        //             icon: 'error',
-        //             confirmButtonText: 'Aceptar'
-        //         });
-        //     }
-        // })
         .catch(error => {
             console.error('Error:', error);
             Swal.fire({
@@ -1910,7 +1903,7 @@
                 confirmButtonText: 'Aceptar'
             });
         });
-    }
+}
 
 
     /** Lee el valor de un <select> */
@@ -2033,7 +2026,21 @@
 
         // Guardar en LocalStorage
         const all = JSON.parse(localStorage.getItem('proyectos') || '[]');
-        all.push(proyecto);
+        const existingIndex = all.findIndex(p => p.id_proyecto === proyecto.id_proyecto);
+
+        if (existingIndex !== -1) {
+            // Combinar datos existentes con nuevos
+            all[existingIndex] = { 
+                ...all[existingIndex], 
+                ...proyecto,
+                // Mantener datos específicos del auxiliar si ya existen
+                condiciones_aprobacion: proyecto.condiciones_aprobacion || all[existingIndex].condiciones_aprobacion,
+                porcentaje_solicitado_financiables: proyecto.porcentaje_solicitado_financiables || all[existingIndex].porcentaje_solicitado_financiables
+            };
+        } else {
+            all.push(proyecto);
+        }
+
         localStorage.setItem('proyectos', JSON.stringify(all));
 
         // Refrescar tabla y exportar Excel
@@ -2163,7 +2170,74 @@
                     // Costos Financiables viene de la fórmula en K17 de INFORME
                     costos_financiables:           { hoja: sheetInforme, cell: 'K17', type: 'number', default: 0 },
                     valor_total_proyecto:          { hoja: sheetInforme, cell: 'E25', type: 'number', default: 0 },
-                    meses_para_venta:              { hoja: null,          cell: null,  type: 'number', default: 12 }
+                    meses_para_venta:              { hoja: null,          cell: null,  type: 'number', default: 12 },
+                    // Sección 4: Aprobaciones GOSO (nuevos campos)
+                    tipo_credito: { 
+                        hoja: null, 
+                        cell: null, 
+                        type: 'string', 
+                        default: getVal('[name="tipo_credito"]') || '' 
+                    },
+                    departamento: { 
+                        hoja: null, 
+                        cell: null, 
+                        type: 'string', 
+                        default: getSelectText('[name="departamento"]') || '' 
+                    },
+                    caso_pcp_bizagi: { 
+                        hoja: null, 
+                        cell: null, 
+                        type: 'string', 
+                        default: '' 
+                    },
+                    visitas_a_cobrar: { 
+                        hoja: null, 
+                        cell: null, 
+                        type: 'number', 
+                        default: 0 
+                    },
+                    cobrar_estudio_tecnico: { 
+                        hoja: null, 
+                        cell: null, 
+                        type: 'string', 
+                        default: '' 
+                    },
+                    fecha_aprobacion: { 
+                        hoja: null, 
+                        cell: null, 
+                        type: 'string', 
+                        default: '' 
+                    },
+                    alerta_fecha_aprobacion: { 
+                        hoja: null, 
+                        cell: null, 
+                        type: 'string', 
+                        default: null 
+                    },
+                    vigencia_en_meses: { 
+                        hoja: null, 
+                        cell: null, 
+                        type: 'number', 
+                        default: 0 
+                    },
+                    instancia_aprobacion: { 
+                        hoja: null, 
+                        cell: null, 
+                        type: 'string', 
+                        default: '' 
+                    },
+                    condiciones_aprobacion: { 
+                        hoja: null, 
+                        cell: null, 
+                        type: 'array', 
+                        default: [] 
+                    },
+                    porcentaje_solicitado_financiables: { 
+                        hoja: null, 
+                        cell: null, 
+                        type: 'number', 
+                        default: 0 
+                    }
                     
                 };
 
@@ -2258,27 +2332,29 @@
     }
 
 
-    // Función para calcular el porcentaje solicitado/financiables
     function calcularPorcentajeFinanciables() {
         const totalAprobado = parseFloat(document.querySelector('[name="total_aprobado"]')?.value) || 0;
         const costosFinanciables = parseFloat(document.querySelector('[name="costos_financiables"]')?.value) || 0;
         
         let porcentaje = 0;
-        if (costosFinanciables > 0) {
-            porcentaje = (totalAprobado / costosFinanciables) * 100;
+        
+        // Cálculo correcto del porcentaje
+        if (totalAprobado > 0 && costosFinanciables > 0) {
+            porcentaje = (costosFinanciables / totalAprobado) * 100; // <--- ¡Corrección aquí!
         }
         
         const campoPorcentaje = document.querySelector('[name="porcentaje_solicitado_financiables"]');
-        if(campoPorcentaje) {
+        if (campoPorcentaje) {
             campoPorcentaje.value = porcentaje.toFixed(2);
         }
+        
+        return porcentaje; // Importante para usar en otras funciones
     }
 
-    // Función para obtener condiciones de aprobación
     function obtenerCondicionesAprobacion() {
         return Array.from(document.querySelectorAll('#lista-condiciones input:checked'))
-            .map(checkbox => checkbox.nextElementSibling.textContent)
-            .join('; ');
+                    .map(checkbox => checkbox.value) 
+                    .join(', '); 
     }
 
     // Actualizar event listeners para campos relacionados
@@ -2427,17 +2503,24 @@
     // Función modificada para agregar condiciones con checkboxes funcionales
     function agregarCondicion() {
         const input = document.querySelector('#condiciones-container input[type="text"]');
-        const container = document.querySelector('#lista-condiciones');
+        const lista = document.getElementById('lista-condiciones');
         
-        if(input.value.trim()) {
-            const div = document.createElement('div');
-            div.className = 'form-check mb-2';
-            div.innerHTML = `
-                <input type="checkbox" class="form-check-input condicion-check" checked>
-                <input type="hidden" name="condiciones[]" value="${input.value.trim()}">
-                <label class="form-check-label">${input.value.trim()}</label>
+        if (input.value.trim()) {
+            const condicion = input.value.trim();
+            const checkboxId = `condicion-${Date.now()}`;
+
+            // Crear checkbox con el valor correcto
+            lista.innerHTML += `
+                <div class="form-check">
+                    <input class="form-check-input" 
+                        type="checkbox" 
+                        id="${checkboxId}" 
+                        value="${condicion}"> <!-- Valor definido -->
+                    <label class="form-check-label" for="${checkboxId}">
+                        ${condicion}
+                    </label>
+                </div>
             `;
-            container.appendChild(div);
             input.value = '';
         }
     }
