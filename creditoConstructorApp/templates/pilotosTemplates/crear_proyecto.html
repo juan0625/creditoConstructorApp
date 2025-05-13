@@ -200,7 +200,7 @@
         <!-- Formulario de creación -->
         <div class="container">
             <form id="form-crear-proyecto">
-                {% if session.usuario.rol in ['admin', 'arquitecto'] %}
+                {# {% if session.usuario.rol in ['admin', 'arquitecto'] %} #}
                 <!-- Sección 1: Datos Básicos -->
                 <div class="form-section">
                     <h2 class="section-title"><i class="fas fa-info-circle me-2"></i>Datos Básicos del Proyecto</h2>
@@ -208,14 +208,13 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label required-field">ID Proyecto</label>
                             <input type="number" class="form-control" name="id_proyecto" required>
-                            <small class="text-muted">Clave para todos los cruces</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Tipo de Crédito</label>
                             <select class="form-select" name="tipo_credito">
                                 <option value="">Seleccione un tipo</option>
-                                <option>CPI</option>
-                                <option>CPP</option>
+                                <option value="CPI">CPI</option>
+                                <option value="CPP">CPP</option>
                             </select>
                         </div>
                     </div>
@@ -224,6 +223,8 @@
                             <label class="form-label">Tipo de Producto</label>
                             <select class="form-select" id="tipo_producto" name="tipo_producto">
                                 <option value="">Seleccione un producto</option>
+                                <option value="CPI CONSTRUCTOR">CPI CONSTRUCTOR</option>
+                                <option value="CPP CONSTRUCTOR">CPP CONSTRUCTOR</option>
                                 <option value="VIS CONSTRUCTOR">VIS CONSTRUCTOR</option>
                                 <option value="VIS CIEN MIL VIVIENDAS">VIS CIEN MIL VIVIENDAS</option>
                                 <option value="VIS LINEA VERDE">VIS LINEA VERDE</option>
@@ -800,46 +801,46 @@
                             <label class="form-label">Perito</label>
                             <select class="form-select" name="perito">
                                 <option value="">Seleccione Perito</option>
-                                <option value="Álvaro Garcia Ronderos">Álvaro Garcia Ronderos</option>
-                                <option value="Andres Hidalgo">Andres Hidalgo</option>
-                                <option value="Armando Jose Rodriguez Pava">Armando Jose Rodriguez Pava</option>
-                                <option value="Beatriz Barrios Arrazola">Beatriz Barrios Arrazola</option>
-                                <option value="Beatriz San Clemente">Beatriz San Clemente</option>
-                                <option value="Carlos Eduardo Rodriguez">Carlos Eduardo Rodriguez</option>
-                                <option value="Carmen Cecilia Reyes">Carmen Cecilia Reyes</option>
-                                <option value="Dario Gonzalez Valencia">Dario Gonzalez Valencia</option>
-                                <option value="Diego Echeverri">Diego Echeverri</option>
-                                <option value="Edgar Gamboa">Edgar Gamboa</option>
-                                <option value="Enrique Tatis Perez">Enrique Tatis Perez</option>
-                                <option value="Gabriel Muñoz">Gabriel Muñoz</option>
-                                <option value="Gerardo Rivera">Gerardo Rivera</option>
-                                <option value="Gloria Elena Duque">Gloria Elena Duque</option>
-                                <option value="Guido Jacome">Guido Jacome</option>
-                                <option value="Héctor Arturo Castillo Medina">Héctor Arturo Castillo Medina</option>
-                                <option value="Hernando Mejia Duque">Hernando Mejia Duque</option>
-                                <option value="Hernando Páez">Hernando Páez</option>
-                                <option value="Hilda Maria Sáenz">Hilda Maria Sáenz</option>
-                                <option value="Hugo F Kerguelen G">Hugo F Kerguelen G</option>
-                                <option value="Jaime Cardenas">Jaime Cardenas</option>
-                                <option value="Jorge Gomez Pavajeau">Jorge Gomez Pavajeau</option>
-                                <option value="Jose Gustavo Silva Perez">Jose Gustavo Silva Perez</option>
-                                <option value="Jose Ricardo Castaño">Jose Ricardo Castaño</option>
-                                <option value="Juan Bernardo Velasquez Portillo">Juan Bernardo Velasquez Portillo</option>
-                                <option value="Juan Manuel Diez Ruscher">Juan Manuel Diez Ruscher</option>
-                                <option value="Juan Pabón Hernández">Juan Pabón Hernández</option>
-                                <option value="Luis Fernando Velez">Luis Fernando Velez</option>
-                                <option value="Margarita Polanco">Margarita Polanco</option>
-                                <option value="Maria Margarita Cabello">Maria Margarita Cabello</option>
-                                <option value="Mauricio Uricoechea">Mauricio Uricoechea</option>
-                                <option value="Mauricio Waked Machado">Mauricio Waked Machado</option>
-                                <option value="Miguel Rafael Mendez">Miguel Rafael Mendez</option>
-                                <option value="Mónica I Saavedra Mac Ausland">Mónica I Saavedra Mac Ausland</option>
-                                <option value="Octavio Vasquez Bermúdez">Octavio Vasquez Bermúdez</option>
-                                <option value="Orlando Hernandez Leal">Orlando Hernandez Leal</option>
-                                <option value="Piedad Ines Burgos Burgos">Piedad Ines Burgos Burgos</option>
-                                <option value="PREVEO - Maria Marcela Clavijo y Miguel Angel Neita">PREVEO - Maria Marcela Clavijo y Miguel Angel Neita</option>
-                                <option value="Rolando Mejia">Rolando Mejia</option>
-                                <option value="Rubén Dario Carrillo">Rubén Dario Carrillo</option>
+                                <option value="ÁLVARO GARCIA RONDEROS">ÁLVARO GARCIA RONDEROS</option>
+                                <option value="ANDRES HIDALGO">ANDRES HIDALGO</option>
+                                <option value="ARMANDO JOSE RODRIGUEZ PAVA">ARMANDO JOSE RODRIGUEZ PAVA</option>
+                                <option value="BEATRIZ BARRIOS ARRAZOLA">BEATRIZ BARRIOS ARRAZOLA</option>
+                                <option value="BEATRIZ SAN CLEMENTE">BEATRIZ SAN CLEMENTE</option>
+                                <option value="CARLOS EDUARDO RODRIGUEZ">CARLOS EDUARDO RODRIGUEZ</option>
+                                <option value="CARMEN CECILIA REYES">CARMEN CECILIA REYES</option>
+                                <option value="DARIO GONZALEZ VALENCIA">DARIO GONZALEZ VALENCIA</option>
+                                <option value="DIEGO ECHEVERRI">DIEGO ECHEVERRI</option>
+                                <option value="EDGAR GAMBOA">EDGAR GAMBOA</option>
+                                <option value="ENRIQUE TATIS PEREZ">ENRIQUE TATIS PEREZ</option>
+                                <option value="GABRIEL MUÑOZ">GABRIEL MUÑOZ</option>
+                                <option value="GERARDO RIVERA">GERARDO RIVERA</option>
+                                <option value="GLORIA ELENA DUQUE">GLORIA ELENA DUQUE</option>
+                                <option value="GUIDO JACOME">GUIDO JACOME</option>
+                                <option value="HÉCTOR ARTURO CASTILLO MEDINA">HÉCTOR ARTURO CASTILLO MEDINA</option>
+                                <option value="HERNANDO MEJIA DUQUE">HERNANDO MEJIA DUQUE</option>
+                                <option value="HERNANDO PÁEZ">HERNANDO PÁEZ</option>
+                                <option value="HILDA MARIA SÁENZ">HILDA MARIA SÁENZ</option>
+                                <option value="HUGO F KERGUELEM G">HUGO F KERGUELEM G</option>
+                                <option value="JAIME CARDENAS">JAIME CARDENAS</option>
+                                <option value="JORGE GOMEZ PAVAJEAU">JORGE GOMEZ PAVAJEAU</option>
+                                <option value="JOSE GUSTAVO SILVA PEREZ">JOSE GUSTAVO SILVA PEREZ</option>
+                                <option value="JOSE RICARDO CASTAÑO">JOSE RICARDO CASTAÑO</option>
+                                <option value="JUAN BERNARDO VELASQUEZ PORTILLO">JUAN BERNARDO VELASQUEZ PORTILLO</option>
+                                <option value="JUAN MANUEL DIEZ RUSCHER">JUAN MANUEL DIEZ RUSCHER</option>
+                                <option value="JUAN PABÓN HERNÁNDEZ">JUAN PABÓN HERNÁNDEZ</option>
+                                <option value="LUIS FERNANDO VELEZ">LUIS FERNANDO VELEZ</option>
+                                <option value="MARGARITA POLANCO">MARGARITA POLANCO</option>
+                                <option value="MARIA MARGARITA CABELLO">MARIA MARGARITA CABELLO</option>
+                                <option value="MAURICIO URICOECHEA">MAURICIO URICOECHEA</option>
+                                <option value="MAURICIO WAKED MACHADO">MAURICIO WAKED MACHADO</option>
+                                <option value="MIGUEL RAFAEL MENDEZ">MIGUEL RAFAEL MENDEZ</option>
+                                <option value="MÓNICA I SAAVEDRA MAC AUSLAND">MÓNICA I SAAVEDRA MAC AUSLAND</option>
+                                <option value="OCTAVIO VASQUEZ BERMÚDEZ">OCTAVIO VASQUEZ BERMÚDEZ</option>
+                                <option value="ORLANDO HERNANDEZ LEAL">ORLANDO HERNANDEZ LEAL</option>
+                                <option value="PIEDAD INES BURGOS BURGOS">PIEDAD INES BURGOS BURGOS</option>
+                                <option value="PREVEO - MARIA MARCELA CLAVIJO Y MIGUEL ANGEL NEITA">PREVEO - MARIA MARCELA CLAVIJO Y MIGUEL ANGEL NEITA</option>
+                                <option value="ROLANDO MEJIA">ROLANDO MEJIA</option>
+                                <option value="RUBÉN DARIO CARRILLO">RUBÉN DARIO CARRILLO</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -992,10 +993,20 @@
                         </div>
                     </div>
                 </div>
-                {% endif %}
-                {% if session.usuario.rol in ['admin', 'auxiliar'] %}
-                <!-- Sección 4: Aprobaciones GOSO -->
-                <div class="form-section auxiliar-section">
+                {# {% endif %} #}
+                {# {% if session.usuario.rol in ['admin', 'auxiliar'] %} #}
+                <div class="form-section">
+                    <h2 class="section-title"><i class="fas fa-folder-open me-2"></i>Seleccionar Proyecto Existente</h2>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <select class="form-select" id="seleccionar-proyecto">
+                                <option value="">Seleccione un proyecto...</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section auxiliar-section" id="form-seccion4">
                     <h2 class="section-title"><i class="fas fa-file-contract me-2"></i>Gestión PCP Bizagi</h2>
                     
                     <div class="row">
@@ -1076,8 +1087,8 @@
                             </div>
                         </div>
                     </div>
-                </div>
-                {% endif %}
+                </div> 
+                {# {% endif %} #}
                 
                 <!-- Botones -->
                 <div class="d-flex justify-content-between mt-4">
@@ -1544,107 +1555,116 @@
     };
      
     // Función para inicializar Choices
-    function initializeChoices(select) {
-        try {
-            if (select._choicesInstance) {
-                select._choicesInstance.destroy();
+    function initializeChoices(select, choicesData = []) {
+        if (select._choicesInstance) {
+            select._choicesInstance.destroy();
+        }
+
+        const choices = new Choices(select, {
+            searchEnabled: true,
+            choices: choicesData,
+            shouldSort: false,
+            itemSelectText: '',
+            classNames: {
+                containerInner: 'choices__inner',
+                input: 'choices__input'
             }
-            
-            const choices = new Choices(select, {
-                searchEnabled: true,
-                itemSelectText: '',
-                removeItemButton: false,
-                shouldSort: false,
-                classNames: {
-                    containerInner: 'choices__inner',
-                    input: 'choices__input',
-                }
-            });
-            
-            select._choicesInstance = choices;
-            return choices;
-        } catch (error) {
-            console.error('Error inicializando Choices:', error);
-            return null;
+        });
+
+        select._choicesInstance = choices;
+        return choices;
+    }
+
+
+    function limpiarOpciones(select, placeholder = '') {
+        while (select.options.length > 0) {
+            select.remove(0);
+        }
+
+        if (placeholder) {
+            const option = document.createElement('option');
+            option.text = placeholder;
+            option.value = '';
+            select.add(option);
         }
     }
+
 
 
     // API Endpoints
-    const API_DEPARTAMENTOS = 'https://api-colombia.com/api/v1/Department';
-    const API_MUNICIPIOS = (departmentId) => `https://api-colombia.com/api/v1/Department/${departmentId}/cities`;
+    const API_DEPARTAMENTOS_JSON = 'https://raw.githubusercontent.com/marcovega/colombia-json/master/colombia.min.json';
 
-    // Elementos del DOM
+    let listaDepartamentos = [];
+
+    function cargarDepartamentos() {
+        fetch(API_DEPARTAMENTOS_JSON)
+            .then(res => res.json())
+            .then(data => {
+                listaDepartamentos = data;
+                departamentoSelect.innerHTML = '<option value="">Seleccione un departamento</option>';
+                data.forEach(dep => {
+                    const option = new Option(dep.departamento, dep.departamento);
+                    departamentoSelect.add(option);
+                });
+                initializeChoices(departamentoSelect);
+            })
+            .catch(error => console.error('Error cargando departamentos:', error));
+    }
+
+    function cargarMunicipios(nombreDepartamento) {
+        // Quitar deshabilitado antes de inicializar Choices
+        municipioSelect.disabled = false;
+
+        // Destruir instancia Choices si ya existe
+        if (municipioSelect._choicesInstance) {
+            municipioSelect._choicesInstance.destroy();
+            municipioSelect._choicesInstance = null;
+        }
+
+        // Limpiar opciones
+        municipioSelect.innerHTML = '<option value="">Seleccione un municipio</option>';
+
+        // Buscar el departamento y cargar las ciudades
+        const dep = listaDepartamentos.find(d => d.departamento === nombreDepartamento);
+        if (dep) {
+            dep.ciudades.forEach(ciudad => {
+                const option = new Option(ciudad, ciudad);
+                municipioSelect.add(option);
+            });
+        }
+
+        // Re-inicializar Choices
+        initializeChoices(municipioSelect);
+    }
+
+
+    // Listener actualizado para departamento
     const departamentoSelect = document.getElementById('departamento');
     const municipioSelect = document.getElementById('municipio');
 
-    // Modificar funciones de carga
-
-    async function cargarDepartamentos() {
-        try {
-            const response = await fetch(API_DEPARTAMENTOS);
-            const departamentos = await response.json();
-            const departamentoSelect = document.getElementById("departamento");
-            
-            // Limpiar y cargar opciones
-            departamentoSelect.innerHTML = '<option value="">Seleccione un departamento</option>';
-            departamentos.forEach(depto => {
-                const option = new Option(depto.name, depto.id);
-                departamentoSelect.add(option);
-            });
-            
-            // Reinicializar Choices
-            initializeChoices(departamentoSelect);
-            
-        } catch (error) {
-            console.error("Error cargando departamentos:", error);
-        }
-    }
-
-    async function cargarMunicipios(departmentId) {
-        const municipioSelect = document.getElementById("municipio");
-        try {
-            const response = await fetch(API_MUNICIPIOS(departmentId));
-            const municipios = await response.json();
-            
-            // Limpiar y cargar opciones
-            municipioSelect.innerHTML = '<option value="">Seleccione un municipio</option>';
-            municipios.forEach(municipio => {
-                const option = new Option(municipio.name, municipio.id);
-                municipioSelect.add(option);
-            });
-            
-            // Reinicializar Choices
-            initializeChoices(municipioSelect);
-            municipioSelect.disabled = false;
-            
-        } catch (error) {
-            console.error("Error cargando municipios:", error);
-        }
-    }
-    
-
-    // Event Listeners
     departamentoSelect.addEventListener('change', (e) => {
-        if (e.target.value) {
-            cargarMunicipios(e.target.value);
+        const selected = e.target.value;
+        if (selected) {
+            cargarMunicipios(selected);
         } else {
+            if (municipioSelect._choicesInstance) {
+                municipioSelect._choicesInstance.destroy();
+                municipioSelect._choicesInstance = null;
+            }
             municipioSelect.innerHTML = '<option value="">Seleccione un departamento primero</option>';
             municipioSelect.disabled = true;
         }
     });
 
-    // Inicializar
-    document.addEventListener('DOMContentLoaded', function() {
-    // Inicializar todos los selects estáticos excepto departamento/municipio
-        const staticSelects = document.querySelectorAll('select:not(#departamento):not(#municipio)');
-        staticSelects.forEach(select => {
-            initializeChoices(select);
-        });
-
-            // Iniciar carga de departamentos
-            cargarDepartamentos();
-        });
+    // Event Listeners
+    // departamentoSelect.addEventListener('change', (e) => {
+    //     if (e.target.value) {
+    //         cargarMunicipios(e.target.value);
+    //     } else {
+    //         municipioSelect.innerHTML = '<option value="">Seleccione un departamento primero</option>';
+    //         municipioSelect.disabled = true;
+    //     }
+    // });
     
     
     let participanteCount = 1;
@@ -1785,22 +1805,34 @@
         participanteCount++;
     });
 
-    // Función modificada para cargar condiciones existentes
-    function cargarCondiciones(condicionesGuardadas) {
+    function cargarCondiciones(condicionesArray) {
         const container = document.querySelector('#lista-condiciones');
         container.innerHTML = '';
         
-        condicionesGuardadas.split('; ').forEach(condicion => {
-            if(condicion.trim()) {
-                const div = document.createElement('div');
-                div.className = 'form-check mb-2';
-                div.innerHTML = `
-                    <input type="checkbox" class="form-check-input condicion-check" checked>
-                    <input type="hidden" name="condiciones[]" value="${condicion.trim()}">
-                    <label class="form-check-label">${condicion.trim()}</label>
-                `;
-                container.appendChild(div);
-            }
+        // Asegurar que siempre sea un array
+        let condiciones = [];
+        if (Array.isArray(condicionesArray)) {
+            condiciones = condicionesArray;
+        } else if (typeof condicionesArray === 'string') { // Si está guardado como string
+            condiciones = condicionesArray.split(',');
+        }
+
+        condiciones.forEach(condicion => {
+            const checkboxId = `condicion-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const div = document.createElement('div');
+            div.className = 'form-check mb-2';
+            div.innerHTML = `
+                <input class="form-check-input" 
+                    type="checkbox" 
+                    id="${checkboxId}"
+                    value="${condicion.trim()}"
+                    name="condiciones[]"
+                    ${condicion.trim() ? 'checked' : ''}>
+                <label class="form-check-label" for="${checkboxId}">
+                    ${condicion.trim()}
+                </label>
+            `;
+            container.appendChild(div);
         });
     }
 
@@ -1903,7 +1935,7 @@
                 confirmButtonText: 'Aceptar'
             });
         });
-}
+    }
 
 
     /** Lee el valor de un <select> */
@@ -1925,6 +1957,270 @@
         return null;
     }
 
+    // ————————————————————————————————————————————————
+    // 2) FUNCIÓN PARA CARGAR SELECTOR DE PROYECTOS
+    // ————————————————————————————————————————————————
+    function cargarProyectosEnSelector() {
+        const selector = document.getElementById('seleccionar-proyecto');
+        selector.innerHTML = '<option value="">Seleccione un proyecto...</option>';
+        const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+
+        proyectos.forEach(proyecto => {
+            const option = document.createElement('option');
+            option.value = proyecto.id_proyecto;
+            option.textContent = `${proyecto.id_proyecto} - ${proyecto.nombre_proyecto || 'Sin nombre'}`;
+            selector.appendChild(option);
+        });
+    }
+
+    // 3) MANEJAR SELECCIÓN DE PROYECTO (HABILITAR Y CARGAR DATOS COMPLETOS)
+    document.getElementById('seleccionar-proyecto').addEventListener('change', function(e) {
+        const idProyecto = e.target.value;
+        const proyectos = JSON.parse(localStorage.getItem('proyectos') || '[]');
+        const proyecto = proyectos.find(p => p.id_proyecto === idProyecto);
+        const departamento = (proyecto.departamento || '').toLowerCase();
+        const municipio = (proyecto.ciudad || '').toLowerCase();
+
+        // Actualizar campos
+        document.querySelector('[name="departamento"]').value = departamento;
+        document.querySelector('[name="municipio"]').value = municipio;
+
+        // 1. Habilitar sección 4
+        const isAuxiliar = session.usuario.rol === 'auxiliar';
+        const section4Fields = document.querySelectorAll('#form-seccion4 input, #form-seccion4 select');
+        
+        if (idProyecto) {
+            section4Fields.forEach(field => {
+                field.disabled = isAuxiliar ? false : true;
+                if (!isAuxiliar) field.disabled = false; // Admin/arquitecto edita todo
+            });
+        }
+
+        // 2. Cargar todos los campos
+        if (proyecto) {
+            // Mapeo completo de campos
+
+            // Cargar participantes
+            if (proyecto.participantes) {
+                cargarParticipantes(proyecto.participantes);
+            }
+            
+            // Cargar condiciones (HABILITAR ESTA SECCIÓN)
+            if (proyecto.condiciones_aprobacion) {
+                cargarCondiciones(proyecto.condiciones_aprobacion);
+            }
+
+            document.querySelector('[name="municipio"]').value = proyecto.ciudad || '';
+
+
+            const mapCampos = {
+                // Sección 1: Datos Básicos
+                'id_proyecto': proyecto.id_proyecto,
+                'tipo_producto': proyecto.tipo_producto,
+                'rango_proyecto': proyecto.rango_proyecto,
+                'grupo_riesgo': proyecto.grupoPrincipal,
+                'nit_grupo_riesgo': proyecto.nit_grupo_riesgo,
+                'nit_titular': proyecto.nit_titular,
+                'titular_credito': proyecto.titular_credito,
+                'nombre_proyecto': proyecto.nombre_proyecto,
+                'tipo_proyecto': proyecto.tipo_inmuebles,
+                'segmento': proyecto.segmento,
+                'municipio': proyecto.ciudad,
+                'tipodefiducia': proyecto.tipo_fiducia,
+                'fiduciaria': proyecto.fiduciaria,
+                
+                // Sección 2: Equipo
+                'gerente': proyecto.gerente,
+                'arquitecto': proyecto.arquitecto,
+                'auxiliar': proyecto.auxiliar,
+                'perito': proyecto.perito,
+                
+                // Sección 3: Montos
+                'monto_desembolso': proyecto.monto_solicitado_1_desembolso,
+                'monto_cpi': proyecto.monto_solicitado_cpi,
+                'monto_lote': proyecto.monto_solicitado_lote,
+                'total_aprobado': proyecto.total_valor_aprobado,
+                
+                'calificacion_it': proyecto.calificacion_it,
+                'costos_financiables': proyecto.costos_financiables,
+                'valor_lote': proyecto.valor_lote,
+                'valor_total_proyecto': proyecto.valor_total_proyecto,
+                'meses_programacion': proyecto.meses_programacion,
+                'total_inmuebles': proyecto.total_inmuebles,
+                'meses_venta': proyecto.meses_para_venta,
+                
+                // Sección 4: Aprobaciones GOSO
+                'tipo_credito': proyecto.tipo_credito,
+                'alerta_fecha_aprobacion' : proyecto.alerta_fecha_aprobacion,
+                'departamento': proyecto.departamento,
+                'caso_pcp_bizagi': proyecto.caso_pcp_bizagi,
+                'visitas_a_cobrar': proyecto.visitas_a_cobrar,
+                'cobrar_estudio_tecnico': proyecto.cobrar_estudio_tecnico,
+                'fecha_aprobacion': proyecto.fecha_aprobacion,
+                'vigencia_en_meses': proyecto.vigencia_en_meses,
+                'instancia_aprobacion': proyecto.instancia_aprobacion,
+                'porcentaje_solicitado_financiables': proyecto.porcentaje_solicitado_financiables,
+                
+                // Sección 5: Legal/Técnico
+                'validacion_licencia': proyecto.validacion_licencia_construccion,
+                'fecha_radicacion_licencia': proyecto.fecha_radicacion_licencia,
+                'requiere_poliza_decenal': proyecto.requiere_poliza_decenal,
+
+                // Subgrupos
+                'subgrupo_1': proyecto.subgrupo_1,
+                'subgrupo_2': proyecto.subgrupo_2,
+                'subgrupo_3': proyecto.subgrupo_3
+            };
+
+            // Cargar campos normales
+            Object.entries(mapCampos).forEach(([key, value]) => {
+                const element = document.querySelector(`[name="${key}"]`);
+                if (element) {
+                    element.value = value || '';
+                    if (element._choicesInstance) {
+                        element._choicesInstance.setChoiceByValue(value);
+                    }
+                }
+            });
+             
+
+            // 3. Cargar subgrupos dinámicos
+            const subgruposContainer = document.getElementById('subgrupos-container');
+            subgruposContainer.innerHTML = '';
+            
+            [proyecto.subgrupo_1, proyecto.subgrupo_2, proyecto.subgrupo_3]
+                .filter(sg => sg)
+                .forEach((sg, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'input-group mb-2';
+                    div.innerHTML = `
+                        <input list="grupo_de_riesgo-list" 
+                            class="form-control subgrupo-input" 
+                            name="subgrupos[]" 
+                            value="${sg}"
+                            placeholder="Subgrupo ${index + 1}">
+                        ${index === 0 ? '<button type="button" class="btn btn-success btn-add-subgrupo">+</button>' : ''}
+                    `;
+                    subgruposContainer.appendChild(div);
+                });
+
+            // 4. Actualizar componentes visuales
+            setTimeout(() => {
+            // 1. Cálculos iniciales
+                    calcularTotalAprobado();
+                    calcularPorcentajeFinanciables();
+
+                    // 2. Actualizar selects específicos 
+                    ['departamento', 'municipio'].forEach(name => {
+                        const select = document.querySelector(`[name="${name}"]`);
+                        if (select && select._choicesInstance) {
+                            select._choicesInstance.setChoiceByValue(select.value);
+                        }
+                    });
+
+                    // 3. Actualizar Choices.js solo para selects con datos dinámicos
+                    const selectsDinamicos = document.querySelectorAll('.choices-selector'); // Usa una clase específica
+                    selectsDinamicos.forEach(select => {
+                        if (select._choicesInstance) {
+                            select._choicesInstance.setChoiceByValue(select.value);
+                        }
+                    });
+                }, 150); // Aumentar tiempo para asegurar que el DOM esté listo
+               }
+            });
+
+    document.getElementById('seleccionar-proyecto').addEventListener('change', calcularPorcentajeFinanciables);
+
+    // ————————————————————————————————————————————————
+    // 4) MANEJAR ENVÍO DE SECCIÓN 4 (ACTUALIZACIÓN COMPLETA)
+    // ————————————————————————————————————————————————
+    document.getElementById('form-seccion4').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const idProyecto = document.getElementById('seleccionar-proyecto').value;
+        const proyectos = JSON.parse(localStorage.getItem('proyectos') || '[]');
+        const proyectoIndex = proyectos.findIndex(p => p.id_proyecto === idProyecto);
+        const departamento = departamentoSelect.options[departamentoSelect.selectedIndex]?.text || '';
+        const ciudad = municipioSelect.options[municipioSelect.selectedIndex]?.text || '';
+
+
+        if (proyectoIndex === -1) return;
+
+        // Recoger subgrupos actualizados
+        const subgrupos = Array.from(document.querySelectorAll('.subgrupo-input'))
+                            .map(input => input.value.trim())
+                            .filter(Boolean);
+
+        // Actualizar proyecto
+        const proyectoActualizado = {
+            ...proyectos[proyectoIndex],
+            // Campos editables
+            monto_solicitado_1_desembolso: parseFloat(this.monto_desembolso.value) || 0,
+            monto_solicitado_cpi: parseFloat(this.monto_cpi.value) || 0,
+            monto_solicitado_lote: parseFloat(this.monto_lote.value) || 0,
+            subgrupo_1: subgrupos[0] || '',
+            subgrupo_2: subgrupos[1] || '',
+            subgrupo_3: subgrupos[2] || '',
+            // Sección 4
+            tipo_credito: this.tipo_credito.value,
+            departamento,
+            ciudad,
+            caso_pcp_bizagi: this.caso_pcp_bizagi.value,
+            visitas_a_cobrar: parseFloat(this.visitas_a_cobrar.value) || 0,
+            cobrar_estudio_tecnico: this.cobrar_estudio_tecnico.value,
+            fecha_aprobacion: this.fecha_aprobacion.value,
+            vigencia_en_meses: parseFloat(this.vigencia_en_meses.value) || 0,
+            instancia_aprobacion: this.instancia_aprobacion.value,
+            condiciones_aprobacion: Array.from(this.querySelectorAll('#lista-condiciones input:checked'))
+                                    .map(checkbox => checkbox.nextElementSibling.textContent.trim()),
+            porcentaje_solicitado_financiables: calcularPorcentajeFinanciables(),
+            alerta_fecha_aprobacion: new Date().toISOString()
+        };
+
+        proyectos[proyectoIndex] = proyectoActualizado;
+        localStorage.setItem('proyectos', JSON.stringify(proyectos));
+        
+        generarExcel([proyectoActualizado]);
+        Swal.fire('Éxito', 'Proyecto actualizado correctamente', 'success');
+    });
+
+    // Modificar la función de carga de proyectos
+    function cargarParticipantes(participantes) {
+        const container = document.getElementById('participantes-container');
+        container.innerHTML = '';
+        
+        participantes.forEach((participante, index) => {
+            const newParticipante = document.createElement('div');
+            newParticipante.className = 'participante-item';
+            newParticipante.innerHTML = `
+                <span class="remove-participante"><i class="fas fa-times-circle"></i></span>
+                <div class="row">
+                    <div class="col-md-5 mb-3">
+                        <input type="text" class="form-control" 
+                            name="participantes[${index}][nombre]" 
+                            value="${participante.nombre}" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <select class="form-select" name="participantes[${index}][rol]" required>
+                            <option value="">Seleccione un rol</option>
+                            <option ${participante.rol === 'Arquitecto' ? 'selected' : ''}>Arquitecto</option>
+                            <option ${participante.rol === 'Gerente' ? 'selected' : ''}>Gerente</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="input-group">
+                            <input type="number" class="form-control" 
+                                name="participantes[${index}][participacion]" 
+                                value="${participante.participacion}" required>
+                            <span class="input-group-text">%</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(newParticipante);
+        });
+        participanteCount = participantes.length;
+    }
     // ————————————————————————————————————————————————
     // 1) Handler: Crear proyecto manual (+ exportar Excel)
     // ————————————————————————————————————————————————
@@ -1959,12 +2255,12 @@
         if (!grupoPrincipal || subgrupos.length === 0) {
             Swal.fire('Error', 'Debe seleccionar al menos el grupo principal y un subgrupo', 'error');
             return;
-        }                  
+        }             
 
         // Construir el objeto con mismas claves que importador
         const proyecto = {
             // Sección 1: Datos Básicos
-            id_proyecto: Date.now().toString(),
+            id_proyecto: getVal('[name="id_proyecto"]'),
             fecha_creacion: getFechaBogotaSinZona(),
             tipo_producto: getVal('[name="tipo_producto"]'),
             rango_proyecto: getVal('[name="tipo_producto"]'),
@@ -2024,23 +2320,35 @@
             ultimo_desembolso:              null
         };
 
+       
+
         // Guardar en LocalStorage
         const all = JSON.parse(localStorage.getItem('proyectos') || '[]');
         const existingIndex = all.findIndex(p => p.id_proyecto === proyecto.id_proyecto);
 
         if (existingIndex !== -1) {
-            // Combinar datos existentes con nuevos
+            // Mantener fecha de creación original
+            const fechaCreacionOriginal = all[existingIndex].fecha_creacion;
+            
+            // Actualizar solo campos permitidos
             all[existingIndex] = { 
-                ...all[existingIndex], 
+                ...all[existingIndex],
                 ...proyecto,
-                // Mantener datos específicos del auxiliar si ya existen
+                fecha_creacion: fechaCreacionOriginal, // Conservar fecha original
+                alerta_fecha_aprobacion: new Date().toISOString(), // Actualizar fecha de modificación
                 condiciones_aprobacion: proyecto.condiciones_aprobacion || all[existingIndex].condiciones_aprobacion,
                 porcentaje_solicitado_financiables: proyecto.porcentaje_solicitado_financiables || all[existingIndex].porcentaje_solicitado_financiables
             };
+            
+            Swal.fire('Actualizado', 'Proyecto actualizado exitosamente', 'success');
         } else {
+            // Es nuevo proyecto, agregar normalmente
             all.push(proyecto);
+            Swal.fire('Creado', 'Nuevo proyecto creado', 'success');
         }
 
+
+       
         localStorage.setItem('proyectos', JSON.stringify(all));
 
         // Refrescar tabla y exportar Excel
@@ -2069,6 +2377,7 @@
                                 .filter(value => value !== '');
             
             const grupoPrincipal = grupoRiesgo.value; // Usar el mismo elemento validado
+            
 
             // 3. Validación mejorada
             let isValid = true;
@@ -2298,9 +2607,16 @@
         // ————————————————————————————————————————————————
         // 3) Inicializar tabla al cargar la página
         // ————————————————————————————————————————————————
-        window.addEventListener('DOMContentLoaded', () => {
-        if (typeof cargarProyectos === 'function') cargarProyectos({});
-    });
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarProyectosEnSelector();
+            cargarDepartamentos(); // Opcional, si aún quieres el select
+            cargarMunicipios(); // <- Municipios sin depender de departamento
+            
+            
+            // Inicializar otros selects
+            const staticSelects = document.querySelectorAll('select:not(#municipio)');
+            staticSelects.forEach(select => initializeChoices(select));
+        });
 
     // En tu código JS principal, añade este evento:
     document.getElementById('importModal').addEventListener('hidden.bs.modal', function () {
@@ -2309,8 +2625,21 @@
     });
 
     function getSelectText(selector) {
-    const el = document.querySelector(selector);
-    return el ? el.options[el.selectedIndex].text.trim() : '';
+        try {
+            const el = document.querySelector(selector);
+            if (!el || el.tagName !== 'SELECT') return '';
+
+            if (el._choicesInstance) {
+                const selectedValue = el._choicesInstance.getValue(true);
+                const option = Array.from(el.options).find(opt => opt.value == selectedValue);
+                return option?.text || '';
+            }
+
+            return el.options[el.selectedIndex]?.text || '';
+        } catch (error) {
+            console.error('Error en getSelectText:', error);
+            return '';
+        }
     }
 
     function getFechaBogotaSinZona() {
@@ -2333,22 +2662,20 @@
 
 
     function calcularPorcentajeFinanciables() {
+        // Obtener valores de campos DESHABILITADOS pero existentes en el DOM
         const totalAprobado = parseFloat(document.querySelector('[name="total_aprobado"]')?.value) || 0;
         const costosFinanciables = parseFloat(document.querySelector('[name="costos_financiables"]')?.value) || 0;
         
         let porcentaje = 0;
         
-        // Cálculo correcto del porcentaje
-        if (totalAprobado > 0 && costosFinanciables > 0) {
-            porcentaje = (costosFinanciables / totalAprobado) * 100; // <--- ¡Corrección aquí!
+        if (costosFinanciables > 0) {
+            porcentaje = (totalAprobado / costosFinanciables) * 100;
         }
         
         const campoPorcentaje = document.querySelector('[name="porcentaje_solicitado_financiables"]');
-        if (campoPorcentaje) {
-            campoPorcentaje.value = porcentaje.toFixed(2);
-        }
+        if (campoPorcentaje) campoPorcentaje.value = porcentaje.toFixed(2);
         
-        return porcentaje; // Importante para usar en otras funciones
+        return porcentaje;
     }
 
     function obtenerCondicionesAprobacion() {
@@ -2368,11 +2695,10 @@
     // Función para obtener el valor del select
     function getSelectValue(selectElement) {
         try {
-            // Para selects con Choices
             if (selectElement._choicesInstance) {
-                return selectElement._choicesInstance.getValue(true);
+                const selected = selectElement._choicesInstance.getValue(true);
+                return Array.isArray(selected) ? selected[0] : selected;
             }
-            // Para selects normales
             return selectElement.value;
         } catch (error) {
             console.error('Error obteniendo valor del select:', error);
@@ -2525,13 +2851,29 @@
         }
     }
 
-    // Calcular alerta de fecha
-    document.querySelector('[name="fecha_aprobacion"]').addEventListener('change', function() {
-        const fecha = new Date(this.value);
-        const alerta = document.querySelector('[name="alerta_fecha"]');
-        fecha.setDate(fecha.getDate() + 30); // Ejemplo: 30 días después
-        alerta.value = fecha.toISOString().split('T')[0];
-    });
+ // Función para calcular fecha de alerta
+    function calcularFechaAlerta() {
+        const fechaAprobacion = document.querySelector('[name="fecha_aprobacion"]').value;
+        const mesesVigencia = parseInt(document.querySelector('[name="vigencia_en_meses"]').value) || 0;
+        const campoAlerta = document.querySelector('[name="alerta_fecha"]');
+
+        if (fechaAprobacion && !isNaN(mesesVigencia)) {
+            const fecha = new Date(fechaAprobacion);
+            
+            // Sumar meses a la fecha de aprobación
+            fecha.setMonth(fecha.getMonth() + mesesVigencia);
+            
+            // Formatear a YYYY-MM-DD
+            const fechaAlerta = fecha.toISOString().split('T')[0];
+            campoAlerta.value = fechaAlerta;
+        } else {
+            campoAlerta.value = ''; // Limpiar si no hay datos válidos
+        }
+    }
+
+    // Event listeners para ambos campos relacionados
+    document.querySelector('[name="fecha_aprobacion"]').addEventListener('change', calcularFechaAlerta);
+    document.querySelector('[name="vigencia_en_meses"]').addEventListener('input', calcularFechaAlerta);
 
     </script>
     <!-- Footer Estándar Bancolombia -->
