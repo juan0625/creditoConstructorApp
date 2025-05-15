@@ -602,11 +602,12 @@
                         </div>
                     </div>
                     <div class="col-md-6 mb-3" id="subgrupos-container">
-                        <label class="form-label">Subgrupos</label>
-                            <div class="input-group mb-2">
-                                <input list="grupo_de_riesgo-list" class="form-control subgrupo-input" name="subgrupos[]"  placeholder="Subgrupo 1">
-                                <button type="button" class="btn btn-success btn-add-subgrupo">+</button>
-                            </div>
+                        <label class="form-label">Subgrupos y Porcentajes</label>
+                        <div class="input-group mb-2">
+                            <input list="grupo_de_riesgo-list" class="form-control subgrupo-input" name="subgrupos[]" placeholder="Subgrupo 1">
+                            <input type="number" class="form-control porcentaje-input" name="porcentajes[]" placeholder="%" step="0.01" min="0" max="100" style="max-width: 100px;">
+                            <button type="button" class="btn btn-success btn-add-subgrupo">+</button>
+                        </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -901,11 +902,10 @@
                         </div>
                     </div>
                 </div>                   
-                <!-- Sección 2: Participantes del Proyecto -->
+                <!-- Sección 2: Participantes del Proyecto 
                 <div class="form-section">
                     <h2 class="section-title"><i class="fas fa-users me-2"></i>Participantes</h2>
                     <div id="participantes-container">
-                        <!-- Participante 1 (base) -->
                         <div class="participante-item">
                             <span class="remove-participante"><i class="fas fa-times-circle"></i></span>
                             <div class="row">
@@ -934,7 +934,7 @@
                     <button type="button" id="btn-add-participante" class="btn btn-outline-primary">
                         <i class="fas fa-plus me-2"></i>Agregar Participante
                     </button>
-                </div>
+                </div> -->
                 
                 <!-- Sección 3: Montos y Valores -->
                 <div class="form-section">
@@ -1007,7 +1007,7 @@
                 </div>
                 
                 <div class="form-section auxiliar-section" id="form-seccion4">
-                    <h2 class="section-title"><i class="fas fa-file-contract me-2"></i>Gestión PCP Bizagi</h2>
+                    <h2 class="section-title"><i class="fas fa-file-contract me-2"></i>Ratificación de Crédito</h2>
                     
                     <div class="row">
                         <div class="col-md-4 mb-3">
@@ -1082,7 +1082,7 @@
                                     </button>
                                 </div>
                                 <div id="lista-condiciones">
-                                    <!-- Las condiciones se añaden aquí con checkboxes -->
+                                    <!-- Las condiciones se añaden aquí con checkboxes y botones -->
                                 </div>
                             </div>
                         </div>
@@ -1488,15 +1488,15 @@
                                     </datalist>
                             </div>
                             <div class="col-md-12 mt-3" id="subgrupos-container2">
-                                <label class="form-label">Subgrupos</label>
+                                <label class="form-label">Subgrupos y Porcentajes</label>
                                 <div class="input-group mb-2">
                                     <input list="grupo_de_riesgo-list2" 
                                            class="form-control subgrupo-input2" 
                                            placeholder="Subgrupo 1">
+                                    <input type="number" class="form-control porcentaje-input2" placeholder="%" step="0.01" min="0" max="100" style="max-width: 100px;">
                                     <button type="button" class="btn btn-success btn-add-subgrupo2">+</button>
                                 </div>
                             </div>
-
                                 <!-- Auxiliar -->
                                 <div class="col-md-12 mt-3">
                                     <label class="form-label">Auxiliar</label>
@@ -1702,39 +1702,38 @@
             item.querySelector('[name*="[participacion]"]')?.value
         );
         
-        if(participantes.length === 0) {
-            alert('Debe agregar al menos un participante válido!');
-            isValid = false;
-        }
+        //if(participantes.length === 0) {
+        //    alert('Debe agregar al menos un participante válido!');
+        //   isValid = false;
+        //}
 
         return isValid;
     };
 
     // Manejo de subgrupos
-    let subgrupoCount = 1;
+    // Para el modal de importar
+let subgrupoCount = 1;
 
-    document.querySelector('.btn-add-subgrupo').addEventListener('click', function() {
-        if (subgrupoCount < 3) {
-            subgrupoCount++;
-            const newInput = document.createElement('div');
-            newInput.className = 'input-group mb-2';
-            newInput.innerHTML = `
-                <input list="grupo_de_riesgo-list" 
-                    class="form-control subgrupo-input" 
-                    placeholder="Subgrupo ${subgrupoCount}">
-                <button type="button" class="btn btn-danger btn-remove-subgrupo">-</button>
-            `;
-            document.getElementById('subgrupos-container').appendChild(newInput);
-        }
-    });
+document.querySelector('.btn-add-subgrupo').addEventListener('click', function() {
+    if (subgrupoCount < 3) {
+        subgrupoCount++;
+        const newInput = document.createElement('div');
+        newInput.className = 'input-group mb-2';
+        newInput.innerHTML = `
+            <input list="grupo_de_riesgo-list" 
+                class="form-control subgrupo-input" 
+                placeholder="Subgrupo ${subgrupoCount}">
+            <input type="number" class="form-control porcentaje-input" 
+                placeholder="%" step="0.01" min="0" max="100" 
+                style="max-width: 100px;">
+            <button type="button" class="btn btn-danger btn-remove-subgrupo">-</button>
+        `;
+        document.getElementById('subgrupos-container').appendChild(newInput);
+        addPercentageValidation();
+    }
+});
 
-    document.getElementById('subgrupos-container').addEventListener('click', function(e) {
-        if (e.target.classList.contains('btn-remove-subgrupo')) {
-            e.target.parentElement.remove();
-            subgrupoCount--;
-        }
-    });
-
+    // Para el formulario manual
     let subgrupoCount2 = 1;
 
     document.querySelector('.btn-add-subgrupo2').addEventListener('click', function() {
@@ -1746,18 +1745,105 @@
                 <input list="grupo_de_riesgo-list2" 
                     class="form-control subgrupo-input2" 
                     placeholder="Subgrupo ${subgrupoCount2}">
+                <input type="number" class="form-control porcentaje-input2" 
+                    placeholder="%" step="0.01" min="0" max="100" 
+                    style="max-width: 100px;">
                 <button type="button" class="btn btn-danger btn-remove-subgrupo">-</button>
             `;
             document.getElementById('subgrupos-container2').appendChild(newInput);
+            addPercentageValidation();
         }
     });
 
-    document.getElementById('subgrupos-container2').addEventListener('click', function(e) {
-        if (e.target.classList.contains('btn-remove-subgrupo')) {
-            e.target.parentElement.remove();
-            subgrupoCount2--;
-        }
+    function addPercentageValidation() {
+        // Seleccionar TODOS los inputs de porcentaje (ambos grupos)
+        const porcentajeInputs = document.querySelectorAll('[class*="porcentaje-input"]');
+        
+        const updateTotal = () => {
+            let total = 0;
+            porcentajeInputs.forEach(input => {
+                // Convertir a número y sumar (0 si está vacío)
+                total += parseFloat(input.value) || 0; 
+            });
+            
+            // Actualizar display del total
+            const totalElement = document.getElementById('total-porcentaje');
+            if(totalElement) {
+                totalElement.textContent = total.toFixed(2) + '%';
+                
+                // Cambiar color si supera 100%
+                totalElement.style.color = total > 100 ? 'red' : 'inherit';
+            }
+        };
+
+        // Agregar eventos a TODOS los inputs
+        porcentajeInputs.forEach(input => {
+            // Asegurar que solo se agregue el evento una vez
+            if(!input._percentageListenerAdded) { 
+                input.addEventListener('input', () => {
+                    // Validar rango
+                    if(input.value > 100) input.value = 100;
+                    if(input.value < 0) input.value = 0;
+                    
+                    // Actualizar total
+                    updateTotal();
+                });
+                input._percentageListenerAdded = true; // Marcar como procesado
+            }
+        });
+        
+        // Actualizar al cargar y después de cambios
+        updateTotal();
+    }
+    // Función de validación común
+    function addPercentageValidation() {
+        const validatePercentages = () => {
+            const allPercentages = document.querySelectorAll('[class*="porcentaje-input"]');
+            let total = 0;
+            
+            allPercentages.forEach(input => {
+                const value = parseFloat(input.value) || 0;
+                total += value;
+            });
+
+            if (total > 100) {
+                Swal.fire('Error', 'La suma de los porcentajes no puede exceder el 100%', 'error');
+                return false;
+            }
+            return true;
+        };
+
+        // Validar en tiempo real
+        document.querySelectorAll('[class*="porcentaje-input"]').forEach(input => {
+            input.addEventListener('input', validatePercentages);
+        });
+
+        // Validar antes de enviar el formulario
+        document.querySelector('form').addEventListener('submit', function(e) {
+            if (!validatePercentages()) {
+                e.preventDefault();
+            }
+        });
+    }
+
+    // Eliminar elementos (común para ambos)
+    document.querySelectorAll('[id^="subgrupos-container"]').forEach(container => {
+        container.addEventListener('click', function(e) {
+            if (e.target.classList.contains('btn-remove-subgrupo')) {
+                e.target.parentElement.remove();
+                const containerId = e.target.closest('[id^="subgrupos-container"]').id;
+                if (containerId.includes('2')) {
+                    subgrupoCount2--;
+                } else {
+                    subgrupoCount--;
+                }
+                addPercentageValidation();
+            }
+        });
     });
+
+    // Ejecutar validación inicial
+    addPercentageValidation();
 
     // Lógica para agregar participantes (corregida)
     document.getElementById('btn-add-participante')?.addEventListener('click', function() {
@@ -1806,36 +1892,43 @@
     });
 
     function cargarCondiciones(condicionesArray) {
-        const container = document.querySelector('#lista-condiciones');
+        const container = document.getElementById('lista-condiciones');
         container.innerHTML = '';
-        
-        // Asegurar que siempre sea un array
-        let condiciones = [];
-        if (Array.isArray(condicionesArray)) {
-            condiciones = condicionesArray;
-        } else if (typeof condicionesArray === 'string') { // Si está guardado como string
-            condiciones = condicionesArray.split(',');
-        }
 
-        condiciones.forEach(condicion => {
-            const checkboxId = `condicion-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        condicionesArray.forEach(cond => {
+            // Convertir strings antiguos a objetos
+            if (typeof cond === 'string') {
+                const [texto, estado] = cond.split(' - OK');
+                cond = {
+                    texto: texto.trim(),
+                    aprobado: estado !== undefined,
+                    fecha: estado?.match(/\((.*)\)/)?.[1] || ''
+                };
+            }
+
             const div = document.createElement('div');
             div.className = 'form-check mb-2';
             div.innerHTML = `
-                <input class="form-check-input" 
-                    type="checkbox" 
-                    id="${checkboxId}"
-                    value="${condicion.trim()}"
-                    name="condiciones[]"
-                    ${condicion.trim() ? 'checked' : ''}>
-                <label class="form-check-label" for="${checkboxId}">
-                    ${condicion.trim()}
-                </label>
+                <input type="checkbox" 
+                    class="form-check-input"
+                    ${cond.aprobado ? 'checked' : ''}
+                    ${cond.fecha ? `data-fecha="${cond.fecha}"` : ''}>
+                <label class="form-check-label">${cond.texto}</label>
             `;
+
+            // Agregar evento al checkbox cargado
+            div.querySelector('input').addEventListener('change', function() {
+                if(this.checked) {
+                    this.setAttribute('data-fecha', getFechaBogotaSinZona());
+                } else {
+                    this.removeAttribute('data-fecha');
+                }
+            });
+
             container.appendChild(div);
         });
     }
-
+    
     // ————————————————————————————————————————————————
     // Helpers y constantes compartidas
     // ————————————————————————————————————————————————
@@ -2001,9 +2094,9 @@
             // Mapeo completo de campos
 
             // Cargar participantes
-            if (proyecto.participantes) {
-                cargarParticipantes(proyecto.participantes);
-            }
+            // if (proyecto.participantes) {
+            //     cargarParticipantes(proyecto.participantes);
+            // }
             
             // Cargar condiciones (HABILITAR ESTA SECCIÓN)
             if (proyecto.condiciones_aprobacion) {
@@ -2069,7 +2162,10 @@
                 // Subgrupos
                 'subgrupo_1': proyecto.subgrupo_1,
                 'subgrupo_2': proyecto.subgrupo_2,
-                'subgrupo_3': proyecto.subgrupo_3
+                'subgrupo_3': proyecto.subgrupo_3,
+                'porcentaje_1': proyecto.porcentaje_1,
+                'porcentaje_2': proyecto.porcentaje_2,
+                'porcentaje_3': proyecto.porcentaje_3
             };
 
             // Cargar campos normales
@@ -2084,25 +2180,41 @@
             });
              
 
-            // 3. Cargar subgrupos dinámicos
+            //3. Cargar subgrupos dinámicos"
             const subgruposContainer = document.getElementById('subgrupos-container');
             subgruposContainer.innerHTML = '';
-            
-            [proyecto.subgrupo_1, proyecto.subgrupo_2, proyecto.subgrupo_3]
-                .filter(sg => sg)
-                .forEach((sg, index) => {
-                    const div = document.createElement('div');
-                    div.className = 'input-group mb-2';
-                    div.innerHTML = `
-                        <input list="grupo_de_riesgo-list" 
-                            class="form-control subgrupo-input" 
-                            name="subgrupos[]" 
-                            value="${sg}"
-                            placeholder="Subgrupo ${index + 1}">
-                        ${index === 0 ? '<button type="button" class="btn btn-success btn-add-subgrupo">+</button>' : ''}
-                    `;
-                    subgruposContainer.appendChild(div);
-                });
+
+            // Cargar subgrupos y porcentajes almacenados
+            const subgruposData = [
+                { nombre: proyecto.subgrupo_1, porcentaje: proyecto.porcentaje_1 },
+                { nombre: proyecto.subgrupo_2, porcentaje: proyecto.porcentaje_2 },
+                { nombre: proyecto.subgrupo_3, porcentaje: proyecto.porcentaje_3 }
+            ].filter(item => item.nombre);
+
+            subgruposData.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'input-group mb-2';
+                div.innerHTML = `
+                    <input list="grupo_de_riesgo-list" 
+                        class="form-control subgrupo-input" 
+                        name="subgrupos[]" 
+                        value="${item.nombre}"
+                        placeholder="Subgrupo ${index + 1}">
+                    <input type="number" 
+                        class="form-control porcentaje-input" 
+                        name="porcentajes[]" 
+                        value="${item.porcentaje || ''}"
+                        placeholder="%" 
+                        step="0.01" 
+                        min="0" 
+                        max="100" 
+                        style="max-width: 100px;">
+                    ${index === 0 ? 
+                        '<button type="button" class="btn btn-success btn-add-subgrupo">+</button>' : 
+                        '<button type="button" class="btn btn-danger btn-remove-subgrupo">-</button>'}
+                `;
+                subgruposContainer.appendChild(div);
+            });
 
             // 4. Actualizar componentes visuales
             setTimeout(() => {
@@ -2142,6 +2254,17 @@
         const proyectoIndex = proyectos.findIndex(p => p.id_proyecto === idProyecto);
         const departamento = departamentoSelect.options[departamentoSelect.selectedIndex]?.text || '';
         const ciudad = municipioSelect.options[municipioSelect.selectedIndex]?.text || '';
+        const fechaBogota = new Date().toLocaleString('es-CO', getFechaBogotaSinZona());
+
+          // Obtener porcentajes y validar
+            const porcentajes = Array.from(document.querySelectorAll('.porcentaje-input'))
+                .map(input => parseFloat(input.value) || 0);
+            
+            // Función de validación de porcentajes
+            function validarPorcentajes(porcentajes) {
+                const total = porcentajes.reduce((acc, curr) => acc + (curr || 0), 0);
+                return total <= 100;
+            }
 
 
         if (proyectoIndex === -1) return;
@@ -2161,6 +2284,9 @@
             subgrupo_1: subgrupos[0] || '',
             subgrupo_2: subgrupos[1] || '',
             subgrupo_3: subgrupos[2] || '',
+            porcentaje_1: porcentajes[0] || 0,
+            porcentaje_2: porcentajes[1] || 0,
+            porcentaje_3: porcentajes[2] || 0,
             // Sección 4
             tipo_credito: this.tipo_credito.value,
             departamento,
@@ -2171,10 +2297,13 @@
             fecha_aprobacion: this.fecha_aprobacion.value,
             vigencia_en_meses: parseFloat(this.vigencia_en_meses.value) || 0,
             instancia_aprobacion: this.instancia_aprobacion.value,
-            condiciones_aprobacion: Array.from(this.querySelectorAll('#lista-condiciones input:checked'))
-                                    .map(checkbox => checkbox.nextElementSibling.textContent.trim()),
+            condiciones_aprobacion: Array.from(this.querySelectorAll('#lista-condiciones .form-check')).map(div => {
+                const checkbox = div.querySelector('input');
+                const texto = div.querySelector('label').textContent.trim(); // Texto real del label
+                return checkbox.checked ? `${texto} - OK - ${fechaBogota}` : `${texto} - ${fechaBogota}`;
+            }),
             porcentaje_solicitado_financiables: calcularPorcentajeFinanciables(),
-            alerta_fecha_aprobacion: new Date().toISOString()
+            alerta_fecha_aprobacion: new Date().getFechaBogotaSinZona()
         };
 
         proyectos[proyectoIndex] = proyectoActualizado;
@@ -2251,6 +2380,17 @@
                      .map(input => input.value.trim())
                      .filter(value => value !== '');
 
+        // Obtener porcentajes y validar
+        const porcentajes = Array.from(document.querySelectorAll('.porcentaje-input'))
+                .map(input => parseFloat(input.value) || 0);
+            
+        // Función de validación de porcentajes
+        function validarPorcentajes(porcentajes) {
+                const total = porcentajes.reduce((acc, curr) => acc + (curr || 0), 0);
+                return total <= 100;
+            }
+       
+
         // Validación
         if (!grupoPrincipal || subgrupos.length === 0) {
             Swal.fire('Error', 'Debe seleccionar al menos el grupo principal y un subgrupo', 'error');
@@ -2268,6 +2408,9 @@
             subgrupo_1: subgrupos[0] || '',
             subgrupo_2: subgrupos[1] || '',
             subgrupo_3: subgrupos[2] || '',
+            porcentaje_1 : porcentajes[0] || '',
+            porcentaje_2 : porcentajes[1] || '',
+            porcentaje_3 : porcentajes[2] || '',
             nit_grupo_riesgo: getVal('[name="nit_grupo_riesgo"]'),
             nit_titular: getVal('[name="nit_titular"]'),
             titular_credito: getVal('[name="titular_credito"]'),
@@ -2335,7 +2478,7 @@
                 ...all[existingIndex],
                 ...proyecto,
                 fecha_creacion: fechaCreacionOriginal, // Conservar fecha original
-                alerta_fecha_aprobacion: new Date().toISOString(), // Actualizar fecha de modificación
+                alerta_fecha_aprobacion: getFechaBogotaSinZona(), // Actualizar fecha de modificación
                 condiciones_aprobacion: proyecto.condiciones_aprobacion || all[existingIndex].condiciones_aprobacion,
                 porcentaje_solicitado_financiables: proyecto.porcentaje_solicitado_financiables || all[existingIndex].porcentaje_solicitado_financiables
             };
@@ -2377,6 +2520,17 @@
                                 .filter(value => value !== '');
             
             const grupoPrincipal = grupoRiesgo.value; // Usar el mismo elemento validado
+
+            // Obtener porcentajes y validar
+            const porcentajes = Array.from(document.querySelectorAll('.porcentaje-input2'))
+                .map(input => parseFloat(input.value) || 0);
+            
+            // Función de validación de porcentajes
+            function validarPorcentajes(porcentajes) {
+                const total = porcentajes.reduce((acc, curr) => acc + (curr || 0), 0);
+                return total <= 100;
+            }
+
             
 
             // 3. Validación mejorada
@@ -2422,6 +2576,7 @@
                 // Leer y parsear XLSX
                 const dataArr = new Uint8Array(e.target.result);
                 const wbImport = XLSX.read(dataArr, { type: 'array' });
+                
 
                 // Helper para hoja por nombre
                 const getSheet = name =>
@@ -2436,7 +2591,13 @@
                 }
 
                 // Leer celda
-                const getValue = (sheet, cell) => sheet[cell]?.v ?? null;
+                const getValue = (sheet, cell) => {
+                    const value = sheet[cell]?.v;
+                    return (typeof value === 'number') ? Math.trunc(value) : value;
+                };
+
+                const costosFinanciables = parseInt(getValue(sheetInforme, 'K17'), 10) || 0;
+                const valorTotalProyecto = parseInt(getValue(sheetInforme, 'E25'), 10) || 0;
 
                 // Mapeo de celdas
                 const campos = {
@@ -2448,6 +2609,9 @@
                     subgrupo_1:                    { hoja: null, cell: null, type: 'string', default: subgrupos[0] || '' },
                     subgrupo_2:                    { hoja: null, cell: null, type: 'string', default: subgrupos[1] || '' },
                     subgrupo_3:                    { hoja: null, cell: null, type: 'string', default: subgrupos[2] || '' },
+                    porcentaje_1:                  { hoja: null, cell: null, type: 'string', default: porcentajes[0] || '' },
+                    porcentaje_2:                  { hoja: null, cell: null, type: 'string', default: porcentajes[1] || '' },
+                    porcentaje_3:                  { hoja: null, cell: null, type: 'string', default: porcentajes[2] || '' },
                                                    
                     nit_grupo_riesgo:              { hoja: sheetBase,    cell: 'AF15',type: 'string', default: '' },
                     nit_titular:                   { hoja: sheetBase,    cell: 'AF14',type: 'string', default: '' },
@@ -2477,8 +2641,19 @@
                     // Calificacion IT viene de la fórmula en O99 de INFORME
                     calificacion_it:               { hoja: sheetInforme, cell: 'O99', type: 'number', default: 0 },
                     // Costos Financiables viene de la fórmula en K17 de INFORME
-                    costos_financiables:           { hoja: sheetInforme, cell: 'K17', type: 'number', default: 0 },
-                    valor_total_proyecto:          { hoja: sheetInforme, cell: 'E25', type: 'number', default: 0 },
+                    costos_financiables: { 
+                        hoja: sheetInforme, 
+                        cell: 'K17', 
+                        type: 'number', 
+                        default: 0 
+                    },
+                    valor_total_proyecto: { 
+                        hoja: sheetInforme, 
+                        cell: 'E25', 
+                        type: 'number', 
+                        default: 0 
+                    },
+
                     meses_para_venta:              { hoja: null,          cell: null,  type: 'number', default: 12 },
                     // Sección 4: Aprobaciones GOSO (nuevos campos)
                     tipo_credito: { 
@@ -2644,7 +2819,7 @@
 
     function getFechaBogotaSinZona() {
         const fecha = new Date();
-        const bogotaTime = new Intl.DateTimeFormat('sv-SE', {
+        return fecha.toLocaleString('es-CO', {
             timeZone: 'America/Bogota',
             year: 'numeric',
             month: '2-digit',
@@ -2653,11 +2828,7 @@
             minute: '2-digit',
             second: '2-digit',
             hour12: false
-        }).format(fecha);
-
-        // Convierte a formato ISO sin zona horaria
-        const [date, time] = bogotaTime.split(' ');
-        return `${date}T${time}`;
+        }).replace(/,/g, ''); // Ejemplo: "14/05/2025 17:30:45"
     }
 
 
@@ -2678,11 +2849,29 @@
         return porcentaje;
     }
 
+    // Función modificada para exportar a Excel
     function obtenerCondicionesAprobacion() {
-        return Array.from(document.querySelectorAll('#lista-condiciones input:checked'))
-                    .map(checkbox => checkbox.value) 
-                    .join(', '); 
+        return Array.from(document.querySelectorAll('#lista-condiciones .form-check')).map(div => {
+            const checkbox = div.querySelector('input[type="checkbox"]');
+            const texto = div.querySelector('label').textContent.trim();
+            const fecha = checkbox.getAttribute('data-fecha') || '';
+            
+            return checkbox.checked 
+                ? `${texto} - OK (${fecha})` 
+                : texto; // Solo texto si no está aprobado
+        });
     }
+
+    // 3. Modificar evento change en checkboxes para guardar fecha única
+    document.querySelectorAll('#lista-condiciones input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            if(this.checked) {
+                this.setAttribute('data-fecha', getFechaBogotaSinZona());
+            } else {
+                this.removeAttribute('data-fecha');
+            }
+        });
+    });
 
     // Actualizar event listeners para campos relacionados
     document.querySelectorAll('[name="total_aprobado"], [name="costos_financiables"]').forEach(input => {
@@ -2827,31 +3016,117 @@
     }
 
     // Función modificada para agregar condiciones con checkboxes funcionales
-    function agregarCondicion() {
+    function agregarCondicion(texto = '', esEdicion = false, fecha = '') {
         const input = document.querySelector('#condiciones-container input[type="text"]');
         const lista = document.getElementById('lista-condiciones');
-        
-        if (input.value.trim()) {
-            const condicion = input.value.trim();
-            const checkboxId = `condicion-${Date.now()}`;
+        const condicionTexto = esEdicion ? texto : input.value.trim();
 
-            // Crear checkbox con el valor correcto
-            lista.innerHTML += `
-                <div class="form-check">
-                    <input class="form-check-input" 
-                        type="checkbox" 
-                        id="${checkboxId}" 
-                        value="${condicion}"> <!-- Valor definido -->
-                    <label class="form-check-label" for="${checkboxId}">
-                        ${condicion}
-                    </label>
-                </div>
-            `;
-            input.value = '';
+        if (condicionTexto) {
+            const checkboxId = `condicion-${Date.now()}`;
+            const div = document.createElement('div');
+            div.className = 'form-check d-flex align-items-center mb-2';
+            
+            // Checkbox con evento change
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'form-check-input me-2';
+            checkbox.id = checkboxId;
+            
+            // Manejar fechas en edición
+            if(esEdicion && fecha) {
+                checkbox.checked = true;
+                checkbox.setAttribute('data-fecha-aprobacion', fecha);
+            }
+            
+            checkbox.addEventListener('change', function() {
+                if(this.checked) {
+                    this.setAttribute('data-fecha-aprobacion', getFechaBogotaSinZona());
+                } else {
+                    this.removeAttribute('data-fecha-aprobacion');
+                }
+            });
+            
+            // Label
+            const label = document.createElement('label');
+            label.className = 'form-check-label flex-grow-1 me-2';
+            label.htmlFor = checkboxId;
+            label.textContent = condicionTexto;
+
+            // Botones de acción
+            const accionesDiv = document.createElement('div');
+            accionesDiv.className = 'btn-group';
+            
+            // Botón Editar
+            const btnEditar = document.createElement('button');
+            btnEditar.type = 'button';
+            btnEditar.className = 'btn btn-sm btn-outline-warning me-1';
+            btnEditar.innerHTML = '<i class="fas fa-edit"></i>';
+            btnEditar.onclick = () => editarCondicion(div);
+            
+            // Botón Eliminar
+            const btnEliminar = document.createElement('button');
+            btnEliminar.type = 'button';
+            btnEliminar.className = 'btn btn-sm btn-outline-danger';
+            btnEliminar.innerHTML = '<i class="fas fa-trash"></i>';
+            btnEliminar.onclick = () => eliminarCondicion(div);
+
+            // Ensamblar elementos
+            accionesDiv.appendChild(btnEditar);
+            accionesDiv.appendChild(btnEliminar);
+            
+            div.appendChild(checkbox);  
+            div.appendChild(label);
+            div.appendChild(accionesDiv);
+            
+            if (!esEdicion) {
+                lista.appendChild(div);
+                input.value = '';
+            } else {
+                lista.replaceChild(div, lista.children[indexEdicion]);
+            }
+        }
+    }
+    let condicionEditando = null;
+
+    function editarCondicion(elementoDiv) {
+        const label = elementoDiv.querySelector('label');
+        const textoActual = label.textContent;
+        
+        // Crear campo de edición
+        const inputEdit = document.createElement('input');
+        inputEdit.type = 'text';
+        inputEdit.className = 'form-control me-2';
+        inputEdit.value = textoActual;
+        
+        // Botón Guardar cambios
+        const btnGuardar = document.createElement('button');
+        btnGuardar.type = 'button';
+        btnGuardar.className = 'btn btn-sm btn-success';
+        btnGuardar.innerHTML = '<i class="fas fa-save"></i>';
+        
+        // Reemplazar elementos
+        elementoDiv.querySelector('.btn-group').remove();
+        label.replaceWith(inputEdit);
+        elementoDiv.appendChild(btnGuardar);
+        
+        btnGuardar.onclick = () => {
+            const nuevoTexto = inputEdit.value.trim();
+            if (nuevoTexto) {
+                label.textContent = nuevoTexto;
+                inputEdit.replaceWith(label);
+                btnGuardar.remove();
+                elementoDiv.appendChild(elementoDiv.querySelector('.btn-group'));
+            }
+        };
+    }
+
+    function eliminarCondicion(elementoDiv) {
+        if (confirm('¿Estás seguro de eliminar esta condición?')) {
+            elementoDiv.remove();
         }
     }
 
- // Función para calcular fecha de alerta
+    // Función para calcular fecha de alerta
     function calcularFechaAlerta() {
         const fechaAprobacion = document.querySelector('[name="fecha_aprobacion"]').value;
         const mesesVigencia = parseInt(document.querySelector('[name="vigencia_en_meses"]').value) || 0;
