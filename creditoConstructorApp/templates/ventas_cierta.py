@@ -57,7 +57,7 @@ def obtener_conexion():
     try:
         # Cadena de conexión con parámetros en un solo string
         conn_str = (
-            "DSN=IMPALA-PROD;"
+            "DSN=IMPALA_PROD;"
             "MemoryLimit=20G"
         )
         
@@ -148,67 +148,34 @@ def procesar_excel(filepath, output_path):
             {" UNION ALL ".join([f"SELECT CAST({v[0]} AS BIGINT), CAST({v[1]} AS SMALLINT), '{v[2]}'" for v in values[1:]])}
         ),
 
-        -- 1. Obtener última partición de Segmentación Afectación
-        ultima_particion_sa AS (
-            SELECT 
-                MAX(ingestion_year) AS max_year,
-                MAX(ingestion_month) AS max_month,
-                MAX(ingestion_day) AS max_day
-            FROM resultados_cap_analit_y_gob_de_inf.co19_segmentacion_afectacion
-        ),
-
         seg_af AS (
-            SELECT 
-                CAST(num_doc AS BIGINT) AS num_doc,
-                CAST(tipo_doc AS SMALLINT) AS tipo_doc,
+            SELECT DISTINCT
+                num_doc,
+                tipo_doc,
                 COALESCE(segmento_afectacion, 'DESCONOCIDO') AS segmento_afectacion
             FROM resultados_cap_analit_y_gob_de_inf.co19_segmentacion_afectacion
-            WHERE 
-                ingestion_year = (SELECT max_year FROM ultima_particion_sa)
-                AND ingestion_month = (SELECT max_month FROM ultima_particion_sa)
-                AND ingestion_day = (SELECT max_day FROM ultima_particion_sa)
-        ),
-
-        -- 2. Obtener última partición de Ocupación
-        ultima_particion_ocup AS (
-            SELECT 
-                MAX(ingestion_year) AS max_year,
-                MAX(ingestion_month) AS max_month,
-                MAX(ingestion_day) AS max_day
-            FROM resultados_clientes_personas_y_pymes.perfilacion_preaprobados
+            WHERE ingestion_date = (SELECT MAX(ingestion_date) FROM resultados_cap_analit_y_gob_de_inf.co19_segmentacion_afectacion)
         ),
 
         ocup AS (
             SELECT 
-                CAST(id AS BIGINT) AS num_doc,
-                CAST(tipo_id AS SMALLINT) AS tipo_doc,
+                id AS num_doc,
+                tipo_id AS tipo_doc,
                 CASE 
-                    WHEN UPPER(TRIM(ocupacion)) IN ('EMPLEADO', 'ESTUDIANTE', 'JUBILADO') THEN 'Asalariado'
-                    WHEN UPPER(TRIM(ocupacion)) IN ('AGRICULTOR', 'AMA DE CASA', 'COMERCIANTE') THEN 'Independientes'
+                    WHEN UPPER(TRIM(ocupacion)) IN ('EMPLEADO', 'ESTUDIANTE') THEN 'Asalariado'
+                    WHEN UPPER(TRIM(ocupacion)) IN ('INDEPENDIENTE', 'COMERCIANTE') THEN 'Independientes'
+                    WHEN UPPER(TRIM(ocupacion)) = 'NOMINAS PAGADAS POR BANCOLOMBIA' THEN 'Nominas pagadas por Bancolombia'
+                    WHEN UPPER(TRIM(ocupacion)) = 'PROVEEDORES PAGADOS POR NOMINAS' THEN 'Proveedores pagados por nominas'
+                    WHEN UPPER(TRIM(ocupacion)) = 'PENSIONADO' THEN 'Pensionado'
+                    WHEN UPPER(TRIM(ocupacion)) IN ('DESEMPLEADO', 'OTROS') THEN 'Otros'
                     ELSE 'DESCONOCIDO'
-                END AS ocupacion_personas
+                END AS ocupacion
             FROM resultados_clientes_personas_y_pymes.perfilacion_preaprobados
-            WHERE 
-                ingestion_year = (SELECT max_year FROM ultima_particion_ocup)
-                AND ingestion_month = (SELECT max_month FROM ultima_particion_ocup)
-                AND ingestion_day = (SELECT max_day FROM ultima_particion_ocup)
-        ),
-
-        -- 3. Obtener datos de Afectación PN
-        ultima_particion_afectacion AS (
-            SELECT 
-                MAX(ingestion_year) AS max_year,
-                MAX(ingestion_month) AS max_month,
-                MAX(ingestion_day) AS max_day
-            FROM resultados_riesgos.modelo_afectacion_pn
         ),
 
         afectacion_pn AS (
             SELECT 
-                CAST(num_doc AS BIGINT) AS num_doc,
-                CAST(tipo_doc AS SMALLINT) AS tipo_doc,
-                ctrl_terc,
-                fecha_corte,
+                num_doc,
                 CASE
                     WHEN cluster_final BETWEEN 1 AND 9 THEN 
                         CASE cluster_final
@@ -218,48 +185,51 @@ def procesar_excel(filepath, output_path):
                             WHEN 4 THEN 'Media'
                             WHEN 5 THEN 'Media Alta'
                             WHEN 6 THEN 'Alta'
-                            WHEN 7 THEN 'Muy Alta'
+                            WHEN 7 THEN 'Muy alta'
                             WHEN 8 THEN 'Extrema Alta'
                             WHEN 9 THEN 'Indeterminados'
                         END
                     ELSE 'DESCONOCIDO'
-                END AS nivel_afectacion
+                END AS segmento_afectacion
             FROM resultados_riesgos.modelo_afectacion_pn
-            WHERE 
-                ingestion_year = (SELECT max_year FROM ultima_particion_afectacion)
-                AND ingestion_month = (SELECT max_month FROM ultima_particion_afectacion)
-                AND ingestion_day = (SELECT max_day FROM ultima_particion_afectacion)
-        ),
-
-        -- 4. Generar fecha de referencia (Versión Corregida)
-         fecha_referencia AS (
-            SELECT 
-                CONCAT(
-                    CAST(YEAR(ADD_MONTHS(CURRENT_DATE(), -1)) AS STRING),
-                    LPAD(CAST(MONTH(ADD_MONTHS(CURRENT_DATE(), -1)) AS STRING), 2, '0')
-                ) AS fecha_corte_formato
+            WHERE fecha_corte = (SELECT MAX(fecha_corte) FROM resultados_riesgos.modelo_afectacion_pn)
         )
 
-        -- 5. Consulta final
+        -- Resultados para Características (Imagen 2)
         SELECT 
-            vt.num_doc,
-            vt.tipo_doc,
-            vt.nombre_del_proyecto,
-            COALESCE(sa.segmento_afectacion, 'NO_ENCONTRADO') AS segmento_afectacion,
-            COALESCE(oc.ocupacion_personas, 'NO_ENCONTRADO') AS ocupacion,
-            COALESCE(ap.ctrl_terc, 'NO_REGISTRA') AS tipo_cliente,
-            COALESCE(ap.nivel_afectacion, 'NO_DISPONIBLE') AS nivel_afectacion,
-            CASE
-                WHEN ap.ctrl_terc IN ('CLIENTE', 'CLIENTE SOCIAL', 'NEQUI') 
-                    THEN 'Cliente Bancolombia'
-                ELSE 'No Cliente'
-            END AS caracteristica,
-            COALESCE(fr.fecha_corte_formato, '0') AS fecha_corte
+            CASE 
+                WHEN EXISTS (
+                    SELECT 1 
+                    FROM resultados_cap_analit_y_gob_de_inf.co19_segmentacion_afectacion 
+                    WHERE num_doc = vt.num_doc AND ctrl_terc IN ('CLIENTE', 'CLIENTE SOCIAL', 'NEQUI')
+                ) THEN 'Cliente con cartera activa Bancolombia'
+                ELSE 'No es Cliente Banco'
+            END AS Caracteristica,
+            COUNT(*) AS "# Clientes"
         FROM valores_temp vt
-        LEFT JOIN seg_af sa ON vt.num_doc = sa.num_doc AND vt.tipo_doc = sa.tipo_doc
-        LEFT JOIN ocup oc ON vt.num_doc = oc.num_doc AND vt.tipo_doc = oc.tipo_doc
-        LEFT JOIN afectacion_pn ap ON vt.num_doc = ap.num_doc AND vt.tipo_doc = ap.tipo_doc
-        CROSS JOIN fecha_referencia fr;
+        GROUP BY 1
+        UNION ALL
+        SELECT 'Total general', COUNT(*) FROM valores_temp;
+
+        -- Resultados para Ocupación (Imagen 2)
+        SELECT 
+            ocupacion AS "ocupación",
+            COUNT(*) AS "# Clientes"
+        FROM valores_temp vt
+        LEFT JOIN ocup o ON vt.num_doc = o.num_doc AND vt.tipo_doc = o.tipo_doc
+        GROUP BY 1
+        UNION ALL
+        SELECT 'Total general', COUNT(*) FROM valores_temp;
+
+        -- Resultados para Segmento de Afectación (Imagen 3)
+        SELECT 
+            COALESCE(ap.segmento_afectacion, 'DESCONOCIDO') AS segmento_afectacion,
+            COUNT(*) AS "# Clientes"
+        FROM valores_temp vt
+        LEFT JOIN afectacion_pn ap ON vt.num_doc = ap.num_doc
+        GROUP BY 1
+        UNION ALL
+        SELECT 'Total general', COUNT(*) FROM valores_temp;
         """
 
         # Obtener datos de la consulta
