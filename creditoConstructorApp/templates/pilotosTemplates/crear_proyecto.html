@@ -2311,7 +2311,12 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
         const departamento = departamentoSelect.options[departamentoSelect.selectedIndex]?.text || '';
         const ciudad = municipioSelect.options[municipioSelect.selectedIndex]?.text || '';
         const fechaBogota = new Date().toLocaleString('es-CO', getFechaBogotaSinZona());
+
         
+        if (!idProyecto) {
+            Swal.fire('Error', 'Debe seleccionar un proyecto para continuar y guardar', 'error');
+            return;
+        }
 
           // Obtener porcentajes y validar
             const porcentajes = Array.from(document.querySelectorAll('.porcentaje-input'))
@@ -2322,8 +2327,9 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
                 const total = porcentajes.reduce((acc, curr) => acc + (curr || 0), 0);
                 return total <= 100;
             }
+            
 
-
+        
         if (proyectoIndex === -1) return;
 
         // Recoger subgrupos actualizados
@@ -3170,13 +3176,18 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
             label.className = 'form-check-label flex-grow-1 me-2';
             label.textContent = condicionTexto;
 
-            // Botones de acciones
+            // Botones de acción
+            const accionesDiv = document.createElement('div');
+            accionesDiv.className = 'btn-group';
+            
+            // Botón Editar
             const btnEditar = document.createElement('button');
             btnEditar.type = 'button';
             btnEditar.className = 'btn btn-sm btn-outline-warning me-1';
             btnEditar.innerHTML = '<i class="fas fa-edit"></i>';
             btnEditar.onclick = () => editarCondicion(div);
-
+            
+            // Botón Eliminar
             const btnEliminar = document.createElement('button');
             btnEliminar.type = 'button';
             btnEliminar.className = 'btn btn-sm btn-outline-danger';
@@ -3184,10 +3195,12 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
             btnEliminar.onclick = () => eliminarCondicion(div);
 
             // Ensamblar elementos
-            div.appendChild(checkbox);
+            accionesDiv.appendChild(btnEditar);
+            accionesDiv.appendChild(btnEliminar);
+            
+            div.appendChild(checkbox);  
             div.appendChild(label);
-            div.appendChild(btnEditar);
-            div.appendChild(btnEliminar);
+            div.appendChild(accionesDiv);
 
             if (!esEdicion) {
                 lista.appendChild(div);
@@ -3241,9 +3254,19 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
     }
 
     function eliminarCondicion(elementoDiv) {
-        if (confirm('¿Estás seguro de eliminar esta condición?')) {
-            elementoDiv.remove();
-        }
+            Swal.fire({
+                title: 'Error',
+                text: '¿Estás seguro de eliminar esta condición?',
+                icon: 'error',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    elementoDiv.remove();
+                }
+                return false;
+    });
     }
 
     // Función para calcular fecha de alerta
