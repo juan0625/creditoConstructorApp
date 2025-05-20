@@ -7,6 +7,7 @@ from io import BytesIO
 import pandas as pd
 import traceback
 
+
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # Clave secreta segura
 
@@ -155,6 +156,13 @@ def historicos_Proyectos():
         return redirect(url_for('login'))
         
     return render_template("pilotosTemplates/historico.html")
+
+@app.route("/validacion_condiciones")
+def validacion_condiciones():
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+        
+    return render_template("pilotosTemplates/validacion_condiciones.html")
 
 # Configuración inicial - Cambiar esta ruta según necesidad
 EXCEL_PATH = r'\\servidor\carpeta_compartida\proyectos_pilotos.xlsx'
