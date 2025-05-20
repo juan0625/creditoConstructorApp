@@ -1010,12 +1010,12 @@
                     <h2 class="section-title"><i class="fas fa-file-contract me-2"></i>Ratificación de Crédito</h2>
                     
                     <div class="row">
-                        <div class="col-md-4 mb-3">
+                        <!-- <div class="col-md-4 mb-3">
                             <label class="form-label">CASO PCP BIZAGI</label>
                             <div class="input-group">
                                 <input type="text" class="form-control" name="caso_pcp_bizagi" placeholder="Texto">
                             </div>
-                        </div>
+                        </div> -->
                         
                         <div class="col-md-4 mb-3">
                             <label class="form-label">VISITAS A COBRAR</label>
@@ -1085,6 +1085,19 @@
                                     <!-- Las condiciones se añaden aquí con checkboxes y botones -->
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <button 
+                                type="button"
+                                id="btn-siguiente-paso"
+                                class="btn btn-bancolombia"
+                                data-url="{{ url_for('validacion_condiciones') }}"
+                                disabled
+                                onclick="redirectTo(this)">
+                                Validacion condiciones 1er Desembolso
+                            </button>
                         </div>
                     </div>
                 </div> 
@@ -1589,6 +1602,23 @@
         }
     }
 
+    document.getElementById('lista-condiciones').addEventListener('change', function(e) {
+        const checkboxes = this.querySelectorAll('input[type="checkbox"]');
+        
+        // Verificar si al menos un checkbox está marcado
+        const algunCheckeado = Array.from(checkboxes).some(cb => cb.checked);
+        document.getElementById('btn-siguiente-paso').disabled = !algunCheckeado;
+
+        // Bloquear el checkbox que se acaba de marcar (evitar desmarcar)
+        if(e.target.checked) {
+            e.target.disabled = true; // Deshabilita físicamente el checkbox
+        }
+    });
+
+    function redirectTo(element) {
+        window.location.href = element.dataset.url;
+    }
+
 
 
     // API Endpoints
@@ -2073,6 +2103,8 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
         const proyecto = proyectos.find(p => p.id_proyecto === idProyecto);
         const departamento = (proyecto.departamento || '').toLowerCase();
         const municipio = (proyecto.ciudad || '').toLowerCase();
+        const idSeleccionado = this.value;
+        localStorage.setItem('idProyectoSeleccionado', idSeleccionado);
 
         // Actualizar campos
         document.querySelector('[name="departamento"]').value = departamento;
@@ -2101,6 +2133,30 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
             // Cargar condiciones (HABILITAR ESTA SECCIÓN)
             if (proyecto.condiciones_aprobacion) {
                 cargarCondiciones(proyecto.condiciones_aprobacion);
+                
+                const checkboxes = document.querySelectorAll('#lista-condiciones input[type="checkbox"]');
+                checkboxes.forEach(checkbox => {
+                    if (checkbox.checked) {
+                        // Bloquear y mantener fecha existente
+                        checkbox.disabled = true;
+                        
+                        // Si no tiene fecha, asignar la actual (para migraciones o datos antiguos)
+                        if (!checkbox.dataset.fecha) {
+                            checkbox.setAttribute('data-fecha', getFechaBogotaSinZona());
+                        }
+                    }
+                });
+
+                // Validar estado del botón según rol
+                if (session.usuario.rol === 'arquitecto') {
+                    // Arquitecto: Todas deben estar aprobadas
+                    const todasAprobadas = Array.from(checkboxes).every(cb => cb.checked);
+                    document.getElementById('btn-siguiente-paso').disabled = !todasAprobadas;
+                } else {
+                    // Otros roles: Al menos una aprobada
+                    const algunaAprobada = Array.from(checkboxes).some(cb => cb.checked);
+                    document.getElementById('btn-siguiente-paso').disabled = !algunaAprobada;
+                }
             }
 
             document.querySelector('[name="municipio"]').value = proyecto.ciudad || '';
@@ -2255,6 +2311,7 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
         const departamento = departamentoSelect.options[departamentoSelect.selectedIndex]?.text || '';
         const ciudad = municipioSelect.options[municipioSelect.selectedIndex]?.text || '';
         const fechaBogota = new Date().toLocaleString('es-CO', getFechaBogotaSinZona());
+        
 
           // Obtener porcentajes y validar
             const porcentajes = Array.from(document.querySelectorAll('.porcentaje-input'))
@@ -2784,13 +2841,66 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
         // ————————————————————————————————————————————————
         document.addEventListener('DOMContentLoaded', () => {
             cargarProyectosEnSelector();
-            cargarDepartamentos(); // Opcional, si aún quieres el select
-            cargarMunicipios(); // <- Municipios sin depender de departamento
-            
-            
-            // Inicializar otros selects
+            cargarDepartamentos();
+            cargarMunicipios();
+
+            // Inicializar selects estáticos
             const staticSelects = document.querySelectorAll('select:not(#municipio)');
             staticSelects.forEach(select => initializeChoices(select));
+
+            // Obtener datos del usuario y proyecto
+            const rolUsuario = "{{ session.usuario.rol }}";
+            const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+            const idProyecto = localStorage.getItem('idProyectoSeleccionado');
+            const proyecto = proyectos.find(p => p.id_proyecto === idProyecto);
+
+            // Lista completa de campos exclusivos de arquitecto
+            const camposArquitecto = [
+                'id_proyecto', 'fecha_creacion', 'tipo_producto', 'rango_proyecto',
+                'grupo_riesgo', 'subgrupos[]', 'porcentajes[]', 'tipo_proyecto',
+                'nit_grupo_riesgo', 'nit_titular', 'titular_credito',
+                'nombre_proyecto', 'tipo_inmuebles', 'segmento', 'ciudad', 'tipodefiducia',
+                'fiduciaria', 'gerente', 'arquitecto', 'auxiliar', 'perito',
+                'monto_desembolso', 'monto_cpi',
+                'monto_lote', 'total_aprobado', 'calificacion_it',
+                'costos_financiables', 'valor_lote', 'valor_total_proyecto',
+                'meses_programacion', 'total_inmuebles', 'meses_para_venta'
+            ];
+
+            if (rolUsuario === 'auxiliar' && proyecto) {
+                camposArquitecto.forEach(campo => {
+                    const elemento = document.querySelector(`[name="${campo}"]`);
+                    if (!elemento) return;
+
+                    // 1. Deshabilitar el select nativo
+                    elemento.disabled = true;
+                    
+                    // 2. Deshabilitar Choices.js si existe
+                    if (elemento.choices) {
+                        elemento.choices.disable();
+                        elemento.choices.init(); // Reiniciar para aplicar cambios
+                    }
+                    
+                    // 3. Bloquear wrapper de Choices
+                    const choicesContainer = elemento.closest('.choices');
+                    if (choicesContainer) {
+                        choicesContainer.style.pointerEvents = 'none';
+                        choicesContainer.style.opacity = '0.7';
+                    }
+                });
+            
+
+                // Bloquear campos de subgrupos dinámicos
+                const subgrupos = document.querySelectorAll('.subgrupo-input, .porcentaje-input');
+                subgrupos.forEach(input => {
+                    input.readOnly = true;
+                    input.closest('.input-group').querySelector('.btn-add-subgrupo').disabled = true;
+                });
+            }
+
+            // Precargar ID de proyecto
+            const inputHiddenId = document.getElementById('id_proyecto_hidden');
+            if (inputHiddenId && idProyecto) inputHiddenId.value = idProyecto;
         });
 
     // En tu código JS principal, añade este evento:
@@ -2866,12 +2976,20 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
     document.querySelectorAll('#lista-condiciones input[type="checkbox"]').forEach(checkbox => {
         checkbox.addEventListener('change', function() {
             if(this.checked) {
-                this.setAttribute('data-fecha', getFechaBogotaSinZona());
-            } else {
-                this.removeAttribute('data-fecha');
+                // Guardar fecha individual al momento de marcar
+                const fecha = getFechaBogotaSinZona();
+                this.setAttribute('data-fecha', fecha);
+                this.disabled = true;
             }
+            actualizarBotonSiguiente();
         });
     });
+
+    function actualizarBotonSiguiente() {
+        const checkboxes = document.querySelectorAll('#lista-condiciones input[type="checkbox"]');
+        const algunCheckeado = Array.from(checkboxes).some(cb => cb.checked);
+        document.getElementById('btn-siguiente-paso').disabled = !algunCheckeado;
+    }
 
     // Actualizar event listeners para campos relacionados
     document.querySelectorAll('[name="total_aprobado"], [name="costos_financiables"]').forEach(input => {
@@ -3022,48 +3140,43 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
         const condicionTexto = esEdicion ? texto : input.value.trim();
 
         if (condicionTexto) {
-            const checkboxId = `condicion-${Date.now()}`;
             const div = document.createElement('div');
             div.className = 'form-check d-flex align-items-center mb-2';
             
-            // Checkbox con evento change
+            // Checkbox
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.className = 'form-check-input me-2';
-            checkbox.id = checkboxId;
             
-            // Manejar fechas en edición
-            if(esEdicion && fecha) {
+            // Manejar estado y fechas
+            if (esEdicion && fecha) {
                 checkbox.checked = true;
+                checkbox.disabled = true; // Bloquear si está aprobado
                 checkbox.setAttribute('data-fecha-aprobacion', fecha);
             }
             
+            // Evento para cambios en el checkbox
             checkbox.addEventListener('change', function() {
-                if(this.checked) {
-                    this.setAttribute('data-fecha-aprobacion', getFechaBogotaSinZona());
-                } else {
-                    this.removeAttribute('data-fecha-aprobacion');
+                if (this.checked) {
+                    const fechaActual = getFechaBogotaSinZona();
+                    this.setAttribute('data-fecha-aprobacion', fechaActual);
+                    this.disabled = true; // Bloquear al marcar
                 }
+                actualizarEstadoBoton();
             });
-            
+
             // Label
             const label = document.createElement('label');
             label.className = 'form-check-label flex-grow-1 me-2';
-            label.htmlFor = checkboxId;
             label.textContent = condicionTexto;
 
-            // Botones de acción
-            const accionesDiv = document.createElement('div');
-            accionesDiv.className = 'btn-group';
-            
-            // Botón Editar
+            // Botones de acciones
             const btnEditar = document.createElement('button');
             btnEditar.type = 'button';
             btnEditar.className = 'btn btn-sm btn-outline-warning me-1';
             btnEditar.innerHTML = '<i class="fas fa-edit"></i>';
             btnEditar.onclick = () => editarCondicion(div);
-            
-            // Botón Eliminar
+
             const btnEliminar = document.createElement('button');
             btnEliminar.type = 'button';
             btnEliminar.className = 'btn btn-sm btn-outline-danger';
@@ -3071,21 +3184,28 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
             btnEliminar.onclick = () => eliminarCondicion(div);
 
             // Ensamblar elementos
-            accionesDiv.appendChild(btnEditar);
-            accionesDiv.appendChild(btnEliminar);
-            
-            div.appendChild(checkbox);  
+            div.appendChild(checkbox);
             div.appendChild(label);
-            div.appendChild(accionesDiv);
-            
+            div.appendChild(btnEditar);
+            div.appendChild(btnEliminar);
+
             if (!esEdicion) {
                 lista.appendChild(div);
                 input.value = '';
             } else {
                 lista.replaceChild(div, lista.children[indexEdicion]);
             }
+            
+            actualizarEstadoBoton();
         }
     }
+
+    function actualizarEstadoBoton() {
+        const checkboxes = document.querySelectorAll('#lista-condiciones input[type="checkbox"]');
+        const aprobadas = Array.from(checkboxes).some(cb => cb.checked);
+        document.getElementById('btn-siguiente-paso').disabled = !aprobadas;
+    }
+
     let condicionEditando = null;
 
     function editarCondicion(elementoDiv) {

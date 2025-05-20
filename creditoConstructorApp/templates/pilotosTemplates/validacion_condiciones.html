@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Bancolombia - Crear Nuevo Proyecto</title>
+        <!-- Bootstrap CSS -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <style>
+            :root {
+                --bancolombia-blue: #004884;
+                --bancolombia-light-blue: #0066CC;
+                --bancolombia-yellow: #FFD100;
+                --bancolombia-gray: #F5F5F5;
+                --bancolombia-dark-gray: #333333;
+            }
+            
+            body {
+                font-family: 'Arial', sans-serif;
+                background-color: var(--bancolombia-gray);
+                color: var(--bancolombia-dark-gray);
+            }
+            
+            .header {
+                background-color: white;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                padding: 15px 0;
+                margin-bottom: 20px;
+            }
+            
+            .logo-container img {
+                height: 50px;
+            }
+            
+            .crear-container {
+                background: white;
+                border-radius: 10px;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                padding: 30px;
+                margin-bottom: 30px;
+            }
+            
+            .section-title {
+                color: var(--bancolombia-blue);
+                border-bottom: 2px solid var(--bancolombia-light-blue);
+                padding-bottom: 10px;
+                margin-bottom: 20px;
+            }
+            
+            .btn-bancolombia {
+                background-color: var(--bancolombia-blue);
+                color: white;
+            }
+            
+            .btn-bancolombia:hover {
+                background-color: var(--bancolombia-light-blue);
+                color: white;
+            }
+            
+            .form-section {
+                border-left: 4px solid var(--bancolombia-light-blue);
+                padding-left: 15px;
+                margin-bottom: 30px;
+            }
+            
+            .required-field::after {
+                content: " *";
+                color: red;
+            }
+            
+            .participante-item {
+                background-color: var(--bancolombia-gray);
+                padding: 15px;
+                border-radius: 5px;
+                margin-bottom: 15px;
+                position: relative;
+            }
+            
+            .remove-participante {
+                position: absolute;
+                right: 10px;
+                top: 10px;
+                color: var(--bancolombia-red);
+                cursor: pointer;
+            }
+            .footer {
+                background-color: var(--bancolombia-blue);
+                color: white;
+                padding: 20px 0;
+                text-align: center;
+                font-size: 0.9rem;
+                margin-top: 40px;
+            }
+            
+            .footer a {
+                color: var(--bancolombia-yellow);
+                text-decoration: none;
+            }
+            
+            .footer a:hover {
+                text-decoration: underline;
+            }
+    
+            .user-info {
+                text-align: right;
+                padding: 10px 20px;
+                background-color: var(--bancolombia-gray);
+                color: var(--bancolombia-dark-gray);
+                font-size: 0.9rem;
+                max-width: 1400px;
+                margin: 0 auto;
+                width: 100%;
+            }
+            /* Ajustes para mejor alineación */
+            .container-aligned {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 0 20px;
+                width: 100%;
+            }
+            .breadcrumb {
+                background-color: transparent;
+                padding: 0;
+                margin: 0;
+                font-size: 0.9rem;
+            }
+            
+            .breadcrumb-item.active {
+                color: var(--bancolombia-blue);
+                font-weight: 600;
+            }
+             /* Efecto hover para el logo */
+             .logo-container img:hover {
+                transform: scale(1.05);
+            }
+            .logo-container {
+                text-align: center;
+                padding: 10px 0;
+                margin: 0 auto;
+                max-width: 1200px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .alert-required {
+                border: 1px solid #ff4444 !important;
+            }
+             /* Añadir este estilo para ajustar el z-index de los dropdowns */
+            .choices__list--dropdown {
+                z-index: 1000 !important;
+            }
+            /* Añadir esto a tu CSS */
+            .is-invalid {
+                border-color: #dc3545 !important;
+                box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+            }
+    </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-calc@0.7.0/lib/xlsx-calc.js"></script>
+    
+</head>
+<body>
+     <!-- Header con logo y usuario -->
+     <div class="header">
+        <div class="container-aligned">
+            <div class="user-info">
+                <span class="role-badge me-3">{{ session.usuario.rol | title }}</span>
+                <i class="fas fa-user-circle"></i> {{ session.usuario.nombre }}
+                | <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+            </div>
+            <div class="logo-container">
+                <img src="https://www.uam.edu.co/wp-content/uploads/2022/09/logo-bancolombia1.png" 
+                     alt="Bancolombia">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url_for('menu_principal') }}"><i class="fas fa-home"></i> Menú Principal</a></li>
+                        <li class="breadcrumb-item active" aria-current="page"><i class="fas fa-user-tie"></i> Módulo Pilotos</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3"><i class="fas fa-check-circle me-2"></i>Validación Condiciones 1er. Desembolso</h1>
+            <a href="{{ url_for('crear_proyecto') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Volver
+            </a>
+        </div>
+        <input type="hidden" name="id_proyecto" id="id_proyecto_hidden">
+        <div class="crear-container">
+            <form id="form-actividad3">
+                <!-- Sección Validación Licencia -->
+                <div class="form-section">
+                    <h2 class="section-title"><i class="fas fa-file-certificate me-2"></i>Validación de Licencia</h2>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Validación Licencia Construcción</label>
+                            <select class="form-select" name="validacion_licencia">
+                                <option value="">Seleccione...</option>
+                                <option value="aprobado">Aprobado</option>
+                                <option value="pendiente">Pendiente</option>
+                                <option value="rechazado">Rechazado</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fecha Radicación Licencia</label>
+                            <input type="date" class="form-control" name="fecha_radicacion">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Requiere Póliza Decenal</label>
+                            <select class="form-select" name="poliza_decenal">
+                                <option value="">Seleccione...</option>
+                                <option value="si">Sí</option>
+                                <option value="no">No</option>
+                            </select>
+                        </div>
+                        
+                    </div>
+                </div>
+
+                <!-- Sección Datos Técnicos -->
+                <div class="form-section">
+                    <h2 class="section-title"><i class="fas fa-ruler-combined me-2"></i>Datos Técnicos</h2>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Meses Avanzados en Obra</label>
+                            <input type="number" class="form-control" name="meses_avanzados" min="0">
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Plazo Ajustado</label>
+                            <input type="text" class="form-control" name="plazo_ajustado" readonly>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">ID Garantía</label>
+                            <input type="number" class="form-control" name="id_garantia">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Hipoteca Nueva o Control Cruzado</label>
+                            <select class="form-select" name="control_cruzado">
+                                <option value="">Seleccione...</option>
+                                <option value="Hipoteca Nueva">Hipoteca Nueva</option>
+                                <option value="Control Cruzado">Control Cruzado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fecha Primera Visita</label>
+                            <input type="date" class="form-control" name="fecha_primera_visita">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección Documentación -->
+                <div class="form-section">
+                    <h2 class="section-title"><i class="fas fa-folder-open me-2"></i>Documentación</h2>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">CASO PCP BIZAGI</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="caso_pcp_bizagi" placeholder="Texto">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Caso Bizagi Jurídico</label>
+                            <input type="text" class="form-control" name="caso_bizagi_juridico" placeholder="Texto">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fecha Confirmación Archivo</label>
+                            <input type="date" class="form-control" name="fecha_confirmacion">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones -->
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="reset" class="btn btn-outline-secondary">
+                        <i class="fas fa-eraser me-2"></i>Limpiar
+                    </button>
+                    <button type="submit" class="btn btn-bancolombia">
+                        <i class="fas fa-save me-2"></i>Guardar Validación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Mismo footer que el formulario principal -->
+    
+    <script>
+        const session = {
+            usuario: {
+                rol: "{{ session.usuario.rol }}"
+            }
+        };
+
+        function validateForm() {
+            const rolUsuario = "{{ session.usuario.rol }}"; // Valor renderizado por el servidor
+            let isValid = true;
+            const form = document.getElementById('form-actividad3');
+
+            // Definir campos requeridos por rol
+            const camposRequeridos = rolUsuario === 'auxiliar' 
+                ? ['meses_avanzados', 'id_garantia', 'control_cruzado', 
+                'fecha_primera_visita', 'caso_pcp_bizagi', 'caso_bizagi_juridico', 
+                'fecha_confirmacion', 'documentos']
+                : ['validacion_licencia', 'fecha_radicacion', 'poliza_decenal'];
+
+            // Resetear errores
+            form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+
+            // Validar cada campo
+            camposRequeridos.forEach(campo => {
+                const element = form.querySelector(`[name="${campo}"]`);
+                if (!element) return;
+
+                let value = element.value;
+                if (element.type === 'file') value = element.files.length;
+
+                if ((value === '' || value === 0) && !element.disabled) {
+                    isValid = false;
+                    element.classList.add('is-invalid');
+                }
+            });
+
+            return isValid;
+        }
+        // Lógica para calcular plazo ajustado
+        document.querySelector('[name="meses_avanzados"]').addEventListener('input', function() {
+            const meses = parseInt(this.value) || 0;
+            const plazoAjustado = meses + 3; // Ejemplo de cálculo
+            document.querySelector('[name="plazo_ajustado"]').value = `${plazoAjustado} meses`;
+        });
+
+        // Cargar datos del formulario principal desde localStorage
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // Obtener rol del usuario
+            const rolUsuario = "{{ session.usuario.rol }}"; // Valor renderizado por el servidor
+
+            // Precargar datos según rol
+            const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+            const idProyecto = localStorage.getItem('idProyectoSeleccionado');
+            const proyecto = proyectos.find(p => p.id_proyecto === idProyecto);
+
+            // Campos de arquitecto
+            const camposArquitecto = [
+                'validacion_licencia', 
+                'fecha_radicacion', 
+                'poliza_decenal'
+            ];
+
+            if (rolUsuario === 'auxiliar' && proyecto) {
+                // Precargar y bloquear campos de arquitecto
+                camposArquitecto.forEach(campo => {
+                    const input = document.querySelector(`[name="${campo}"]`);
+                    if (input) {
+                        input.value = proyecto[campo] || '';
+                        
+                        // Bloquear según el tipo de campo
+                        if (input.tagName === 'SELECT') {  // Si es un <select>
+                            input.disabled = true;  // Deshabilitar el dropdown
+                        } else {  // Para inputs normales (texto, fechas, etc)
+                            input.readOnly = true;
+                        }
+                    }
+                });
+            }
+
+            // Precargar ID de proyecto
+            const inputHiddenId = document.getElementById('id_proyecto_hidden');
+            if (inputHiddenId && idProyecto) inputHiddenId.value = idProyecto;
+            if(datosPrincipales) {
+                // Rellenar campos relevantes
+                document.querySelector('[name="id_garantia"]').value = datosPrincipales.id_garantia || '';
+                // ...otros campos necesarios
+            }
+        });
+
+        function cleanNumber(raw) {
+            if (raw == null || raw === '') return 0;
+            if (typeof raw === 'number') return raw;
+            const cleaned = raw.toString().replace(/[^0-9.\-]/g, '');
+            const num = parseFloat(cleaned);
+            return isNaN(num) ? 0 : num;
+        }
+
+        /** Genera y guarda un Excel con todos los proyectos en el servidor */
+        function generarExcel(proyectos, usuario) {
+            const KEYS = [
+                'id_proyecto', 'fecha_creacion', 'tipo_producto', 'rango_proyecto',
+                'grupoPrincipal', 'subgrupo_1', 'subgrupo_2', 'subgrupo_3', 
+                'nit_grupo_riesgo', 'nit_titular', 'titular_credito',
+                'nombre_proyecto', 'tipo_inmuebles', 'segmento', 'ciudad', 'tipo_fiducia',
+                'fiduciaria', 'gerente', 'arquitecto', 'auxiliar', 'perito',
+                'monto_solicitado_1_desembolso', 'monto_solicitado_cpi',
+                'monto_solicitado_lote', 'total_valor_aprobado', 'calificacion_it',
+                'costos_financiables', 'valor_lote', 'valor_total_proyecto',
+                'meses_programacion', 'total_inmuebles', 'meses_para_venta',
+                // Nuevos campos de aprobaciones GOSO
+                'tipo_credito', 'departamento', 'caso_pcp_bizagi', 'visitas_a_cobrar',
+                'cobrar_estudio_tecnico', 'fecha_aprobacion', 'alerta_fecha_aprobacion',
+                'vigencia_en_meses', 'instancia_aprobacion', 'condiciones_aprobacion',
+                'porcentaje_solicitado_financiables','validacion_licencia', 'fecha_radicacion',
+                'poliza_decenal', 'caso_bizagi_juridico','control_cruzado', 'fecha_confirmacion',
+                'fecha_primera_visita', 'id_garantia', 'meses_avanzados', 'plazo_ajustado'
+            ];
+
+            const numericFields = [
+                'monto_solicitado_1_desembolso', 'monto_solicitado_cpi',
+                'monto_solicitado_lote', 'total_valor_aprobado', 'valor_lote',
+                'valor_total_proyecto', 'meses_programacion', 'total_inmuebles',
+                'meses_para_venta', 'visitas_a_cobrar', 'vigencia_en_meses',
+                'porcentaje_solicitado_financiables','meses_avanzados', 'plazo_ajustado'
+            ];
+
+            const proyectosLimpios = proyectos.map(p => {
+                let proyecto = {};
+                KEYS.forEach(key => {
+                    if (key === 'condiciones_aprobacion') {
+                        // Convertir a texto separado por comas
+                        proyecto[key] = Array.isArray(p[key]) 
+                            ? p[key].join(', ') 
+                            : p[key] || 'Sin condiciones';
+                    } else {
+                        proyecto[key] = numericFields.includes(key) 
+                            ? cleanNumber(p[key]) 
+                            : p[key] || '';
+                    }
+                });
+                return proyecto;
+            });
+
+            fetch('/exportar_excel', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ proyectos: proyectosLimpios })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => Promise.reject(err));
+                }
+                return response.json();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    title: 'Error',
+                    text: error.message || 'Error al comunicarse con el servidor',
+                    icon: 'error',
+                    confirmButtonText: 'Aceptar'
+                });
+            });
+        }
+
+        // Manejar envío del formulario
+        document.getElementById('form-actividad3').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // 1. Obtener ID del proyecto (existente)
+            const idHidden = document.getElementById('id_proyecto_hidden');
+            let idProyecto = idHidden.value;
+
+            if (!idProyecto) {
+                idProyecto = localStorage.getItem('idProyectoSeleccionado');
+                if (!idProyecto) {
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'ID de proyecto no encontrado' });
+                    return;
+                }
+                idHidden.value = idProyecto;
+            }
+
+            // 2. Procesar FormData (existente)
+            const formData = new FormData(this);
+            const datos = {};
+
+            for (const [key, value] of formData.entries()) {
+                if (key === 'documentos') {
+                    const files = document.querySelector('[name="documentos"]').files;
+                    datos[key] = Array.from(files).map(file => file.name).join(', ');
+                } else {
+                    datos[key] = value;
+                }
+            }
+
+            // 3. Actualizar localStorage (existente)
+            let proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+            const index = proyectos.findIndex(p => p.id_proyecto === idProyecto);
+
+            if (index !== -1) {
+                Object.entries(datos).forEach(([key, value]) => {
+                    proyectos[index][key] = value;
+                });
+            } else {
+                proyectos.push(datos);
+            }
+
+            localStorage.setItem('proyectos', JSON.stringify(proyectos));
+            generarExcel(proyectos); 
+
+            // 4. Verificar campos completos (NUEVO)
+            const proyectoActual = proyectos[index];
+            
+            // Lista de todos los campos requeridos
+            const camposRequeridos = [
+                'validacion_licencia', 'fecha_radicacion',
+                'poliza_decenal', 'caso_bizagi_juridico','control_cruzado', 'fecha_confirmacion',
+                'fecha_primera_visita', 'id_garantia', 'meses_avanzados', 'plazo_ajustado'
+            ];
+
+            const formularioCompleto = camposRequeridos.every(campo => {
+                const valor = proyectoActual[campo];
+                return valor !== undefined && valor !== null && valor.toString().trim() !== '';
+            });
+
+            // 5. Mostrar mensaje y redirigir solo si está completo (Modificado)
+            if (formularioCompleto) {
+                Swal.fire({ 
+                    title: 'Proyecto completo', 
+                    text: 'Todos los datos han sido registrados', 
+                    icon: 'success' 
+                }).then(() => {
+                    window.location.href = "{{ url_for('seguimiento_Proyecto') }}";
+                });
+            } else {
+                Swal.fire({
+                    title: 'Datos guardados', 
+                    text: 'Información parcial almacenada', 
+                    icon: 'success'
+                });
+            }
+        });
+    </script>
+    <!-- Footer Estándar Bancolombia -->
+     <!-- Footer -->
+     <div class="footer">
+        <div class="container-aligned">
+            <p>© 2025 Bancolombia. Todos los derechos reservados.</p>
+            <p>
+                <a href="#">Términos y condiciones</a> | 
+                <a href="#">Política de privacidad</a> | 
+                <a href="#">Ayuda</a>
+            </p>
+            <p>
+                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 | 
+                <i class="fas fa-map-marker-alt"></i> Sede principal: Medellín, Colombia
+            </p>
+        </div>
+    </div>
+</body>
+</html>
