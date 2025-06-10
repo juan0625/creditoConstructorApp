@@ -147,89 +147,107 @@ def procesar_excel(filepath, output_path):
             UNION ALL
             {" UNION ALL ".join([f"SELECT CAST({v[0]} AS BIGINT), CAST({v[1]} AS SMALLINT), '{v[2]}'" for v in values[1:]])}
         ),
-
+        -- Última fecha disponible para segmentación/afectación
+        tableyear_sd AS (
+            SELECT MAX(ingestion_year) AS max_year
+            FROM resultados_cap_analit_y_gob_de_inf.co19_segmentacion_afectacion
+        ),
+        tablemonth_sd AS (
+            SELECT MAX(t0.ingestion_month) AS max_month
+            FROM resultados_cap_analit_y_gob_de_inf.co19_segmentacion_afectacion t0
+            JOIN tableyear_sd t1 ON t0.ingestion_year = t1.max_year
+        ),
+        tableday_sd AS (
+            SELECT MAX(ingestion_day) AS max_day
+            FROM resultados_cap_analit_y_gob_de_inf.co19_segmentacion_afectacion t0
+            JOIN tableyear_sd t1 ON t0.ingestion_year = t1.max_year
+            JOIN tablemonth_sd t2 ON t0.ingestion_month = t2.max_month
+        ),
         seg_af AS (
             SELECT DISTINCT
-                num_doc,
-                tipo_doc,
+                CAST(num_doc AS BIGINT) AS num_doc,
+                CAST(tipo_doc AS SMALLINT) AS tipo_doc,
                 COALESCE(segmento_afectacion, 'DESCONOCIDO') AS segmento_afectacion
-            FROM resultados_cap_analit_y_gob_de_inf.co19_segmentacion_afectacion
-            WHERE ingestion_date = (SELECT MAX(ingestion_date) FROM resultados_cap_analit_y_gob_de_inf.co19_segmentacion_afectacion)
+            FROM resultados_cap_analit_y_gob_de_inf.co19_segmentacion_afectacion t0
+            JOIN tableyear_sd t1 ON t0.ingestion_year = t1.max_year
+            JOIN tablemonth_sd t2 ON t0.ingestion_month = t2.max_month
+            JOIN tableday_sd t3 ON t0.ingestion_day = t3.max_day
         ),
-
         ocup AS (
             SELECT 
-                id AS num_doc,
-                tipo_id AS tipo_doc,
+                CAST(id AS BIGINT)    AS num_doc,
+                CAST(tipo_id AS SMALLINT) AS tipo_doc,
                 CASE 
-                    WHEN UPPER(TRIM(ocupacion)) IN ('EMPLEADO', 'ESTUDIANTE') THEN 'Asalariado'
-                    WHEN UPPER(TRIM(ocupacion)) IN ('INDEPENDIENTE', 'COMERCIANTE') THEN 'Independientes'
+                    WHEN UPPER(TRIM(ocupacion)) IN ('EMPLEADO','ESTUDIANTE','JUBILADO') THEN 'Asalariado'
+                    WHEN UPPER(TRIM(ocupacion)) IN ('AGRICULTOR','AMA DE CASA','COMERCIANTE','GANADERO',
+                                                'INDEPENDIENTE','PROFESIONAL INDEPENDIENTE','RENTISTA DE CAPITAL',
+                                                'SOCIO EMPLEADO - SOCIO') THEN 'Independientes'
                     WHEN UPPER(TRIM(ocupacion)) = 'NOMINAS PAGADAS POR BANCOLOMBIA' THEN 'Nominas pagadas por Bancolombia'
-                    WHEN UPPER(TRIM(ocupacion)) = 'PROVEEDORES PAGADOS POR NOMINAS' THEN 'Proveedores pagados por nominas'
+                    WHEN UPPER(TRIM(ocupacion)) = 'PROVEEDORES PAGADOS POR NOMINAS' THEN 'Proveedores pagadas por nominas'
+                    WHEN UPPER(TRIM(ocupacion)) IN ('DESEMPLEADO SIN INGRESOS','OTROS','SIN OCUPACION ASIGNADA',
+                                                'DESEMPLEADO CON INGRESOS','B') THEN 'Otros'
                     WHEN UPPER(TRIM(ocupacion)) = 'PENSIONADO' THEN 'Pensionado'
-                    WHEN UPPER(TRIM(ocupacion)) IN ('DESEMPLEADO', 'OTROS') THEN 'Otros'
                     ELSE 'DESCONOCIDO'
-                END AS ocupacion
+                END AS ocupacion_personas
             FROM resultados_clientes_personas_y_pymes.perfilacion_preaprobados
         ),
-
         afectacion_pn AS (
             SELECT 
-                num_doc,
-                CASE
-                    WHEN cluster_final BETWEEN 1 AND 9 THEN 
-                        CASE cluster_final
-                            WHEN 1 THEN 'Muy Baja'
-                            WHEN 2 THEN 'Baja'
-                            WHEN 3 THEN 'Media Baja'
-                            WHEN 4 THEN 'Media'
-                            WHEN 5 THEN 'Media Alta'
-                            WHEN 6 THEN 'Alta'
-                            WHEN 7 THEN 'Muy alta'
-                            WHEN 8 THEN 'Extrema Alta'
-                            WHEN 9 THEN 'Indeterminados'
-                        END
-                    ELSE 'DESCONOCIDO'
-                END AS segmento_afectacion
+                CAST(num_doc AS BIGINT) AS num_doc,
+                -- si en tu tabla real la columna se llama ctrl_tercero, úsala aquí:
+                ctrl_terc                 AS ctrl_terc,  
+                COALESCE(
+                    CASE cluster_final
+                        WHEN 1 THEN 'Muy Baja'
+                        WHEN 2 THEN 'Baja'
+                        WHEN 3 THEN 'Media Baja'
+                        WHEN 4 THEN 'Media'
+                        WHEN 5 THEN 'Media Alta'
+                        WHEN 6 THEN 'Alta'
+                        WHEN 7 THEN 'Muy alta'
+                        WHEN 8 THEN 'Extrema Alta'
+                        WHEN 9 THEN 'Indeterminados'
+                    END, 'DESCONOCIDO'
+                ) AS nivel_afectacion,
+                fecha_corte
             FROM resultados_riesgos.modelo_afectacion_pn
-            WHERE fecha_corte = (SELECT MAX(fecha_corte) FROM resultados_riesgos.modelo_afectacion_pn)
+        ),
+        fecha_referencia AS (
+            SELECT 
+                CONCAT(
+                    CAST(YEAR(ADD_MONTHS(CURRENT_DATE(), -1)) AS STRING),
+                    LPAD(CAST(MONTH(ADD_MONTHS(CURRENT_DATE(), -1)) AS STRING), 2, '0')
+                ) AS fecha_corte_formato
         )
-
-        -- Resultados para Características (Imagen 2)
         SELECT 
-            CASE 
-                WHEN EXISTS (
-                    SELECT 1 
-                    FROM resultados_cap_analit_y_gob_de_inf.co19_segmentacion_afectacion 
-                    WHERE num_doc = vt.num_doc AND ctrl_terc IN ('CLIENTE', 'CLIENTE SOCIAL', 'NEQUI')
-                ) THEN 'Cliente con cartera activa Bancolombia'
+            vt.num_doc,
+            vt.tipo_doc,
+            vt.nombre_del_proyecto,
+            -- quedará la afectación (nivel) en lugar de segmento
+            COALESCE(ap.nivel_afectacion, 'DESCONOCIDO') AS segmento_afectacion,
+            COALESCE(o.ocupacion_personas, 'DESCONOCIDO')  AS ocupacion,
+            COALESCE(ap.ctrl_terc, 'DESCONOCIDO')         AS tipo_cliente,
+            COALESCE(ap.nivel_afectacion, 'DESCONOCIDO')  AS nivel_afectacion,
+            CASE
+                WHEN ap.ctrl_terc IN ('CLIENTE','CLIENTE SOCIAL','NEQUI') 
+                    THEN 'Cliente con cartera activa Bancolombia'
                 ELSE 'No es Cliente Banco'
-            END AS Caracteristica,
-            COUNT(*) AS "# Clientes"
+            END AS caracteristica,
+            CASE
+                WHEN ap.ctrl_terc IN ('CLIENTE','CLIENTE SOCIAL','NEQUI') 
+                    THEN fr.fecha_corte_formato
+                ELSE '0'
+            END AS fecha_corte
         FROM valores_temp vt
-        GROUP BY 1
-        UNION ALL
-        SELECT 'Total general', COUNT(*) FROM valores_temp;
-
-        -- Resultados para Ocupación (Imagen 2)
-        SELECT 
-            ocupacion AS "ocupación",
-            COUNT(*) AS "# Clientes"
-        FROM valores_temp vt
-        LEFT JOIN ocup o ON vt.num_doc = o.num_doc AND vt.tipo_doc = o.tipo_doc
-        GROUP BY 1
-        UNION ALL
-        SELECT 'Total general', COUNT(*) FROM valores_temp;
-
-        -- Resultados para Segmento de Afectación (Imagen 3)
-        SELECT 
-            COALESCE(ap.segmento_afectacion, 'DESCONOCIDO') AS segmento_afectacion,
-            COUNT(*) AS "# Clientes"
-        FROM valores_temp vt
-        LEFT JOIN afectacion_pn ap ON vt.num_doc = ap.num_doc
-        GROUP BY 1
-        UNION ALL
-        SELECT 'Total general', COUNT(*) FROM valores_temp;
+        LEFT JOIN seg_af sa 
+            ON vt.num_doc  = sa.num_doc 
+        AND vt.tipo_doc = sa.tipo_doc
+        LEFT JOIN ocup o 
+            ON vt.num_doc  = o.num_doc 
+        AND vt.tipo_doc = o.tipo_doc
+        LEFT JOIN afectacion_pn ap 
+            ON vt.num_doc = ap.num_doc
+        CROSS JOIN fecha_referencia fr;
         """
 
         # Obtener datos de la consulta
