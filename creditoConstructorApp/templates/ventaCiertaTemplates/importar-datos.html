@@ -167,9 +167,22 @@
 </head>
 
 <body>
-    
-        <!-- Header con logo y usuario -->
-        <div class="header">
+     <!-- Modal de Carga -->
+     <div class="modal fade" id="modalCarga" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-center p-4">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+            <h5 class="mb-2">Procesando archivo...</h5>
+            <div class="progress w-100 mb-2">
+            <div id="barraProgreso" class="progress-bar progress-bar-striped progress-bar-animated" 
+                role="progressbar" style="width: 0%">0%</div>
+            </div>
+            <small class="text-muted">Esto puede tardar unos segundos. Por favor no cierre la ventana.</small>
+        </div>
+        </div>
+    </div> 
+    <!-- Header con logo y usuario -->
+    <div class="header">
             <div class="container-aligned">
                 <div class="user-info">
                     <span class="role-badge me-3">{{ session.usuario.rol | title }}</span>
@@ -187,7 +200,7 @@
                     </nav>
                 </div>
             </div>
-        </div>
+    </div>
     <div class="container">
         <h1 class="module-title">
             <i class="fas fa-hand-holding-usd"></i> Módulo de Venta Cierta
@@ -207,47 +220,52 @@
         <!-- Mensaje de resultado -->
         <div id="resultado" class="result-message d-none"></div>
     </div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <!-- Script para manejar la carga del archivo -->
     <script>
-        const form = document.getElementById('fileForm');
-        form.addEventListener('submit', async (event) => {
+        document.getElementById('fileForm').addEventListener('submit', async (event) => {
             event.preventDefault();
-    
+
+            const modalCarga = new bootstrap.Modal(document.getElementById('modalCarga'));
+            modalCarga.show();
+
+            const form = event.target;
             const formData = new FormData(form);
-    
+
             try {
                 const response = await fetch('/upload', {
                     method: 'POST',
                     body: formData
                 });
-    
-                // Verificar si la respuesta es un error o éxito
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(`Error: ${errorData.error || response.statusText}`);
-                }
-    
-                // Si la respuesta es correcta, obtener los datos
-                const data = await response.json();
 
-                // Mostrar el mensaje del backend
                 const resultDiv = document.getElementById('resultado');
                 resultDiv.classList.remove('d-none');
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    resultDiv.classList.add('alert', 'alert-danger');
+                    resultDiv.textContent = `Error: ${errorData.error || response.statusText}`;
+                    modalCarga.hide(); // cerrar modal en error
+                    return;
+                }
+
+                const data = await response.json();
                 resultDiv.classList.add('alert', 'alert-success');
-                resultDiv.textContent = data.message;  // Mostrar el mensaje de éxito
-    
-                // Crear un enlace para descargar el archivo procesado
+                resultDiv.textContent = data.message;
+
                 if (data.output_file) {
-                    const url = data.output_file;  // URL del archivo procesado
                     const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'Clientes_venta_cierta_procesado.xlsx';  // Nombre del archivo a descargar
+                    a.href = data.output_file;
+                    a.download = 'Clientes_venta_cierta_procesado.xlsx';
                     a.click();
                 }
-    
+
+                modalCarga.hide(); // cerrar modal si todo va bien
+
             } catch (error) {
-                // Mostrar mensaje de error
+                modalCarga.hide(); // cerrar modal si hay excepción
                 const resultDiv = document.getElementById('resultado');
                 resultDiv.classList.remove('d-none');
                 resultDiv.classList.add('alert', 'alert-danger');
