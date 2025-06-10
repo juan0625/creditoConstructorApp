@@ -377,6 +377,10 @@
         .btn-action:hover i {
             transform: scale(1.1);
         }
+        .modal-content {
+            border-radius: 1rem;
+            box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body>
@@ -498,6 +502,9 @@
     <button class="btn btn-seguimiento" onclick="mostrarFormCargaVentas()" style="margin-left: 10px;">
         <i class="fas fa-file-excel me-2"></i>Cargar Ventas
     </button>
+    <button class="btn btn-seguimiento" onclick="mostrarFormCargaVisitas()" style="margin-left: 10px;">
+        <i class="fas fa-calendar-check me-2"></i>Cargar Visitas
+    </button>
     <!-- Formulario Carga de Ventas -->
     <div class="seguimiento-container formulario-seguimiento" id="formCargaVentas" style="display: none;">
         <h4><i class="fas fa-file-import me-2"></i>Cargar Informe de Ventas</h4>
@@ -514,7 +521,7 @@
                 </div>
                 <div class="col-md-6 mb-3">
                     <label>Responsable de carga</label>
-                    <input type="text" class="form-control" value="{{ session.usuario.nombre }}" readonly>
+                    <input type="text" id="responsable-input" class="form-control" value="{{ session.usuario.nombre }}" readonly>
                 </div>
             </div>
     
@@ -531,17 +538,81 @@
             </div>
         </form>
     </div>
+    <!-- Formulario Carga de Visitas -->
+    <div class="seguimiento-container formulario-seguimiento" id="formCargaVisitas" style="display: none;">
+        <h4><i class="fas fa-calendar-check me-2"></i>Cargar Informe de Visitas</h4>
+        <form id="form-carga-visitas">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label>Seleccionar archivo Excel</label>
+                    <input type="file" class="form-control" id="archivoVisitas" 
+                        accept=".xlsx, .xlsm" 
+                        title="Formatos aceptados: .xlsx y .xlsm" 
+                        required>
+                    <small class="form-text text-muted">Se aceptan archivos con macros (.xlsm)</small>
+                    <span class="error-mensaje"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label>Responsable de carga</label>
+                    <input type="text" id="responsable-input" class="form-control" value="{{ session.usuario.nombre }}" readonly>
+                </div>
+            </div>
+
+            <div class="alert alert-warning">
+                <strong>Validaciones requeridas:</strong>
+                <ul>
+                    <li> El archivo debe contener: ID PROYECTO, EL NOMBRE DEL PROYECTO, EL VALOR DE COSTOS FINANCIABLES y EL NOMBRE DEL PERITO</li>
+                </ul>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-secondary" onclick="ocultarFormCargaVisitas()">Cancelar</button>
+                <button type="button" class="btn btn-seguimiento" onclick="procesarArchivoVisitas()">Procesar</button>
+            </div>
+        </form>
+    </div>
+    <!-- Modal de Carga -->
+    <div class="modal fade" id="modalCarga" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-center p-4">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+            <h5 class="mb-2">Procesando archivo...</h5>
+            <div class="progress w-100 mb-2">
+            <div id="barraProgreso" class="progress-bar progress-bar-striped progress-bar-animated" 
+                role="progressbar" style="width: 0%">0%</div>
+            </div>
+            <small class="text-muted">Esto puede tardar unos segundos. Por favor no cierre la ventana.</small>
+        </div>
+        </div>
+    </div>  
     <!-- Modal de Confirmación -->
        <div class="modal fade modal-confirmacion" id="confirmModal">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header bg-warning">
-                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Confirmar acción</h5>
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Confirmar Datos de la Venta</h5>
                 </div>
                 <div class="modal-body" id="confirmModalBody"></div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-danger" id="confirmActionBtn">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Modal de Confirmación para Visitas -->
+    <div class="modal fade modal-confirmacion" id="confirmModalVisitas">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Datos de la Visita
+                    </h5>
+                </div>
+                <div class="modal-body" id="confirmModalVisitasBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="confirmActionBtnVisitas">Confirmar</button>
                 </div>
             </div>
         </div>
@@ -623,6 +694,218 @@
     <script>
         let seguimientos = JSON.parse(localStorage.getItem('seguimientos')) || [];
         let editandoIndex = -1;
+        // Mapeo completo de campos para ambos formatos
+        const mapeoCamposVisitas = {
+            // Campos comunes (compartidos entre ambos formatos)
+            "ID PROYECTO": {
+                nuevo: "C13",
+                viejo: "C3",
+                tipo: "entero"
+            },
+            "REGIONAL": {
+                nuevo: "P21",
+                viejo: "E3",
+                tipo: "texto"
+            },
+            "NUMERO VISITA": {
+                nuevo: "C9",
+                viejo: "E4",
+                tipo: "entero"
+            },
+            "FECHA VISITA": {
+                nuevo: "C7",
+                viejo: "I4",
+                tipo: "fecha"
+            },
+            "COSTOS FINANCIABLES": {
+                nuevo: "H37",
+                viejo: "H14",
+                tipo: "moneda"
+            },
+            "PORCENTAJE SOLICITADO FINANCIABLES": {
+                nuevo: "H49",
+                viejo: "K14",
+                tipo: "porcentaje"
+            },
+            "VALOR ANTICIPOS": {
+                nuevo: "C117",
+                viejo: "K25",
+                tipo: "moneda"
+            },
+            "VALOR ANTICIPOS ALMACEN": {
+                nuevo: "C115",
+                viejo: "K26",
+                tipo: "moneda"
+            },
+            "PROGRAMACION INICIAL": {
+                nuevo: "H55",
+                viejo: "J30",
+                tipo: "entero"
+            },
+            "MES INICIO OBRA": {
+                nuevo: "C55",
+                viejo: "I31",
+                tipo: "fecha"
+            },
+            "AVANCE OBRA MESES": {
+                nuevo: "B82",
+                viejo: "J32",
+                tipo: "entero"
+            },
+            "AVANCE ESPERADO PORCENTAJE": {
+                nuevo: "P65",
+                viejo: "L32",
+                tipo: "porcentaje"
+            },
+            "AVANCE OBRA": {
+                nuevo: "P63",
+                viejo: "F66",
+                tipo: "porcentaje"
+            },
+            "VALOR TOTAL PROYECTO": {
+                nuevo: "C35",
+                viejo: "B69",
+                tipo: "moneda"
+            },
+            "INVERSION DEL PROYECTO": {
+                nuevo: "C113",
+                viejo: "E69",
+                tipo: "moneda"
+            },
+            "VALOR LOTE": {
+                nuevo: "C43",
+                viejo: "B70",
+                tipo: "moneda"
+            },
+            "PERITO": {
+                nuevo: "P9",
+                viejo: "H68",
+                tipo: "texto"
+            },
+            "TIPO INMUEBLE": {
+                nuevo: "F21",
+                viejo: "C4",
+                tipo: "texto"
+            },
+            "NUMERO DE INMUEBLES": {
+                nuevo: "C21",
+                viejo: "B4",
+                tipo: "entero"
+            },
+
+            // Campos exclusivos del NUEVO formato
+            "PROMEDIO SPI TRIMESTRE": {
+                nuevo: "B72",
+                tipo: "decimal"
+            },
+            
+            "SPI AL CORTE": {
+                nuevo: "R65",
+                tipo: "decimal"
+            },
+            "ALERTA EN PROGRAMACIÓN": {
+                nuevo: "B77",
+                tipo: "texto"
+            },
+            "ESTADO EJECUCIÓN OBRA": {
+                nuevo: "Q87",
+                tipo: "texto"
+            },
+            "CPI AL CORTE": {
+                nuevo: "R92",
+                tipo: "decimal"
+            },
+            "IMPREVISTOS USADOS A LA FECHA": {
+                nuevo: "J109",
+                tipo: "porcentaje"
+            },
+            "ALERTA IMPREVISTOS USADOS A LA FECHA": {
+                nuevo: "J111",
+                tipo: "texto"
+            },
+            "ALERTA IMPREVISTOS USADOS VS PROGRAMACIÓN": {
+                nuevo: "J113",
+                tipo: "texto"
+            },
+            "ALERTA EJECUTADO VS INVERTIDO": {
+                nuevo: "J119",
+                tipo: "texto"
+            },
+            "RESUMEN ALERTA DEL PROYECTO": {
+                nuevo: "M125",
+                tipo: "texto"
+            },
+            "ESTADO EJECUCIÓN OBRA MENSUAL": {
+                nuevo: "Q117",
+                tipo: "texto"
+            },
+            "CONSUMIDO A LA FECHA": {
+                nuevo: "C111",
+                tipo: "moneda"
+            },
+            "IMPREVISTOS Y REAJUSTES USADOS": {
+                nuevo: "C125",
+                tipo: "moneda"
+            },
+            "INDIRECTOS INVERTIDOS A LA FECHA": {
+                nuevo: "C135",
+                tipo: "moneda"
+            },
+            "INDIRECTOS INVERTIDOS EN %": {
+                nuevo: "C137",
+                tipo: "porcentaje"
+            },
+            "HONORARIOS INVERTIDOS A LA FECHA": {
+                nuevo: "H135",
+                tipo: "moneda"
+            },
+            "HONORARIOS INVERTIDOS EN %": {
+                nuevo: "H137",
+                tipo: "porcentaje"
+            },
+            "ALERTA CONSUMO INDIRECTOS VS PROGRAMACION": {
+                nuevo: "C141",
+                tipo: "texto"
+            },
+            "ALERTA CONSUMO HONORARIOS VS PROGRAMACION": {
+                nuevo: "H141",
+                tipo: "texto"
+            },
+            "ALERTA INDIRECTOS VS PRESUPUESTO": {
+                nuevo: "C143",
+                tipo: "texto"
+            },
+            "ALERTA HONORARIOS VS PRESUPUESTO": {
+                nuevo: "H143",
+                tipo: "texto"
+            },
+            "AVANCE OBRA VS AVANCE CI HONORARIOS (CD)": {
+                nuevo: "R139",
+                tipo: "porcentaje"
+            },
+            "AVANCE OBRA VS AVANCE CI HONORARIOS (CI+H)": {
+                nuevo: "R141",
+                tipo: "porcentaje"
+            },
+            "PROGRAMACION ACTUAL": {
+                nuevo: {
+                    logica: (hoja) => hoja['L55']?.v || hoja['H55']?.v
+                },
+                tipo: "entero"
+            },
+            "MES TERMINACION ACTUAL": {
+                nuevo: {
+                    logica: (hoja) => hoja['P53']?.v || hoja['F55']?.v
+                },
+                tipo: "fecha"
+            },
+
+            // Campos exclusivos del VIEJO formato
+            "VALLA": {
+                viejo: "N/A",
+                tipo: "texto"
+            }
+        };
     
         const form = document.getElementById('form-nuevo-seguimiento');
         const campos = {
@@ -1040,36 +1323,52 @@
 
         // Funciones de control
         function mostrarFormCargaVentas() {
+            ocultarFormCargaVisitas(); // Asegura que el otro formulario esté cerrado
             document.getElementById('formCargaVentas').style.display = 'block';
         }
+
 
         function ocultarFormCargaVentas() {
             document.getElementById('formCargaVentas').style.display = 'none';
         }
 
-        async function procesarArchivo() {
-            const archivo = document.getElementById('archivoVentas').files[0];
-            if (!archivo) {
-                mostrarErrorModal("Seleccione un archivo válido");
-                return;
-            }
+        // Funciones de control para Visitas
+        function mostrarFormCargaVisitas() {
+            ocultarFormCargaVentas(); // Asegura que el otro formulario esté cerrado
+            document.getElementById('formCargaVisitas').style.display = 'block';
+        }
 
-            try {
-                const data = await leerExcel(archivo);
-                const hojaResumen = data['RESUMEN'];
-                
-                if (!validarEstructura(hojaResumen)) {
+        function ocultarFormCargaVisitas() {
+            document.getElementById('formCargaVisitas').style.display = 'none';
+        }
+
+        async function procesarArchivo() {
+
+            mostrarModalCarga(async () => {
+
+                const archivo = document.getElementById('archivoVentas').files[0];
+                if (!archivo) {
+                    mostrarErrorModal("Seleccione un archivo válido");
                     return;
                 }
 
-                const datosProcesados = extraerDatos(hojaResumen);
-                
-                // Solo mostrar confirmación, NO guardar todavía
-                mostrarConfirmacionCarga(datosProcesados);
-                        
-            } catch (error) {
-                mostrarErrorModal(`Error: ${error.message}`);
-            }
+                try {
+                    const data = await leerExcel(archivo);
+                    const hojaResumen = data['RESUMEN'];
+                     
+                    if (!validarEstructura(hojaResumen)) {
+                        return;
+                    }
+
+                    const datosProcesados = extraerDatos(hojaResumen);
+                    
+                    // Solo mostrar confirmación, NO guardar todavía
+                    mostrarConfirmacionCarga(datosProcesados);
+                            
+                } catch (error) {
+                    mostrarErrorModal(`Error: ${error.message}`);
+                }
+            });    
         }
 
         async function leerExcel(archivo) {
@@ -1190,27 +1489,72 @@
             return datos;
         }
 
-
         function formatearValor(valor, tipo) {
             if (valor === undefined || valor === null) return null;
 
             switch(tipo) {
-                case 'fecha':
-                    // Convertir fechas numéricas de Excel
+                case 'fecha': {
+                    let fecha;
+
+                    // 1. Si es un numero: convertir desde Excel
                     if (typeof valor === 'number') {
                         const dateCode = XLSX.SSF.parse_date_code(valor);
-                        return new Date(dateCode.y, dateCode.m - 1, dateCode.d).toISOString().split('T')[0];
+                        if (dateCode && dateCode.y && dateCode.m && dateCode.d) {
+                            fecha = new Date(dateCode.y, dateCode.m - 1, dateCode.d);
+                        }
                     }
+
+                    // 2. Si es string
+                    if (typeof valor === 'string') {
+                        // a) Si es DD/MM/YYYY
+                        const regexLatina = /^\d{2}\/\d{2}\/\d{4}$/;
+                        if (regexLatina.test(valor)) {
+                            const [d, m, y] = valor.split('/').map(Number);
+                            fecha = new Date(y, m - 1, d);
+                        } else {
+                            // b) O cualquier string que pueda ser interpretado como fecha
+                            const tmpFecha = new Date(valor);
+                            if (!isNaN(tmpFecha)) {
+                                fecha = tmpFecha;
+                            }
+                        }
+                    }
+
+                    // 3. Si es objeto Date directamente
+                    if (valor instanceof Date && !isNaN(valor)) {
+                        fecha = valor;
+                    }
+
+                    // Validacion final
+                    if (fecha instanceof Date && !isNaN(fecha)) {
+                        const dia = String(fecha.getDate()).padStart(2, '0');
+                        const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+                        const anio = fecha.getFullYear();
+                        return `${dia}/${mes}/${anio}`;
+                    }
+
+                    return 'Fecha invalida';
+                }
+
                 case 'porcentaje':
-                    return typeof valor === 'string' ? 
-                        parseFloat(valor.replace('%', '')) / 100 : 
-                        Number(valor);
+                    if (typeof valor === 'string') {
+                        // Solo limpia y convierte a número (sin multiplicar)
+                        return parseFloat(
+                            valor.replace('%', '')
+                                .replace(',', '.')  // Maneja decimales con coma
+                        );
+                    } else {
+                        return Number(valor);
+                    }
+
                 case 'entero':
                     return Math.round(Number(valor));
+
                 default:
                     return valor;
             }
         }
+
 
         // Función para convertir fechas en español
         function parsearFechaEspanol(fechaInput) {
@@ -1250,20 +1594,19 @@
         }
 
         function guardarDatosVentas(datos) {
-            const historial = JSON.parse(localStorage.getItem('historialVentas') || '[]');
-            
-            // Buscar si ya existe registro para este proyecto
-            const index = historial.findIndex(h => h.proyectoId === datos.proyectoId);
-            
-            if (index !== -1) {
-                // Actualizar registro existente
-                historial[index] = datos;
-            } else {
-                // Agregar nuevo registro
-                historial.push(datos);
-            }
-            
-            localStorage.setItem('historialVentas', JSON.stringify(historial));
+                const historial = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+                const usuario = document.querySelector('#responsable-input').value; // Obtener del input
+                
+                const nuevaVenta = {
+                    proyectoId: datos.proyectoId,
+                    proyectoNombre: datos.proyectoNombre,
+                    campos: datos.campos,
+                    usuario: usuario, // Guardar el usuario responsable
+                    fechaCarga: new Date().toISOString() // Fecha actual
+                };
+
+                historial.push(nuevaVenta);
+                localStorage.setItem('historialVentas', JSON.stringify(historial));
         }
 
         function mostrarConfirmacionCarga(datos) {
@@ -1360,16 +1703,20 @@
             const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
             const btnConfirmar = document.getElementById('confirmActionBtn');
             
+            
             // Limpiar cualquier evento previo
             btnConfirmar.onclick = null;
             
             // Nuevo evento para guardar definitivamente y generar Excel
             btnConfirmar.onclick = function() {
-                guardarDatosVentas(datos); // Guarda en el historial de ventas
+                const usuario = document.querySelector('#responsable-input').value;
+                guardarDatosVentas({
+                    ...datos,
+                    usuario: usuario
+                }); 
                 
                 // Obtener proyectos y usuario
                 const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
-                const usuario = "{{ session.usuario.nombre }}"; // Asegurar que este valor está disponible
                 
                 // Generar el Excel (asegurando que los porcentajes se multipliquen por 100)
                 generarExcel(proyectos, usuario);
@@ -1402,58 +1749,101 @@
 
         // Función de error general
         function mostrarErrorModal(mensaje) {
-            document.getElementById('errorMensaje').textContent = mensaje;
+            document.getElementById('errorMensaje').innerHTML = mensaje;
             new bootstrap.Modal(document.getElementById('errorModal')).show();
         }
 
-        function generarExcel(proyectos, usuario) {
-            // Obtener el historial de ventas
+        function generarExcel(proyectos, usuario, datosProcesados) {
+            // Obtener historial de ventas y visitas
             const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
-            
-            // Combinar datos de proyectos con datos de ventas
-            const proyectosCompletos = proyectos.map(p => {
-                // Buscar datos de ventas para este proyecto
-                const ventasProyecto = historialVentas.filter(v => v.proyectoId === p.id_proyecto);
-                
-                // Si hay datos de ventas, combinarlos
-                if (ventasProyecto.length > 0) {
-                    // Tomar la última carga de ventas
-                    const ultimaVenta = ventasProyecto[ventasProyecto.length - 1];
+            const historialVisitas = JSON.parse(localStorage.getItem('historialVisitas') || '[]');
+            const usuarioInput = document.getElementById('responsable-input');
+            const responsableUsuario = usuarioInput ? usuarioInput.value : "Usuario no definido";
                     
-                    // Aplanar los campos de ventas
-                    const ventasAplanadas = {};
+            // Identificar campos numéricos
+            const tiposNumericos = ['entero', 'porcentaje', 'moneda', 'decimal'];
+            const camposNumericosAdicionales = Object.entries(mapeoCampos)
+                .filter(([_, config]) => tiposNumericos.includes(config.tipo))
+                .map(([key, _]) => key.toLowerCase().replace(/\s+/g, '_'));
+            
+            const camposNumericosAdicionalesVisitas = Object.entries(mapeoCamposVisitas)
+                .filter(([_, config]) => tiposNumericos.includes(config.tipo))
+                .map(([key, _]) => key.toLowerCase().replace(/\s+/g, '_'));
+
+            // Combinar datos
+            const proyectosCompletos = proyectos.map(p => {
+                // 1. Procesar ventas
+                const ventasProyecto = historialVentas.filter(v => v.proyectoId === p.id_proyecto);
+                let ventasAplanadas = {};
+                let responsableVenta = '';
+                let fechaVenta = '';
+                
+                if (ventasProyecto.length > 0) {
+                    const ultimaVenta = ventasProyecto[ventasProyecto.length - 1];
                     Object.entries(ultimaVenta.campos).forEach(([nombreCampo, infoCampo]) => {
-                        // Convertir nombre a snake_case
                         const key = nombreCampo.toLowerCase().replace(/\s+/g, '_');
                         
-                        // Obtener valor real
-                        let valor = infoCampo.valor !== undefined ? infoCampo.valor : infoCampo;
-                        
-                        // Multiplicar porcentajes por 100
-                        if (nombreCampo.includes('%') && typeof valor === 'number') {
-                            valor = valor * 100;
+                        // Extraer solo el valor del campo
+                        if (infoCampo && typeof infoCampo === 'object' && 'valor' in infoCampo) {
+                            ventasAplanadas[key] = infoCampo.valor;
+                        } else {
+                            ventasAplanadas[key] = infoCampo;
                         }
-                        
-                        ventasAplanadas[key] = valor;
                     });
                     
-                    // Agregar información de responsable y fecha de carga
-                    return { 
-                        ...p, 
-                        ...ventasAplanadas,
-                        responsable_carga: usuario,
-                        fecha_carga: new Date(ultimaVenta.fechaCarga).toLocaleString('es-CO')
-                    };
+                    responsableVenta = ultimaVenta.usuario || '';
+                    
+                    // CORRECCIÓN: Usar fecha de modificación si existe
+                    fechaVenta = ultimaVenta.fechaCarga || ultimaVenta.fechaModificacion || ultimaVenta.fecha;
+                    if (fechaVenta) {
+                        fechaVenta = new Date(fechaVenta).toLocaleString('es-CO');
+                    }
                 }
+
+                // 2. Procesar visitas
+                let visitaAplanada = {};
+                let responsableVisita = '';
+                let fechaVisita = '';
+                const visitaProyecto = historialVisitas.find(v => v.proyectoId === p.id_proyecto);
+                
+                if (visitaProyecto) {
+                    Object.entries(visitaProyecto.campos).forEach(([nombreCampo, infoCampo]) => {
+                        const key = nombreCampo.toLowerCase().replace(/\s+/g, '_');
+                        
+                        // Extraer solo el valor del campo
+                        if (infoCampo && typeof infoCampo === 'object' && 'valor' in infoCampo) {
+                            visitaAplanada[key] = infoCampo.valor;
+                        } else {
+                            visitaAplanada[key] = infoCampo;
+                        }
+                    });
+
+                    responsableVisita = visitaProyecto.usuario || '';
+                    
+                    // CORRECCIÓN: Usar fecha de modificación si existe
+                    fechaVisita = visitaProyecto.fechaCarga || visitaProyecto.fechaModificacion || visitaProyecto.fecha;
+                    if (fechaVisita) {
+                        fechaVisita = new Date(fechaVisita).toLocaleString('es-CO');
+                    }
+                }
+
                 return {
                     ...p,
-                    responsable_carga: usuario,
-                    fecha_carga: new Date().toLocaleString('es-CO')
+                    ...ventasAplanadas,
+                    ...visitaAplanada,
+                    responsable_carga_venta: responsableVenta,
+                    responsable_carga_visita: responsableVisita,
+                    fecha_carga_venta: fechaVenta,
+                    fecha_carga_visita: fechaVisita
                 };
             });
 
-            // Convertir claves de mapeoCampos a snake_case
+            // Generar lista de campos (KEYS) incluyendo campos de visitas
             const camposAdicionales = Object.keys(mapeoCampos).map(key => 
+                key.toLowerCase().replace(/\s+/g, '_')
+            );
+            
+            const camposAdicionalesVisitas = Object.keys(mapeoCamposVisitas).map(key => 
                 key.toLowerCase().replace(/\s+/g, '_')
             );
 
@@ -1477,15 +1867,13 @@
                 'fecha_primera_visita', 'id_garantia', 'meses_avanzados', 'plazo_ajustado',
                 // Campos adicionales de mapeoCampos
                 ...camposAdicionales,
-                // Nuevos campos: responsable de carga y fecha de carga
-                'responsable_carga',
-                'fecha_carga'
+                ...camposAdicionalesVisitas,
+                // Nuevos campos: responsables y fechas específicas
+                'responsable_carga_venta',
+                'responsable_carga_visita',
+                'fecha_carga_venta',
+                'fecha_carga_visita'
             ];
-
-            // Identificar campos numéricos adicionales
-            const camposNumericosAdicionales = Object.entries(mapeoCampos)
-                .filter(([_, config]) => ['entero', 'porcentaje'].includes(config.tipo))
-                .map(([key, _]) => key.toLowerCase().replace(/\s+/g, '_'));
 
             const numericFields = [
                 'monto_solicitado_1_desembolso', 'monto_solicitado_cpi',
@@ -1493,39 +1881,38 @@
                 'valor_total_proyecto', 'meses_programacion', 'total_inmuebles',
                 'meses_para_venta', 'visitas_a_cobrar', 'vigencia_en_meses',
                 'porcentaje_solicitado_financiables','meses_avanzados', 'plazo_ajustado',
-                ...camposNumericosAdicionales
+                ...camposNumericosAdicionales,
+                ...camposNumericosAdicionalesVisitas
             ];
 
-            const proyectosLimpios = proyectosCompletos.map(p => {
-                let proyecto = {};
-                KEYS.forEach(key => {
-                    if (key === 'condiciones_aprobacion') {
-                        proyecto[key] = Array.isArray(p[key]) 
-                            ? p[key].join(', ') 
-                            : p[key] || 'Sin condiciones';
-                    } else {
-                        let value = p[key];
-                        
-                        // Convertir valores numéricos
-                        if (numericFields.includes(key) && value !== undefined && value !== null) {
-                            // Convertir a número
-                            const numValue = parseFloat(value);
+               // Limpiar y formatear datos
+                const proyectosLimpios = proyectosCompletos.map(p => {
+                    let proyecto = {};
+                    KEYS.forEach(key => {
+                        if (key === 'condiciones_aprobacion') {
+                            proyecto[key] = Array.isArray(p[key]) 
+                                ? p[key].join(', ') 
+                                : p[key] || 'Sin condiciones';
+                        } else {
+                            let value = p[key];
                             
-                            // Si es un porcentaje, asegurar formato adecuado
-                            if (key.includes('porcentaje') && !isNaN(numValue)) {
-                                // Si ya está multiplicado por 100, no hacer nada
-                                // Si es decimal, multiplicar por 100
-                                value = numValue < 1 ? numValue * 100 : numValue;
-                            } else if (!isNaN(numValue)) {
-                                value = numValue;
+                            // Convertir valores numéricos
+                            if (numericFields.includes(key) && value != null) {
+                                const numValue = parseFloat(value);
+                                value = isNaN(numValue) ? value : numValue;
                             }
+                            
+                            // Ajustar porcentajes (solo si son decimales)
+                            if ((key.includes('porcentaje') || key.includes('%')) && typeof value === 'number') {
+                                value = value < 1 ? value * 100 : value;
+                            }
+                            
+                            // Manejar valores nulos/undefined
+                            proyecto[key] = value ?? '';
                         }
-                        
-                        proyecto[key] = value || '';
-                    }
+                    });
+                    return proyecto;
                 });
-                return proyecto;
-            });
 
             // Enviar datos al backend para generar Excel
             fetch('/exportar_excel', {
@@ -1535,26 +1922,16 @@
                     proyectos: proyectosLimpios, 
                     usuario,
                     campos_especiales: {
-                        porcentaje: camposNumericosAdicionales.filter(f => f.includes('porcentaje'))
+                        porcentaje: [
+                            ...camposNumericosAdicionales.filter(f => f.includes('porcentaje')),
+                            ...camposNumericosAdicionalesVisitas.filter(f => f.includes('porcentaje'))
+                        ]
                     }
                 })
             })
             .then(response => {
-                if (!response.ok) {
-                    // Mostrar mensaje de éxito
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            title: '¡Datos guardados en la base!',
-                            text: 'La información de ventas se ha almacenado correctamente',
-                            icon: 'success'
-                        });
-                    } else {
-                        alert('¡Datos guardados y Excel generado!');
-                    }
-                    return response.json().then(err => Promise.reject(err));
-
-                }
-                return response.blob();
+                if (response.ok) return response.blob();
+                throw new Error('Error en la generación del Excel');
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -1615,6 +1992,13 @@
             localStorage.setItem('proyectos', JSON.stringify(proyectos));
             generarExcel(proyectos); 
 
+            // Verificar si hay datos de visitas para generar ese reporte también
+            const historialVisitas = JSON.parse(localStorage.getItem('historialVisitas') || []);
+            if (historialVisitas.some(v => v.proyectoId === idProyecto)) {
+                generarExcelVisitas(proyectos, "{{ session.usuario.nombre }}");
+            }
+
+
             // 4. Verificar campos completos (NUEVO)
             const proyectoActual = proyectos[index];
             
@@ -1658,6 +2042,611 @@
                 );
                 modal.hide();
         });
+
+        // Función para validar fecha de visita
+        function validarVencimientoVisita(fechaVisita) {
+            const resultado = {
+                valor: false,
+                mensaje: "Fecha no evaluada",
+                clase: "text-secondary"
+            };
+
+            if (!fechaVisita) return resultado;
+
+            const hoy = new Date();
+            const diferencia = hoy - new Date(fechaVisita);
+            const diasVencimiento = 15; // Plazo más corto para visitas (15 días)
+
+            if (Math.floor(diferencia / (1000 * 60 * 60 * 24)) > diasVencimiento) {
+                resultado.valor = true;
+                resultado.mensaje = "Vencido";
+                resultado.clase = "text-danger";
+            } else {
+                resultado.mensaje = "Vigente";
+                resultado.clase = "text-success";
+            }
+
+            return resultado;
+        }
+
+        // Función para leer archivos Excel, incluyendo protegidos con contraseña
+        async function leerExcelVisitas(archivo) {
+            const buffer = await archivo.arrayBuffer();
+            
+            try {
+                // Primero intentar sin contraseña
+                let workbook = XLSX.read(buffer, { 
+                    type: 'array', 
+                    cellFormula: true, 
+                    bookVBA: true,
+                    cellDates: true,
+                    sheetStubs: true
+                });
+                
+                // Verificar si la hoja VISOR BANCO está protegida
+                const hojaVisorBanco = workbook.Sheets['VISOR BANCO'];
+                if (hojaVisorBanco && hojaVisorBanco['!protect']) {
+                    throw new Error("Hoja protegida detectada");
+                }
+                
+                return workbook;
+            } catch (error) {
+                console.log("Archivo protegido detectado, intentando con contraseña...");
+                
+                // Intentar con contraseña
+                try {
+                    const workbook = XLSX.read(buffer, { 
+                        type: 'array', 
+                        cellFormula: true, 
+                        bookVBA: true,
+                        cellDates: true,
+                        sheetStubs: true,
+                        password: 'InfoPerito1875*'  // Contraseña proporcionada
+                    });
+                    
+                    return workbook;
+                } catch (passError) {
+                    // Si falla con contraseña, solicitar al usuario
+                    return await solicitarContraseña(archivo);
+                }
+            }
+        }
+
+        // Función para solicitar contraseña al usuario
+        async function solicitarContraseña(archivo) {
+            return new Promise((resolve, reject) => {
+                Swal.fire({
+                    title: 'Archivo Protegido',
+                    html: `
+                        <p>El archivo está protegido con contraseña.</p>
+                        <input type="password" id="passwordInput" class="swal2-input" placeholder="Contraseña">
+                    `,
+                    focusConfirm: false,
+                    showCancelButton: true,
+                    confirmButtonText: 'Desbloquear',
+                    preConfirm: () => {
+                        const password = document.getElementById('passwordInput').value;
+                        if (!password) {
+                            Swal.showValidationMessage('Debe ingresar una contraseña');
+                            return false;
+                        }
+                        return password;
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        const password = result.value;
+                        const buffer = archivo.arrayBuffer();
+                        
+                        try {
+                            const workbook = XLSX.read(buffer, { 
+                                type: 'array', 
+                                password: password,
+                                cellDates: true
+                            });
+                            resolve(workbook);
+                        } catch (error) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Contraseña incorrecta',
+                                text: 'La contraseña ingresada no es válida'
+                            });
+                            reject(new Error("Contraseña incorrecta"));
+                        }
+                    } else {
+                        reject(new Error("Operación cancelada por el usuario"));
+                    }
+                });
+            });
+        }
+
+        function mostrarModalCarga(callback) {
+            const modal = new bootstrap.Modal(document.getElementById('modalCarga'));
+            const barra = document.getElementById('barraProgreso');
+            let progreso = 0;
+
+            modal.show();
+            barra.style.width = "0%";
+            barra.textContent = "0%";
+
+            const intervalo = setInterval(() => {
+            progreso += Math.floor(Math.random() * 10) + 5;
+            if (progreso >= 100) {
+                progreso = 100;
+                barra.style.width = progreso + "%";
+                barra.textContent = progreso + "%";
+                clearInterval(intervalo);
+                setTimeout(() => {
+                modal.hide();
+                if (callback) callback();
+                }, 500);
+            } else {
+                barra.style.width = progreso + "%";
+                barra.textContent = progreso + "%";
+            }
+            }, 300);
+        }
+
+        // Función para detectar el formato del archivo
+        function detectarFormatoVisita(workbook) {
+            const sheetNames = workbook.SheetNames.map(name => name.toLowerCase());
+            
+            // Verificar si existe hoja VISOR BANCO (formato nuevo)
+            if (sheetNames.includes('visor banco')) {
+                return 'nuevo';
+            }
+            
+            // Verificar si existe hoja AVANCE (formato viejo)
+            if (sheetNames.includes('avance')) {
+                return 'viejo';
+            }
+            
+            // Si no se detecta por nombre, analizar contenido
+            try {
+                const primeraHoja = workbook.Sheets[workbook.SheetNames[0]];
+                
+                // Heurística para formato nuevo
+                if (primeraHoja['C13'] && primeraHoja['P21'] && primeraHoja['C9']) {
+                    return 'nuevo';
+                }
+                
+                // Heurística para formato viejo
+                if (primeraHoja['C3'] && primeraHoja['E3'] && primeraHoja['E4']) {
+                    return 'viejo';
+                }
+            } catch (e) {
+                console.error("Error analizando contenido de hoja:", e);
+            }
+            
+            return 'mixto';
+        }
+
+
+        // Función para obtener la hoja correcta según el formato
+        function obtenerHojaVisita(workbook, formato) {
+            if (formato === 'nuevo') {
+                return workbook.Sheets['VISOR BANCO'] || workbook.Sheets[workbook.SheetNames[0]];
+            }
+            
+            if (formato === 'viejo') {
+                return workbook.Sheets['AVANCE'] || workbook.Sheets[workbook.SheetNames[0]];
+            }
+            
+            // Para formato mixto, buscar la hoja más probable
+            for (const sheetName of workbook.SheetNames) {
+                const hoja = workbook.Sheets[sheetName];
+                if (hoja['C13'] && hoja['P21']) return hoja; // Formato nuevo
+                if (hoja['C3'] && hoja['E3']) return hoja;   // Formato viejo
+            }
+            
+            // Si no se encuentra, usar primera hoja
+            return workbook.Sheets[workbook.SheetNames[0]];
+        }
+
+
+        // Función principal para procesar archivo de visitas
+        async function procesarArchivoVisitas() {
+
+            mostrarModalCarga(async () => {
+
+                const archivo = document.getElementById('archivoVisitas').files[0];
+                if (!archivo) {
+                    mostrarErrorModal("Seleccione un archivo de visitas válido");
+                    return;
+                }
+
+                try {
+                    // Obtener datos del proyecto seleccionado
+                    const proyectoSeleccionado = document.getElementById('selectorProyecto');
+                    const opcionSeleccionada = proyectoSeleccionado.options[proyectoSeleccionado.selectedIndex];
+                    
+                    if (!opcionSeleccionada?.value) {
+                        mostrarErrorModal("Seleccione un proyecto válido");
+                        return;
+                    }
+
+                    const idProyecto = opcionSeleccionada.value;
+                    const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+                    const proyecto = proyectos.find(p => p.id_proyecto == idProyecto);
+                    
+                    if (!proyecto) {
+                        mostrarErrorModal("No se encontraron datos del proyecto en el sistema");
+                        return;
+                    }
+
+                    // Leer archivo Excel (maneja archivos protegidos)
+                    const workbook = await leerExcelVisitas(archivo);
+                    
+                    // Detectar formato y obtener hoja correcta
+                    const formato = detectarFormatoVisita(workbook);
+                    const hojaVisitas = obtenerHojaVisita(workbook, formato);
+                    
+                    if (!hojaVisitas) {
+                        mostrarErrorModal("No se encontraron datos válidos en el archivo");
+                        return;
+                    }
+
+                    // Extraer datos para validación crítica según formato
+                    const datosValidacion = {
+                        idProyectoExcel: formato === 'nuevo' ? 
+                            hojaVisitas['C13']?.v : 
+                            hojaVisitas['C3']?.v,
+                        costosFinanciablesExcel: formato === 'nuevo' ? 
+                            hojaVisitas['H37']?.v : 
+                            hojaVisitas['H14']?.v,
+                        peritoExcel: formato === 'nuevo' ? 
+                            hojaVisitas['P9']?.v : 
+                            hojaVisitas['H68']?.v,
+                        fechaVisita: formato === 'nuevo' ? 
+                            hojaVisitas['C7']?.v : 
+                            hojaVisitas['I4']?.v,
+                        avanceObra: formato === 'nuevo' ? 
+                            hojaVisitas['P63']?.v : 
+                            hojaVisitas['F66']?.v
+                    };
+
+                    // Validar datos críticos con el sistema
+                    const errores = [];
+
+                    // 1. Validar ID del proyecto
+                    if (String(proyecto.id_proyecto) !== String(datosValidacion.idProyectoExcel)) {
+                        errores.push(`ID del proyecto no coincide: Sistema (${proyecto.id_proyecto}) vs Excel (${datosValidacion.idProyectoExcel})`);
+                    }
+
+                    // 2. Validar costos financiables (con tolerancia numérica)
+                    const costosSistema = cleanNumber(proyecto.costos_financiables || 0);
+                    const costosExcel = cleanNumber(datosValidacion.costosFinanciablesExcel || 0);
+                    const diferenciaCostos = Math.abs(costosSistema - costosExcel);
+                    
+                    if (diferenciaCostos > 1) {
+                        errores.push(`Costos financiables no coinciden: Sistema (${costosSistema.toLocaleString()}) vs Excel (${costosExcel.toLocaleString()}) - Diferencia: ${diferenciaCostos.toLocaleString()}`);
+                    }
+
+                    // 3. Validar perito (ignorar mayúsculas y espacios)
+                    const peritoSistema = (proyecto.perito || '').trim().toLowerCase();
+                    const peritoExcel = (datosValidacion.peritoExcel || '').trim().toLowerCase();
+                    
+                    if (peritoSistema !== peritoExcel) {
+                        errores.push(`Perito no coincide: Sistema (${proyecto.perito}) vs Excel (${datosValidacion.peritoExcel})`);
+                    }
+
+                    // Mostrar errores si existen
+                    if (errores.length > 0) {
+                        // Limpiar cada mensaje de error quitando etiquetas HTML
+                        const erroresLimpios = errores.map(error => {
+                            return error.replace(/<\/?[^>]+(>|$)/g, "");
+                        });
+
+                        // Construir el contenido HTML con formato adecuado
+                        const contenidoHTML = `
+                            <h5>Errores de validación crítica</h5>
+                            <ul class="mb-0">
+                                ${erroresLimpios.map(e => `<li>${e}</li>`).join('')}
+                            </ul>
+                            <p class="mt-3">No se puede cargar la visita debido a inconsistencias con los datos del sistema.</p>
+                        `;
+
+                        mostrarErrorModal(contenidoHTML);
+                        return;
+                    }
+
+                    // Extraer y mostrar datos completos
+                    const datosProcesados = extraerDatosVisitasCompleto(hojaVisitas, proyecto, formato);
+                    mostrarConfirmacionDatosVisita(proyecto, datosValidacion, hojaVisitas, formato, datosProcesados);
+                            
+                } catch (error) {
+                    mostrarErrorModal(`Error al procesar visitas: ${error.message}`);
+                }
+        });
+        }
+
+        // Función para validar estructura del archivo de visitas
+        function validarEstructuraVisitas(hoja) {
+            if (!hoja) {
+                mostrarErrorModal("No se encontró la hoja 'REGISTRO VISITAS'");
+                return false;
+            }
+
+            const proyectoSeleccionado = document.getElementById('selectorProyecto');
+            const opcionSeleccionada = proyectoSeleccionado.options[proyectoSeleccionado.selectedIndex];
+
+            if (!opcionSeleccionada?.value) {
+                mostrarErrorModal("Seleccione un proyecto válido");
+                return false;
+            }
+
+            // Validar cabecera específica para visitas
+            const validaciones = {
+                cabecera: hoja['A1']?.v?.includes('REGISTRO DE VISITAS'),
+                tieneDatos: hoja['B5']?.v !== undefined // Verificar al menos una fecha de visita
+            };
+
+            if (!validaciones.cabecera) {
+                mostrarErrorModal("La cabecera en A1 debe contener 'REGISTRO DE VISITAS'");
+                return false;
+            }
+
+            if (!validaciones.tieneDatos) {
+                mostrarErrorModal("No se encontraron datos de visitas en las celdas esperadas");
+                return false;
+            }
+
+            return true;
+        }
+        
+        function mostrarConfirmacionDatosVisita(proyecto, datosValidacion, hojaVisitas, formato) {
+            // Cerrar cualquier otro modal abierto (como el de ventas)
+            const modalesAbiertos = document.querySelectorAll('.modal.show');
+            modalesAbiertos.forEach(modal => bootstrap.Modal.getInstance(modal)?.hide());
+
+            // Extraer datos completos usando el mapeo
+            const datosProcesados = extraerDatosVisitasCompleto(hojaVisitas, proyecto, formato);
+            let numeroVisita = 'N/A';
+
+            if (hojaVisitas && (hojaVisitas['C9'] || hojaVisitas['E4'])) {
+                numeroVisita = hojaVisitas['C9']?.v || hojaVisitas['E4']?.v || 'N/A';
+            }
+
+            // 1. Construir la primera parte del modal
+            let contenidoModal = `
+                <div class="alert alert-info">
+                    <strong>Formato detectado:</strong> ${formato === 'nuevo' ? 'Nuevo (VISOR BANCO)' : formato === 'viejo' ? 'Viejo (AVANCE)' : 'Mixto (Autodetectado)'}
+                </div>
+                
+                <div class="alert alert-primary">
+                    <h5 class="mb-3">Validación de datos del proyecto</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-6"><strong>ID Proyecto:</strong> ${proyecto.id_proyecto}</div>
+                        <div class="col-md-6"><strong>Nombre:</strong> ${proyecto.nombre_proyecto}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6"><strong>Costos Financiables:</strong> ${cleanNumber(proyecto.costos_financiables || 0).toLocaleString('es-CO', {style: 'currency', currency: 'COP'})}</div>
+                        <div class="col-md-6"><strong>Perito:</strong> ${proyecto.perito || 'No registrado'}</div>
+                    </div>
+                    <div class="alert alert-success mt-3">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Todos los datos críticos coinciden con el sistema
+                    </div>
+                    <hr>
+                </div>`;
+
+            // 2. Validaciones
+            let alertaContenido = '';
+            if (proyecto.ultima_fecha_visita && datosValidacion.fechaVisita) {
+                const ultimaFecha = new Date(proyecto.ultima_fecha_visita);
+                const nuevaFecha = new Date(datosValidacion.fechaVisita);
+                if (nuevaFecha < ultimaFecha) {
+                    alertaContenido += `⚠️ La fecha de la visita (${formatearValor(nuevaFecha)}) es anterior a la última visita registrada (${formatearValor(ultimaFecha)})<br>`;
+                }
+            }
+
+            if (proyecto.avance_obra && datosValidacion.avanceObra) {
+                const ultimoAvance = parseFloat(proyecto.avance_obra);
+                const nuevoAvance = parseFloat(datosValidacion.avanceObra);
+                if (nuevoAvance < ultimoAvance) {
+                    alertaContenido += `⚠️ El avance reportado (${nuevoAvance.toFixed(2)}%) es menor que el último registro (${ultimoAvance.toFixed(2)}%)<br>`;
+                }
+            }
+
+            if (alertaContenido) {
+                contenidoModal += `
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ${alertaContenido}
+                </div>`;
+            }
+
+            // 3. Detalles de visita
+            contenidoModal += `
+                <h5 class="mt-4">Detalles completos de la visita</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead>
+                            <tr>
+                                <th>Campo</th>
+                                <th>Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+            Object.entries(mapeoCamposVisitas).forEach(([nombreCampo, config]) => {
+                const campo = datosProcesados.campos[nombreCampo];
+                let valorFormateado = 'N/A';
+                if (campo) {
+                    switch (campo.tipo) {
+                        case 'moneda':
+                            valorFormateado = campo.valor.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+                            break;
+                        case 'porcentaje':
+                            valorFormateado = (campo.valor * 100).toFixed(2) + '%';
+                            break;
+                        case 'fecha':
+                            valorFormateado = formatearValor(campo.valor, 'fecha');
+                            break;
+                        case 'decimal':
+                            valorFormateado = campo.valor.toFixed(2);
+                            break;
+                        case 'entero':
+                            valorFormateado = campo.valor.toLocaleString('es-CO');
+                            break;
+                        default:
+                            valorFormateado = campo.valor !== null ? campo.valor.toString() : 'N/A';
+                    }
+                }
+
+                contenidoModal += `
+                    <tr>
+                        <td>${nombreCampo}</td>
+                        <td>${valorFormateado}</td>
+                    </tr>`;
+            });
+
+            contenidoModal += `
+                        </tbody>
+                    </table>
+                </div>`;
+
+            // ✅ Asignar contenido correctamente al body del modal
+            document.getElementById('confirmModalVisitasBody').innerHTML = contenidoModal;
+
+            // Configurar el botón de confirmación
+            const btnConfirmar = document.getElementById('confirmActionBtnVisitas');
+            btnConfirmar.onclick = function () {
+                const usuario = document.querySelector('#responsable-input').value;
+                // Guardar en historial de visitas o base de datos
+                guardarDatosVisitas({
+                    ...datosProcesados,
+                    usuario: usuario
+                });
+
+                // Obtener proyectos y usuario
+                const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+
+                // Generar el Excel incluyendo datos de la visita
+                generarExcel(proyectos, usuario, datosProcesados);
+
+                // Cerrar modal
+                confirmModalVisitas.hide();
+
+                // Mostrar confirmacion
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: '¡Datos guardados en la base!',
+                        text: 'La informacion de la visita ha sido almacenada',
+                        icon: 'success'
+                    });
+                } else {
+                    alert('¡Datos de visita guardados correctamente!');
+                }
+            };
+
+
+            // Mostrar el modal
+            const confirmModalVisitas = new bootstrap.Modal(document.getElementById('confirmModalVisitas'));
+            confirmModalVisitas.show();
+        }
+
+
+        // Función para extraer datos de ambos formatos
+        function extraerDatosVisitasCompleto(hoja, proyecto, formato) {
+            const datos = {
+                proyectoId: proyecto.id_proyecto,
+                proyectoNombre: proyecto.nombre_proyecto,
+                fechaCarga: new Date().toISOString(),
+                tipo: 'visitas',
+                formato: formato,
+                campos: {}
+            };
+
+            // Procesar todos los campos del mapeo
+            Object.entries(mapeoCamposVisitas).forEach(([clave, config]) => {
+                let valor = null;
+                let celdaFuente = 'N/A';
+                let tipoFuente = 'directo';
+                
+                try {
+                    // Manejar campos con lógica especial
+                    if (config.logica && formato === 'nuevo') {
+                        valor = config.logica(hoja);
+                        tipoFuente = 'logica';
+                        celdaFuente = 'Cálculo interno';
+                    }
+                    // Campos con ubicaciones específicas
+                    else if (formato === 'nuevo' && config.nuevo) {
+                        // Verificar si la celda existe antes de acceder
+                        if (hoja[config.nuevo]) {
+                            valor = hoja[config.nuevo].v;
+                            celdaFuente = config.nuevo;
+                        }
+                    }
+                    else if (formato === 'viejo' && config.viejo) {
+                        if (hoja[config.viejo]) {
+                            valor = hoja[config.viejo].v;
+                            celdaFuente = config.viejo;
+                        }
+                    }
+                    // Intento mixto si no se detectó bien el formato
+                    else if (formato === 'mixto') {
+                        if (config.nuevo && hoja[config.nuevo]) {
+                            valor = hoja[config.nuevo].v;
+                            celdaFuente = config.nuevo;
+                        }
+                        else if (config.viejo && hoja[config.viejo]) {
+                            valor = hoja[config.viejo].v;
+                            celdaFuente = config.viejo;
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Error extrayendo ${clave}:`, e);
+                }
+                
+                // Formatear según tipo
+                switch(config.tipo) {
+                    case 'moneda':
+                        valor = cleanNumber(valor);
+                        break;
+                    case 'porcentaje':
+                        vvalor = formatearValor(valor) * 100;
+                        break;
+                    case 'decimal':
+                        valor = parseFloat(valor) || 0;
+                        break;
+                    case 'entero':
+                        valor = Math.round(cleanNumber(valor));
+                        break;
+                    case 'fecha':
+                        valor = formatearValor(valor, 'fecha');
+                        break;
+                    default:
+                        if (valor === null || valor === undefined) valor = '';
+                }
+                
+                // Guardar siempre el campo, incluso si es null
+                datos.campos[clave] = {
+                    valor: valor,
+                    tipo: config.tipo,
+                    fuente: tipoFuente,
+                    celda: celdaFuente
+                };
+            });
+
+            return datos;
+        }
+
+        // Función para guardar datos de visitas en localStorage
+        function guardarDatosVisitas(datos) {
+            const historial = JSON.parse(localStorage.getItem('historialVisitas') || '[]');
+            const usuario = document.querySelector('#responsable-input').value; // Obtener del input
+            
+            const nuevaVisita = {
+                proyectoId: datos.proyectoId,
+                campos: datos.campos,
+                usuario: usuario, // Guardar el usuario responsable
+                fechaCarga: new Date().toISOString() // Fecha actual
+            };
+
+            historial.push(nuevaVisita);
+            localStorage.setItem('historialVisitas', JSON.stringify(historial));
+        }
 
         function cleanNumber(raw) {
             if (raw == null || raw === '') return 0;
