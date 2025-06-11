@@ -777,11 +777,6 @@
                 viejo: "B70",
                 tipo: "moneda"
             },
-            "PERITO": {
-                nuevo: "P9",
-                viejo: "H68",
-                tipo: "texto"
-            },
             "TIPO INMUEBLE": {
                 nuevo: "F21",
                 viejo: "C4",
@@ -1762,13 +1757,23 @@
                     
             // Identificar campos numéricos
             const tiposNumericos = ['entero', 'porcentaje', 'moneda', 'decimal'];
-            const camposNumericosAdicionales = Object.entries(mapeoCampos)
-                .filter(([_, config]) => tiposNumericos.includes(config.tipo))
-                .map(([key, _]) => key.toLowerCase().replace(/\s+/g, '_'));
             
-            const camposNumericosAdicionalesVisitas = Object.entries(mapeoCamposVisitas)
-                .filter(([_, config]) => tiposNumericos.includes(config.tipo))
-                .map(([key, _]) => key.toLowerCase().replace(/\s+/g, '_'));
+            // Mapeo de nombres deseados
+            const mapeoNombres = {
+                'valor_anticipos': 'VALOR ANTICIPOS',
+                'valor_anticipos_almacen': 'VALOR ANTICIPOS ALMACEN',
+                'programacion_inicial': 'PROGRAMACION INICIAL',
+                'mes_inicio_obra': 'MES INICIO OBRA',
+                'avance_obra_meses': 'AVANCE OBRA MESES',
+                'avance_esperado_porcentaje': 'AVANCE ESPERADO PORCENTAJE',
+                'avance_obra': 'AVANCE OBRA',
+                'inversion_del_proyecto': 'INVERSION DEL PROYECTO',
+                'tipo_inmueble': 'TIPO INMUEBLE',
+                'numero_de_inmuebles': 'NUMERO DE INMUEBLES',
+                // Campos de porcentaje de ventas
+                '%_porcentaje_de_ventas_(unidades)': '% PORCENTAJE DE VENTAS (UNIDADES)',
+                '%_porcentaje_de_ventas_(valor)': '% PORCENTAJE DE VENTAS (VALOR)'
+            };
 
             // Combinar datos
             const proyectosCompletos = proyectos.map(p => {
@@ -1781,7 +1786,10 @@
                 if (ventasProyecto.length > 0) {
                     const ultimaVenta = ventasProyecto[ventasProyecto.length - 1];
                     Object.entries(ultimaVenta.campos).forEach(([nombreCampo, infoCampo]) => {
-                        const key = nombreCampo.toLowerCase().replace(/\s+/g, '_');
+                        // Usar nombres deseados para campos específicos
+                        const nombreNormalizado = nombreCampo.toLowerCase().replace(/\s+/g, '_');
+                        const nombreFinal = mapeoNombres[nombreNormalizado] || nombreCampo;
+                        const key = nombreFinal.toLowerCase().replace(/\s+/g, '_');
                         
                         // Extraer solo el valor del campo
                         if (infoCampo && typeof infoCampo === 'object' && 'valor' in infoCampo) {
@@ -1792,8 +1800,6 @@
                     });
                     
                     responsableVenta = ultimaVenta.usuario || '';
-                    
-                    // CORRECCIÓN: Usar fecha de modificación si existe
                     fechaVenta = ultimaVenta.fechaCarga || ultimaVenta.fechaModificacion || ultimaVenta.fecha;
                     if (fechaVenta) {
                         fechaVenta = new Date(fechaVenta).toLocaleString('es-CO');
@@ -1808,7 +1814,10 @@
                 
                 if (visitaProyecto) {
                     Object.entries(visitaProyecto.campos).forEach(([nombreCampo, infoCampo]) => {
-                        const key = nombreCampo.toLowerCase().replace(/\s+/g, '_');
+                        // Usar nombres deseados para campos específicos
+                        const nombreNormalizado = nombreCampo.toLowerCase().replace(/\s+/g, '_');
+                        const nombreFinal = mapeoNombres[nombreNormalizado] || nombreCampo;
+                        const key = nombreFinal.toLowerCase().replace(/\s+/g, '_');
                         
                         // Extraer solo el valor del campo
                         if (infoCampo && typeof infoCampo === 'object' && 'valor' in infoCampo) {
@@ -1819,8 +1828,6 @@
                     });
 
                     responsableVisita = visitaProyecto.usuario || '';
-                    
-                    // CORRECCIÓN: Usar fecha de modificación si existe
                     fechaVisita = visitaProyecto.fechaCarga || visitaProyecto.fechaModificacion || visitaProyecto.fecha;
                     if (fechaVisita) {
                         fechaVisita = new Date(fechaVisita).toLocaleString('es-CO');
@@ -1847,7 +1854,7 @@
                 key.toLowerCase().replace(/\s+/g, '_')
             );
 
-            // Agregar campos adicionales a KEYS (incluyendo los nuevos)
+            // Agregar campos adicionales a KEYS
             const KEYS = [
                 'id_proyecto', 'fecha_creacion', 'tipo_producto', 'rango_proyecto',
                 'grupoPrincipal', 'subgrupo_1', 'subgrupo_2', 'subgrupo_3', 
@@ -1868,6 +1875,9 @@
                 // Campos adicionales de mapeoCampos
                 ...camposAdicionales,
                 ...camposAdicionalesVisitas,
+                // Campos de porcentaje de ventas
+                '%_porcentaje_de_ventas_(unidades)',
+                '%_porcentaje_de_ventas_(valor)',
                 // Nuevos campos: responsables y fechas específicas
                 'responsable_carga_venta',
                 'responsable_carga_visita',
@@ -1875,44 +1885,71 @@
                 'fecha_carga_visita'
             ];
 
+            // Identificar campos numéricos para visitas
+            const camposNumericosVisitas = Object.entries(mapeoCamposVisitas)
+                .filter(([_, config]) => tiposNumericos.includes(config.tipo))
+                .map(([key, _]) => key.toLowerCase().replace(/\s+/g, '_'));
+            
+            // Agregar campos de porcentaje de ventas a los campos numéricos
+            const camposPorcentajeVentas = [
+                '%_porcentaje_de_ventas_(unidades)',
+                '%_porcentaje_de_ventas_(valor)'
+            ];
+            
             const numericFields = [
                 'monto_solicitado_1_desembolso', 'monto_solicitado_cpi',
                 'monto_solicitado_lote', 'total_valor_aprobado', 'valor_lote',
                 'valor_total_proyecto', 'meses_programacion', 'total_inmuebles',
                 'meses_para_venta', 'visitas_a_cobrar', 'vigencia_en_meses',
                 'porcentaje_solicitado_financiables','meses_avanzados', 'plazo_ajustado',
-                ...camposNumericosAdicionales,
-                ...camposNumericosAdicionalesVisitas
+                ...camposNumericosVisitas,
+                ...camposPorcentajeVentas
             ];
 
-               // Limpiar y formatear datos
-                const proyectosLimpios = proyectosCompletos.map(p => {
-                    let proyecto = {};
-                    KEYS.forEach(key => {
-                        if (key === 'condiciones_aprobacion') {
-                            proyecto[key] = Array.isArray(p[key]) 
-                                ? p[key].join(', ') 
-                                : p[key] || 'Sin condiciones';
-                        } else {
-                            let value = p[key];
-                            
-                            // Convertir valores numéricos
-                            if (numericFields.includes(key) && value != null) {
+            // Limpiar y formatear datos
+            const proyectosLimpios = proyectosCompletos.map(p => {
+                let proyecto = {};
+                KEYS.forEach(key => {
+                    if (key === 'condiciones_aprobacion') {
+                        proyecto[key] = Array.isArray(p[key]) 
+                            ? p[key].join(', ') 
+                            : p[key] || 'Sin condiciones';
+                    } else {
+                        let value = p[key];
+                        
+                        // Manejar campos numéricos especiales
+                        if (numericFields.includes(key)) {
+                            if (value === 0 || value === "0" || value === null || value === undefined) {
+                                value = 'N/A';
+                            } else {
                                 const numValue = parseFloat(value);
-                                value = isNaN(numValue) ? value : numValue;
+                                value = isNaN(numValue) ? 'N/A' : numValue;
+                                
+                                // Ajustar porcentajes solo si son números válidos
+                                if ((key.includes('porcentaje') || key.includes('%') || camposPorcentajeVentas.includes(key)) 
+                                    && typeof value === 'number') {
+                                    // Ajuste especial para porcentajes de ventas
+                                    value = value < 1 ? value * 100 : value;
+                                    
+                                    // Formatear a 2 decimales
+                                    value = Math.round(value * 100) / 100;
+                                }
                             }
+                        } else {
+                            // Para campos no numéricos
+                            value = value ?? '';
                             
-                            // Ajustar porcentajes (solo si son decimales)
-                            if ((key.includes('porcentaje') || key.includes('%')) && typeof value === 'number') {
-                                value = value < 1 ? value * 100 : value;
+                            // Manejar campos de texto vacíos
+                            if (value === '') {
+                                value = 'N/A';
                             }
-                            
-                            // Manejar valores nulos/undefined
-                            proyecto[key] = value ?? '';
                         }
-                    });
-                    return proyecto;
+                        
+                        proyecto[key] = value;
+                    }
                 });
+                return proyecto;
+            });
 
             // Enviar datos al backend para generar Excel
             fetch('/exportar_excel', {
@@ -1921,10 +1958,13 @@
                 body: JSON.stringify({ 
                     proyectos: proyectosLimpios, 
                     usuario,
+                    mapeo_encabezados: mapeoNombres,
                     campos_especiales: {
                         porcentaje: [
-                            ...camposNumericosAdicionales.filter(f => f.includes('porcentaje')),
-                            ...camposNumericosAdicionalesVisitas.filter(f => f.includes('porcentaje'))
+                            ...camposNumericosVisitas.filter(f => 
+                                f.includes('porcentaje') || f.includes('porcentage')
+                            ),
+                            ...camposPorcentajeVentas
                         ]
                     }
                 })
@@ -2471,25 +2511,58 @@
             Object.entries(mapeoCamposVisitas).forEach(([nombreCampo, config]) => {
                 const campo = datosProcesados.campos[nombreCampo];
                 let valorFormateado = 'N/A';
+                
                 if (campo) {
+                    // Función para determinar si un valor es numérico y no cero
+                    const esValorValido = (valor) => {
+                        const num = parseFloat(valor);
+                        return !isNaN(num) && num !== 0;
+                    };
+
                     switch (campo.tipo) {
                         case 'moneda':
-                            valorFormateado = campo.valor.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
+                            if (esValorValido(campo.valor)) {
+                                const valorNum = parseFloat(campo.valor);
+                                valorFormateado = valorNum.toLocaleString('es-CO', {
+                                    style: 'currency',
+                                    currency: 'COP'
+                                });
+                            }
                             break;
+                            
                         case 'porcentaje':
-                            valorFormateado = (campo.valor * 100).toFixed(2) + '%';
+                                if (esValorValido(campo.valor)) {
+                                    const valorNum = parseFloat(campo.valor);
+                                    valorFormateado = valorNum.toFixed(2) + '%';
+                                } else if (campo.valor === 0 || campo.valor === "0") {
+                                    valorFormateado = 'N/A';  // Manejo explícito de ceros
+                                }
                             break;
+                            
                         case 'fecha':
                             valorFormateado = formatearValor(campo.valor, 'fecha');
                             break;
+                            
                         case 'decimal':
-                            valorFormateado = campo.valor.toFixed(2);
+                            if (esValorValido(campo.valor)) {
+                                valorFormateado = parseFloat(campo.valor).toFixed(2);
+                            } else if (campo.valor === 0 || campo.valor === "0") {
+                                valorFormateado = 'N/A';  // Manejo explícito de ceros
+                            }
                             break;
+                            
                         case 'entero':
-                            valorFormateado = campo.valor.toLocaleString('es-CO');
+                            if (esValorValido(campo.valor)) {
+                                valorFormateado = parseInt(campo.valor).toLocaleString('es-CO');
+                            } else if (campo.valor === 0 || campo.valor === "0") {
+                                valorFormateado = 'N/A';  // Manejo explícito de ceros
+                            }
                             break;
+                            
                         default:
-                            valorFormateado = campo.valor !== null ? campo.valor.toString() : 'N/A';
+                            valorFormateado = campo.valor !== null && campo.valor !== undefined 
+                                ? campo.valor.toString() 
+                                : 'N/A';
                     }
                 }
 
@@ -2605,10 +2678,10 @@
                         valor = cleanNumber(valor);
                         break;
                     case 'porcentaje':
-                        vvalor = formatearValor(valor) * 100;
+                        valor = formatearValor(valor) * 100;
                         break;
                     case 'decimal':
-                        valor = parseFloat(valor) || 0;
+                        valor = parseFloat(valor) || 0;  
                         break;
                     case 'entero':
                         valor = Math.round(cleanNumber(valor));
