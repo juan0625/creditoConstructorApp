@@ -772,11 +772,13 @@
                 viejo: "E69",
                 tipo: "moneda"
             },
+
             "VALOR LOTE": {
                 nuevo: "C43",
                 viejo: "B70",
                 tipo: "moneda"
             },
+
             "TIPO INMUEBLE": {
                 nuevo: "F21",
                 viejo: "C4",
@@ -786,6 +788,18 @@
                 nuevo: "C21",
                 viejo: "B4",
                 tipo: "entero"
+            },
+
+            "VALOR GARANTIA": {
+                nuevo: {
+                    logica: (hoja) => {
+                        const valorLote = hoja['C43']?.v || 0;
+                        const inversionProyecto = hoja['C113']?.v || 0;
+                        return parseFloat(valorLote) + parseFloat(inversionProyecto);
+                    }
+                },
+                viejo: "E71",
+                tipo: "moneda"
             },
 
             // Campos exclusivos del NUEVO formato
@@ -1749,6 +1763,32 @@
         }
 
         function generarExcel(proyectos, usuario, datosProcesados) {
+            // Funciones auxiliares para formatear fechas
+            function formatearFechaDDMMAAAA(fechaString) {
+                if (!fechaString) return '';
+                const fecha = new Date(fechaString);
+                if (isNaN(fecha)) return '';
+                const dia = fecha.getDate().toString().padStart(2, '0');
+                const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
+                const anio = fecha.getFullYear();
+                return `${dia}-${mes}-${anio}`;
+            }
+
+            function formatearFechaConHora(fechaString) {
+                if (!fechaString) return '';
+                const fecha = new Date(fechaString);
+                if (isNaN(fecha)) return '';
+                
+                const dia = fecha.getDate().toString().padStart(2, '0');
+                const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
+                const anio = fecha.getFullYear();
+                const horas = fecha.getHours().toString().padStart(2, '0');
+                const minutos = fecha.getMinutes().toString().padStart(2, '0');
+                const segundos = fecha.getSeconds().toString().padStart(2, '0');
+                
+                return `${dia}-${mes}-${anio} ${horas}:${minutos}:${segundos}`;
+            }
+
             // Obtener historial de ventas y visitas
             const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
             const historialVisitas = JSON.parse(localStorage.getItem('historialVisitas') || '[]');
@@ -1791,19 +1831,25 @@
                         const nombreFinal = mapeoNombres[nombreNormalizado] || nombreCampo;
                         const key = nombreFinal.toLowerCase().replace(/\s+/g, '_');
                         
-                        // Extraer solo el valor del campo
+                        // Extraer y formatear el valor del campo
+                        let valor = null;
                         if (infoCampo && typeof infoCampo === 'object' && 'valor' in infoCampo) {
-                            ventasAplanadas[key] = infoCampo.valor;
+                            // Formatear fechas durante la extracción
+                            if (infoCampo.tipo === 'fecha') {
+                                valor = formatearFechaDDMMAAAA(infoCampo.valor);
+                            } else {
+                                valor = infoCampo.valor;
+                            }
                         } else {
-                            ventasAplanadas[key] = infoCampo;
+                            valor = infoCampo;
                         }
+                        
+                        ventasAplanadas[key] = valor;
                     });
                     
                     responsableVenta = ultimaVenta.usuario || '';
                     fechaVenta = ultimaVenta.fechaCarga || ultimaVenta.fechaModificacion || ultimaVenta.fecha;
-                    if (fechaVenta) {
-                        fechaVenta = new Date(fechaVenta).toLocaleString('es-CO');
-                    }
+                    fechaVenta = formatearFechaConHora(fechaVenta); // Formatear fecha con hora
                 }
 
                 // 2. Procesar visitas
@@ -1819,19 +1865,25 @@
                         const nombreFinal = mapeoNombres[nombreNormalizado] || nombreCampo;
                         const key = nombreFinal.toLowerCase().replace(/\s+/g, '_');
                         
-                        // Extraer solo el valor del campo
+                        // Extraer y formatear el valor del campo
+                        let valor = null;
                         if (infoCampo && typeof infoCampo === 'object' && 'valor' in infoCampo) {
-                            visitaAplanada[key] = infoCampo.valor;
+                            // Formatear fechas durante la extracción
+                            if (infoCampo.tipo === 'fecha') {
+                                valor = formatearFechaDDMMAAAA(infoCampo.valor);
+                            } else {
+                                valor = infoCampo.valor;
+                            }
                         } else {
-                            visitaAplanada[key] = infoCampo;
+                            valor = infoCampo;
                         }
+                        
+                        visitaAplanada[key] = valor;
                     });
 
                     responsableVisita = visitaProyecto.usuario || '';
                     fechaVisita = visitaProyecto.fechaCarga || visitaProyecto.fechaModificacion || visitaProyecto.fecha;
-                    if (fechaVisita) {
-                        fechaVisita = new Date(fechaVisita).toLocaleString('es-CO');
-                    }
+                    fechaVisita = formatearFechaConHora(fechaVisita); // Formatear fecha con hora
                 }
 
                 return {
@@ -1841,7 +1893,12 @@
                     responsable_carga_venta: responsableVenta,
                     responsable_carga_visita: responsableVisita,
                     fecha_carga_venta: fechaVenta,
-                    fecha_carga_visita: fechaVisita
+                    fecha_carga_visita: fechaVisita,
+                    // Formatear otras fechas importantes sin hora
+                    fecha_aprobacion: formatearFechaDDMMAAAA(p.fecha_aprobacion),
+                    fecha_radicacion: formatearFechaDDMMAAAA(p.fecha_radicacion),
+                    fecha_confirmacion: formatearFechaDDMMAAAA(p.fecha_confirmacion),
+                    fecha_primera_visita: formatearFechaDDMMAAAA(p.fecha_primera_visita)
                 };
             });
 
@@ -1987,6 +2044,7 @@
                 }
             });
         }
+
         // Manejar envío del formulario
         document.getElementById('form-actividad4').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -2511,19 +2569,12 @@
             Object.entries(mapeoCamposVisitas).forEach(([nombreCampo, config]) => {
                 const campo = datosProcesados.campos[nombreCampo];
                 let valorFormateado = 'N/A';
-                
-                if (campo) {
-                    // Función para determinar si un valor es numérico y no cero
-                    const esValorValido = (valor) => {
-                        const num = parseFloat(valor);
-                        return !isNaN(num) && num !== 0;
-                    };
 
+                if (campo && campo.valor !== null && campo.valor !== undefined) {
                     switch (campo.tipo) {
                         case 'moneda':
-                            if (esValorValido(campo.valor)) {
-                                const valorNum = parseFloat(campo.valor);
-                                valorFormateado = valorNum.toLocaleString('es-CO', {
+                            if (!isNaN(campo.valor)) {
+                                valorFormateado = parseFloat(campo.valor).toLocaleString('es-CO', {
                                     style: 'currency',
                                     currency: 'COP'
                                 });
@@ -2531,38 +2582,31 @@
                             break;
                             
                         case 'porcentaje':
-                                if (esValorValido(campo.valor)) {
-                                    const valorNum = parseFloat(campo.valor);
-                                    valorFormateado = valorNum.toFixed(2) + '%';
-                                } else if (campo.valor === 0 || campo.valor === "0") {
-                                    valorFormateado = 'N/A';  // Manejo explícito de ceros
-                                }
+                            if (!isNaN(campo.valor)) {
+                                valorFormateado = parseFloat(campo.valor).toFixed(2) + '%';
+                            }
                             break;
                             
                         case 'fecha':
-                            valorFormateado = formatearValor(campo.valor, 'fecha');
+                            if (campo.valor instanceof Date && !isNaN(campo.valor)) {
+                                valorFormateado = campo.valor.toLocaleDateString('es-CO');
+                            }
                             break;
                             
                         case 'decimal':
-                            if (esValorValido(campo.valor)) {
+                            if (!isNaN(campo.valor)) {
                                 valorFormateado = parseFloat(campo.valor).toFixed(2);
-                            } else if (campo.valor === 0 || campo.valor === "0") {
-                                valorFormateado = 'N/A';  // Manejo explícito de ceros
                             }
                             break;
                             
                         case 'entero':
-                            if (esValorValido(campo.valor)) {
+                            if (!isNaN(campo.valor)) {
                                 valorFormateado = parseInt(campo.valor).toLocaleString('es-CO');
-                            } else if (campo.valor === 0 || campo.valor === "0") {
-                                valorFormateado = 'N/A';  // Manejo explícito de ceros
                             }
                             break;
                             
                         default:
-                            valorFormateado = campo.valor !== null && campo.valor !== undefined 
-                                ? campo.valor.toString() 
-                                : 'N/A';
+                            valorFormateado = campo.valor.toString();
                     }
                 }
 
@@ -2630,40 +2674,47 @@
                 campos: {}
             };
 
-            // Procesar todos los campos del mapeo
             Object.entries(mapeoCamposVisitas).forEach(([clave, config]) => {
                 let valor = null;
                 let celdaFuente = 'N/A';
                 let tipoFuente = 'directo';
                 
                 try {
-                    // Manejar campos con lógica especial
-                    if (config.logica && formato === 'nuevo') {
-                        valor = config.logica(hoja);
+                    // 1. Manejar campos con lógica especial (solo formato nuevo)
+                    if (formato === 'nuevo' && config.nuevo && typeof config.nuevo.logica === 'function') {
+                        valor = config.nuevo.logica(hoja);
                         tipoFuente = 'logica';
                         celdaFuente = 'Cálculo interno';
                     }
-                    // Campos con ubicaciones específicas
-                    else if (formato === 'nuevo' && config.nuevo) {
-                        // Verificar si la celda existe antes de acceder
+                    // 2. Campos con referencia directa (formato nuevo)
+                    else if (formato === 'nuevo' && config.nuevo && typeof config.nuevo === 'string') {
+                        celdaFuente = config.nuevo;
                         if (hoja[config.nuevo]) {
                             valor = hoja[config.nuevo].v;
-                            celdaFuente = config.nuevo;
                         }
                     }
+                    // 3. Campos con referencia directa (formato viejo)
                     else if (formato === 'viejo' && config.viejo) {
+                        celdaFuente = config.viejo;
                         if (hoja[config.viejo]) {
                             valor = hoja[config.viejo].v;
-                            celdaFuente = config.viejo;
                         }
                     }
-                    // Intento mixto si no se detectó bien el formato
+                    // 4. Intento mixto si no se detectó bien el formato
                     else if (formato === 'mixto') {
-                        if (config.nuevo && hoja[config.nuevo]) {
-                            valor = hoja[config.nuevo].v;
-                            celdaFuente = config.nuevo;
+                        // Primero intentar con formato nuevo
+                        if (config.nuevo) {
+                            if (typeof config.nuevo === 'string' && hoja[config.nuevo]) {
+                                valor = hoja[config.nuevo].v;
+                                celdaFuente = config.nuevo;
+                            } else if (typeof config.nuevo.logica === 'function') {
+                                valor = config.nuevo.logica(hoja);
+                                tipoFuente = 'logica';
+                                celdaFuente = 'Cálculo interno (mixto)';
+                            }
                         }
-                        else if (config.viejo && hoja[config.viejo]) {
+                        // Si no se encontró en nuevo, intentar con viejo
+                        if ((valor === null || valor === undefined) && config.viejo && hoja[config.viejo]) {
                             valor = hoja[config.viejo].v;
                             celdaFuente = config.viejo;
                         }
@@ -2671,29 +2722,30 @@
                 } catch (e) {
                     console.error(`Error extrayendo ${clave}:`, e);
                 }
-                
-                // Formatear según tipo
-                switch(config.tipo) {
-                    case 'moneda':
-                        valor = cleanNumber(valor);
-                        break;
-                    case 'porcentaje':
-                        valor = formatearValor(valor) * 100;
-                        break;
-                    case 'decimal':
-                        valor = parseFloat(valor) || 0;  
-                        break;
-                    case 'entero':
-                        valor = Math.round(cleanNumber(valor));
-                        break;
-                    case 'fecha':
-                        valor = formatearValor(valor, 'fecha');
-                        break;
-                    default:
-                        if (valor === null || valor === undefined) valor = '';
+
+                // Solo aplicar transformaciones si tenemos un valor
+                if (valor !== null && valor !== undefined) {
+                    switch(config.tipo) {
+                        case 'moneda':
+                            valor = cleanNumber(valor);
+                            break;
+                        case 'porcentaje':
+                            valor = cleanNumber(valor) * 100;
+                            break;
+                        case 'decimal':
+                            valor = parseFloat(valor);
+                            break;
+                        case 'entero':
+                            valor = parseInt(cleanNumber(valor));
+                            break;
+                        case 'fecha':
+                            // Mantener como objeto Date para formateo posterior
+                            valor = new Date(valor);
+                            break;
+                    }
                 }
-                
-                // Guardar siempre el campo, incluso si es null
+
+                // Guardar campo (mantener null/undefined si no se encontró)
                 datos.campos[clave] = {
                     valor: valor,
                     tipo: config.tipo,
@@ -2704,7 +2756,6 @@
 
             return datos;
         }
-
         // Función para guardar datos de visitas en localStorage
         function guardarDatosVisitas(datos) {
             const historial = JSON.parse(localStorage.getItem('historialVisitas') || '[]');
@@ -2721,12 +2772,15 @@
             localStorage.setItem('historialVisitas', JSON.stringify(historial));
         }
 
-        function cleanNumber(raw) {
-            if (raw == null || raw === '') return 0;
-            if (typeof raw === 'number') return raw;
-            const cleaned = raw.toString().replace(/[^0-9.\-]/g, '');
-            const num = parseFloat(cleaned);
-            return isNaN(num) ? 0 : num;
+        function cleanNumber(value) {
+            if (typeof value === 'number') return value;
+            if (typeof value === 'string') {
+                // Eliminar caracteres no numéricos excepto puntos y comas
+                const cleaned = value.replace(/[^\d.,]/g, '');
+                // Convertir a formato numérico estándar
+                return parseFloat(cleaned.replace(/\./g, '').replace(',', '.')) || 0;
+            }
+            return 0;
         }
     </script>
      <!-- Footer -->
