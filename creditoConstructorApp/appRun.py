@@ -1,5 +1,5 @@
 import openpyxl 
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file, send_from_directory
 from openpyxl import Workbook, load_workbook
 from datetime import datetime
 import os
@@ -26,6 +26,12 @@ USUARIOS_TEMPORALES = {
         'roles': ['arquitecto']  
     }
 }
+
+# Ruta para servir el favicon desde la raíz
+@app.route('/LogoBancolombia.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'LogoBancolombia.ico', mimetype='image/vnd.microsoft.icon')
 
 @app.route("/")
 def index():
