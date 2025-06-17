@@ -139,7 +139,7 @@ def procesar_excel(filepath, output_path):
 
         # Construir consulta principal según lógica SAS
         query = f"""
-        WITH valores_temp AS (
+         WITH valores_temp AS (
             SELECT 
                 CAST({values[0][0]} AS BIGINT) AS num_doc, 
                 CAST({values[0][1]} AS SMALLINT) AS tipo_doc, 
