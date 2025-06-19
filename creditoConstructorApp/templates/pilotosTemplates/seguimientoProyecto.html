@@ -501,14 +501,17 @@
         </div>
     </div>
     <button class="btn btn-seguimiento" onclick="mostrarFormCargaVentas()" style="margin-left: 10px;">
-        <i class="fas fa-file-excel me-2"></i>Cargar Ventas
+        <i class="fas fa-cash-register me-2"></i>Cargar Ventas
     </button>
     <button class="btn btn-seguimiento" onclick="mostrarFormCargaVisitas()" style="margin-left: 10px;">
         <i class="fas fa-calendar-check me-2"></i>Cargar Visitas
     </button>
+    <button class="btn btn-seguimiento" onclick="mostrarFormCargaDesembolsos()" style="margin-left: 10px;">
+        <i class="fas fa-money-bill-wave me-2"></i>Cargar Desembolsos
+    </button>
     <!-- Formulario Carga de Ventas -->
     <div class="seguimiento-container formulario-seguimiento" id="formCargaVentas" style="display: none;">
-        <h4><i class="fas fa-file-import me-2"></i>Cargar Informe de Ventas</h4>
+        <h4><i class="fas fa-cash-register me-2"></i>Cargar Informe de Ventas</h4>
         <form id="form-carga-ventas">
             <div class="row">
                 <div class="col-md-6 mb-3">
@@ -572,6 +575,23 @@
             </div>
         </form>
     </div>
+    <!-- Formulario Desembolsos -->
+    <div class="seguimiento-container formulario-seguimiento" id="formCargaDesembolsos" style="display: none;">
+        <h4><i class="fas fa-money-bill-wave me-2"></i>Cargar Desembolsos</h4>
+        <form id="form-carga-desembolsos">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label>Responsable de carga</label>
+                    <input type="text" id="responsable-input" class="form-control" value="{{ session.usuario.nombre }}" readonly>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-secondary" onclick="ocultarFormCargaDesembolsos()">Cancelar</button>
+                <button type="button" class="btn btn-seguimiento" onclick="procesarDesembolsos()">Procesar</button>
+            </div>
+        </form>
+    </div> 
     <!-- Modal de Carga -->
     <div class="modal fade" id="modalCarga" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -614,6 +634,24 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-danger" id="confirmActionBtnVisitas">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Modal de Confirmación para Desembolsos -->
+    <div class="modal fade" id="confirmModalDesembolsos" tabindex="-1" aria-labelledby="confirmModalDesembolsosLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="confirmModalDesembolsosLabel">Confirmar Valores de Desembolsos</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="confirmModalDesembolsosBody">
+                    <!-- Contenido dinámico se insertará aquí -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmActionBtnDesembolsos">Confirmar</button>
                 </div>
             </div>
         </div>
@@ -1333,7 +1371,8 @@
 
         // Funciones de control
         function mostrarFormCargaVentas() {
-            ocultarFormCargaVisitas(); // Asegura que el otro formulario esté cerrado
+            ocultarFormCargaVisitas();
+            ocultarFormCargaDesembolsos();
             document.getElementById('formCargaVentas').style.display = 'block';
         }
 
@@ -1345,11 +1384,23 @@
         // Funciones de control para Visitas
         function mostrarFormCargaVisitas() {
             ocultarFormCargaVentas(); // Asegura que el otro formulario esté cerrado
+            ocultarFormCargaDesembolsos();
             document.getElementById('formCargaVisitas').style.display = 'block';
         }
 
         function ocultarFormCargaVisitas() {
             document.getElementById('formCargaVisitas').style.display = 'none';
+        }
+
+        function mostrarFormCargaDesembolsos() {
+            ocultarFormCargaVentas();
+            ocultarFormCargaVisitas();
+            document.getElementById('formCargaDesembolsos').style.display = 'block';
+        }
+
+        function ocultarFormCargaDesembolsos() {
+            
+            document.getElementById('formCargaDesembolsos').style.display = 'none';
         }
 
         async function procesarArchivo() {
@@ -2757,20 +2808,327 @@
 
             return datos;
         }
-        // Función para guardar datos de visitas en localStorage
-        function guardarDatosVisitas(datos) {
-            const historial = JSON.parse(localStorage.getItem('historialVisitas') || '[]');
-            const usuario = document.querySelector('#responsable-input').value; // Obtener del input
+        // Función para procesar desembolsos (muestra el modal)
+        function procesarDesembolsos() {
+            // Obtener proyecto actual
+            const proyecto = obtenerProyectoActual();
+            if (!proyecto) {
+                mostrarErrorModal("No se ha seleccionado un proyecto válido.");
+                return;
+            }
             
-            const nuevaVisita = {
-                proyectoId: datos.proyectoId,
-                campos: datos.campos,
-                usuario: usuario, // Guardar el usuario responsable
-                fechaCarga: new Date().toISOString() // Fecha actual
+            // Calcular los valores
+            const valores = calcularValoresDesembolsos(proyecto);
+            
+            // Construir contenido del modal
+            let contenido = `
+                <div class="alert alert-info">
+                    <strong>Proyecto:</strong> ${proyecto.nombre_proyecto} (ID: ${proyecto.id_proyecto})
+                    <br><strong>Avance de obra:</strong> ${(proyecto.avance_obra || 0).toFixed(2)}%
+                    <br><strong>Porcentaje de ventas:</strong> ${(proyecto.porcentaje_ventas || 0).toFixed(2)}%
+                </div>
+                
+                <h5 class="mt-3">Valores Calculados</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Concepto</th>
+                                <th>Valor</th>
+                                <th>Fórmula</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>VALOR ENTREGADO</strong></td>
+                                <td>${formatCurrency(valores.valorEntregado)}</td>
+                                <td>Suma de todos los desembolsos a la fecha</td>
+                            </tr>
+                            <tr>
+                                <td><strong>VALOR POR ENTREGAR</strong></td>
+                                <td>${formatCurrency(valores.valorPorEntregar)}</td>
+                                <td>Aprobado - Desistido + Ampliación - Entregado</td>
+                            </tr>
+                            <tr>
+                                <td><strong>A DESEMBOLSAR CONSTRUCTOR (% SOLICITADO)</strong></td>
+                                <td>${formatCurrency(valores.formulaA)}</td>
+                                <td>${valores.formulaADesc}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>B DESEMBOLSAR CONSTRUCTOR (MÁXIMO %)</strong></td>
+                                <td>${formatCurrency(valores.formulaB)}</td>
+                                <td>${valores.formulaBDesc}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>SUPERÁVIT (C)</strong></td>
+                                <td>${formatCurrency(valores.superavit)}</td>
+                                <td>Recaudado + Entregado - Invertido - Lote</td>
+                            </tr>
+                            <tr>
+                                <td><strong>VALOR POR INVERTIR</strong></td>
+                                <td>${formatCurrency(valores.valorPorInvertir)}</td>
+                                <td>Costos financiables - Valor invertido</td>
+                            </tr>
+                            <tr>
+                                <td><strong>COBERTURA</strong></td>
+                                <td>${valores.cobertura.toFixed(2)}%</td>
+                                <td>(Por recaudar + Por vender - Por invertir) / Entregado</td>
+                            </tr>
+                            <tr>
+                                <td><strong>MÁXIMO A DESEMBOLSAR (POLÍTICA)</strong></td>
+                                <td>${formatCurrency(valores.maximoDesembolsar)}</td>
+                                <td>${valores.maximoDesembolsarFormula}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="alert ${valores.requiereVistoBueno ? 'alert-danger' : 'alert-success'}">
+                    <i class="fas ${valores.requiereVistoBueno ? 'fa-exclamation-triangle' : 'fa-check-circle'} me-2"></i>
+                    ${valores.requiereVistoBueno 
+                        ? 'REQUIERE VISTO BUENO DE RIESGOS (Cobertura < 100%)' 
+                        : 'No requiere visto bueno de riesgos'}
+                </div>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle me-2"></i>
+                    ${valores.condicionesCumplidas 
+                        ? 'Cálculos realizados con avance de obra > 30% y valor entregado > 0' 
+                        : 'Cálculos no aplican (avance obra ≤ 30% o valor entregado = 0)'}
+                </div>
+                
+                <h5 class="mt-3">Validación de Condiciones</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">Condiciones para Fórmula A</div>
+                            <div class="card-body">
+                                <ul class="mb-0">
+                                    <li class="${valores.condicionesAB.avanceObraReciente ? 'text-success' : 'text-danger'}">
+                                        Avance obra ≤ 2 meses: ${valores.condicionesAB.avanceObraReciente ? '✔️ Cumple' : '❌ No cumple'}
+                                    </li>
+                                    <li class="${valores.condicionesAB.informeVentasReciente ? 'text-success' : 'text-danger'}">
+                                        Informe ventas ≤ 31 días: ${valores.condicionesAB.informeVentasReciente ? '✔️ Cumple' : '❌ No cumple'}
+                                    </li>
+                                    <li class="${valores.condicionesAB.ventasMayor100 ? 'text-success' : 'text-danger'}">
+                                        % Ventas > 100%: ${valores.condicionesAB.ventasMayor100 ? '✔️ Cumple' : '❌ No cumple'}
+                                    </li>
+                                    <li class="${valores.condicionesAB.licenciaOK ? 'text-success' : 'text-danger'}">
+                                        Licencia OK: ${valores.condicionesAB.licenciaOK ? '✔️ Cumple' : '❌ No cumple'}
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">Condiciones para Fórmula B</div>
+                            <div class="card-body">
+                                <ul class="mb-0">
+                                    <li class="${valores.condicionesAB.avanceObraReciente ? 'text-success' : 'text-danger'}">
+                                        Avance obra ≤ 2 meses: ${valores.condicionesAB.avanceObraReciente ? '✔️ Cumple' : '❌ No cumple'}
+                                    </li>
+                                    <li class="${valores.condicionesAB.informeVentasReciente ? 'text-success' : 'text-danger'}">
+                                        Informe ventas ≤ 31 días: ${valores.condicionesAB.informeVentasReciente ? '✔️ Cumple' : '❌ No cumple'}
+                                    </li>
+                                    <li class="${valores.condicionesAB.ventasMayor100 ? 'text-success' : 'text-danger'}">
+                                        % Ventas > 100%: ${valores.condicionesAB.ventasMayor100 ? '✔️ Cumple' : '❌ No cumple'}
+                                    </li>
+                                    <li class="${valores.condicionesAB.licenciaOK ? 'text-success' : 'text-danger'}">
+                                        Licencia OK: ${valores.condicionesAB.licenciaOK ? '✔️ Cumple' : '❌ No cumple'}
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Asignar contenido al modal
+            document.getElementById('confirmModalDesembolsosBody').innerHTML = contenido;
+            
+            // Mostrar el modal
+            const modal = new bootstrap.Modal(document.getElementById('confirmModalDesembolsos'));
+            modal.show();
+            
+            // Configurar acción del botón Confirmar
+            document.getElementById('confirmActionBtnDesembolsos').onclick = function() {
+                // Aquí iría la lógica para guardar en la base de datos
+                modal.hide();
+                
+                // Mostrar confirmación
+                Swal.fire({
+                    title: '¡Procesado!',
+                    text: 'Los valores de desembolsos han sido registrados',
+                    icon: 'success'
+                });
             };
+        }
 
-            historial.push(nuevaVisita);
-            localStorage.setItem('historialVisitas', JSON.stringify(historial));
+        // Función para calcular todos los valores
+        function calcularValoresDesembolsos(proyecto) {
+            // Obtener datos necesarios del proyecto
+            const costosFinanciables = cleanNumber(proyecto.costos_financiables || 0);
+            const valorInvertido = cleanNumber(proyecto.valor_invertido || 0);
+            const valorRecaudado = cleanNumber(proyecto.valor_recaudado || 0);
+            const valorLote = cleanNumber(proyecto.valor_lote || 0);
+            const valorPreoperativo = cleanNumber(proyecto.valor_preoperativo || 0);
+            const valorEntregado = cleanNumber(proyecto.valor_entregado || 0); // Suma de desembolsos
+            const valorDesistido = cleanNumber(proyecto.valor_desistido || 0);
+            const valorAmpliacion = cleanNumber(proyecto.valor_ampliacion || 0);
+            const valorAprobado = cleanNumber(proyecto.valor_aprobado || 0);
+            const avanceObra = cleanNumber(proyecto.avance_obra || 0) / 100; // Convertir porcentaje a decimal
+            const porcentajeVentas = cleanNumber(proyecto.porcentaje_ventas || 0) / 100; // Porcentaje de ventas en decimal
+            const valorPorRecaudar = cleanNumber(proyecto.valor_por_recaudar || 0);
+            const valorPorVender = cleanNumber(proyecto.valor_por_vender || 0);
+            
+            // Obtener fechas para validar condiciones
+            const fechaActual = new Date();
+            const fechaUltimoInformeVentas = proyecto.fecha_ultimo_informe_ventas ? new Date(proyecto.fecha_ultimo_informe_ventas) : null;
+            const fechaUltimoAvanceObra = proyecto.fecha_ultimo_avance_obra ? new Date(proyecto.fecha_ultimo_avance_obra) : null;
+            
+            // Validar condiciones para A y B (comunes)
+            let condicionesAB = {
+                avanceObraReciente: false,
+                informeVentasReciente: false,
+                ventasMayor100: porcentajeVentas >= 1, // 100% o más
+                licenciaOK: proyecto.licencia_ok || false // Asumimos un campo booleano
+            };
+            
+            // Validar que el avance de obra no sea de hace más de 2 meses (60 días)
+            if (fechaUltimoAvanceObra) {
+                const diffDiasAvance = (fechaActual - fechaUltimoAvanceObra) / (1000 * 60 * 60 * 24);
+                condicionesAB.avanceObraReciente = diffDiasAvance <= 60;
+            }
+            
+            // Validar que el informe de ventas no sea de hace más de 31 días
+            if (fechaUltimoInformeVentas) {
+                const diffDiasVentas = (fechaActual - fechaUltimoInformeVentas) / (1000 * 60 * 60 * 24);
+                condicionesAB.informeVentasReciente = diffDiasVentas <= 31;
+            }
+            
+            // Calcular valor por entregar
+            const valorPorEntregar = valorAprobado - valorDesistido + valorAmpliacion - valorEntregado;
+            
+            // Calcular valor por invertir
+            const valorPorInvertir = costosFinanciables - valorInvertido;
+            
+            // Inicializar fórmulas A, B y C
+            let formulaA = 0;
+            let formulaB = 0;
+            let formulaADesc = '';
+            let formulaBDesc = '';
+            let superavit = 0;
+            let cobertura = 0;
+            let maximoDesembolsar = 0;
+            let maximoDesembolsarFormula = '';
+            let requiereVistoBueno = false;
+            let condicionesCumplidas = false; // Para ver si se pueden calcular A, B, C
+            
+            // Solo calcular A, B, C si:
+            // - valorEntregado > 0
+            // - avanceObra (en decimal) > 0.3 (30%)
+            if (valorEntregado > 0 && avanceObra > 0.3) {
+                condicionesCumplidas = true;
+                
+                // Fórmula C: Superávit
+                superavit = valorRecaudado + valorEntregado - valorInvertido - valorLote;
+                
+                // Fórmula A: 
+                // Parte 1: aprobado - desistido + ampliado
+                const parteA1 = valorAprobado - valorDesistido + valorAmpliacion;
+                // Parte 2: costos financiables * valor invertido - (entregado - lote - preoperativo)
+                const parteA2 = costosFinanciables * valorInvertido - (valorEntregado - valorLote - valorPreoperativo);
+                
+                // Fórmula A es la parte 1, pero limitada por la parte 2
+                formulaA = parteA1;
+                formulaADesc = `Aprobado - Desistido + Ampliado = ${formatCurrency(parteA1)}`;
+                
+                // Fórmula B: 
+                formulaB = (valorInvertido * 0.8) - (valorEntregado - valorLote - valorPreoperativo);
+                // La fórmula B no puede ser mayor que el valor por entregar
+                formulaB = Math.min(formulaB, valorPorEntregar);
+                formulaBDesc = `(Valor invertido × 0.8) - (Entregado - Lote - Preoperativo) = ${formatCurrency(formulaB)}`;
+                
+                // Si parteA2 > formulaB, entonces formulaA = formulaB
+                if (parteA2 > formulaB) {
+                    formulaA = formulaB;
+                    formulaADesc += `<br>→ Limitado por Fórmula B = ${formatCurrency(formulaB)}`;
+                }
+                
+                // Fórmula de cobertura
+                cobertura = (valorPorRecaudar + valorPorVender - valorPorInvertir) / valorEntregado;
+                cobertura = cobertura * 100; // a porcentaje
+                
+                // Visto bueno de riesgos
+                requiereVistoBueno = cobertura < 100;
+                
+                // Máximo a desembolsar según política de superávit
+                if (superavit < 0) {
+                    maximoDesembolsar = formulaA;
+                    maximoDesembolsarFormula = 'Superávit < 0 → Fórmula A';
+                } else {
+                    maximoDesembolsar = formulaB - (superavit * avanceObra);
+                    if (maximoDesembolsar > formulaB) {
+                        maximoDesembolsar = formulaB;
+                        maximoDesembolsarFormula = 'Máximo = Fórmula B (superó el límite)';
+                    } else {
+                        maximoDesembolsarFormula = `Fórmula B - (Superávit × Avance Obra) = ${formatCurrency(formulaB)} - (${formatCurrency(superavit)} × ${(avanceObra*100).toFixed(2)}%)`;
+                    }
+                }
+            } else {
+                // No se cumplen las condiciones para calcular A, B, C
+                superavit = 0;
+                cobertura = 0;
+                maximoDesembolsar = 0;
+                maximoDesembolsarFormula = 'No aplica (valor entregado=0 o avance obra ≤ 30%)';
+                requiereVistoBueno = false;
+            }
+            
+            return {
+                condicionesCumplidas,
+                condicionesAB,
+                valorEntregado,
+                valorPorEntregar,
+                valorPorInvertir,
+                formulaA,
+                formulaB,
+                formulaADesc,
+                formulaBDesc,
+                superavit,
+                cobertura,
+                maximoDesembolsar,
+                maximoDesembolsarFormula,
+                requiereVistoBueno
+            };
+        }
+
+        // Función auxiliar para obtener proyecto actual
+        function obtenerProyectoActual() {
+            const selector = document.getElementById('selectorProyecto');
+            if (!selector) return null;
+            
+            const idProyecto = selector.value;
+            const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+            return proyectos.find(p => p.id_proyecto == idProyecto);
+        }
+
+        // Función para formatear moneda
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('es-CO', {
+                style: 'currency',
+                currency: 'COP',
+                minimumFractionDigits: 0
+            }).format(value);
+        }
+
+        // Función para formatear moneda
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('es-CO', {
+                style: 'currency',
+                currency: 'COP',
+                minimumFractionDigits: 0
+            }).format(value);
         }
 
         function cleanNumber(value) {
