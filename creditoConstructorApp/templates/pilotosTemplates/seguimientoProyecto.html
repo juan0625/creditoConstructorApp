@@ -2895,6 +2895,23 @@
 
             return datos;
         }
+
+        // Función para guardar datos de visitas en localStorage
+        function guardarDatosVisitas(datos) {
+            const historial = JSON.parse(localStorage.getItem('historialVisitas') || '[]');
+            const usuario = document.querySelector('#responsable-input').value; // Obtener del input
+            
+            const nuevaVisita = {
+                proyectoId: datos.proyectoId,
+                campos: datos.campos,
+                usuario: usuario, // Guardar el usuario responsable
+                fechaCarga: new Date().toISOString() // Fecha actual
+            };
+
+            historial.push(nuevaVisita);
+            localStorage.setItem('historialVisitas', JSON.stringify(historial));
+        }
+        
         // Función para procesar desembolsos (muestra el modal)
         function procesarDesembolsos() {
             // Obtener proyecto actual
