@@ -1844,6 +1844,7 @@
             // Obtener historial de ventas y visitas
             const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
             const historialVisitas = JSON.parse(localStorage.getItem('historialVisitas') || '[]');
+            const historialDesembolsos = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]');
             const usuarioInput = document.getElementById('responsable-input');
             const responsableUsuario = usuarioInput ? usuarioInput.value : "Usuario no definido";
                     
@@ -1938,19 +1939,53 @@
                     fechaVisita = formatearFechaConHora(fechaVisita); // Formatear fecha con hora
                 }
 
+                // 3. PROCESAR DESEMBOLSOS (NUEVO)
+                const desembolsosProyecto = historialDesembolsos.filter(d => d.proyectoId === p.id_proyecto);
+                let desembolsoAplanado = {};
+                let responsableDesembolso = '';
+                let fechaDesembolso = '';
+                
+                if (desembolsosProyecto.length > 0) {
+                    // Tomar el último desembolso
+                    const ultimoDesembolso = desembolsosProyecto[desembolsosProyecto.length - 1];
+                    
+                    // Aplanar campos de desembolso
+                    Object.entries(ultimoDesembolso.campos).forEach(([nombreCampo, infoCampo]) => {
+                        const nombreFinal = nombreCampo; // Usar el nombre original
+                        const key = nombreFinal.toLowerCase().replace(/\s+/g, '_');
+                        
+                        // Extraer valor del campo
+                        let valor = null;
+                        if (infoCampo && typeof infoCampo === 'object' && 'valor' in infoCampo) {
+                            valor = infoCampo.valor;
+                        } else {
+                            valor = infoCampo;
+                        }
+                        
+                        desembolsoAplanado[key] = valor;
+                    });
+
+                    responsableDesembolso = ultimoDesembolso.usuario || '';
+                    fechaDesembolso = ultimoDesembolso.fechaCarga || '';
+                    fechaDesembolso = formatearFechaConHora(fechaDesembolso);
+                }
+
                 return {
                     ...p,
                     ...ventasAplanadas,
                     ...visitaAplanada,
+                    ...desembolsoAplanado,
                     responsable_carga_venta: responsableVenta,
                     responsable_carga_visita: responsableVisita,
+                    responsable_carga_desembolso: responsableDesembolso,
                     fecha_carga_venta: fechaVenta,
                     fecha_carga_visita: fechaVisita,
                     // Formatear otras fechas importantes sin hora
                     fecha_aprobacion: formatearFechaDDMMAAAA(p.fecha_aprobacion),
                     fecha_radicacion: formatearFechaDDMMAAAA(p.fecha_radicacion),
                     fecha_confirmacion: formatearFechaDDMMAAAA(p.fecha_confirmacion),
-                    fecha_primera_visita: formatearFechaDDMMAAAA(p.fecha_primera_visita)
+                    fecha_primera_visita: formatearFechaDDMMAAAA(p.fecha_primera_visita),
+                    fecha_carga_desembolso: fechaDesembolso
                 };
             });
 
@@ -1958,12 +1993,32 @@
             const camposAdicionales = Object.keys(mapeoCampos).map(key => 
                 key.toLowerCase().replace(/\s+/g, '_')
             );
-            
+
             const camposAdicionalesVisitas = Object.keys(mapeoCamposVisitas).map(key => 
                 key.toLowerCase().replace(/\s+/g, '_')
             );
 
-            // Agregar campos adicionales a KEYS
+            // Campos de desembolsos
+            const camposDesembolsos = [
+                'valor_entregado',
+                'valor_por_entregar',
+                'formula_a',
+                'formula_b',
+                'superavit',
+                'cobertura',
+                'maximo_desembolsar',
+                'requiere_visto_bueno',
+                'responsable_carga_desembolso',
+                'fecha_carga_desembolso'
+            ];
+
+            // Campos de porcentaje de ventas
+            const camposPorcentajeVentas = [
+                '%_porcentaje_de_ventas_(unidades)',
+                '%_porcentaje_de_ventas_(valor)'
+            ];
+
+            // Definir KEYS con todos los campos (incluyendo desembolsos)
             const KEYS = [
                 'id_proyecto', 'fecha_creacion', 'tipo_producto', 'rango_proyecto',
                 'grupoPrincipal', 'subgrupo_1', 'subgrupo_2', 'subgrupo_3', 
@@ -1984,27 +2039,34 @@
                 // Campos adicionales de mapeoCampos
                 ...camposAdicionales,
                 ...camposAdicionalesVisitas,
-                // Campos de porcentaje de ventas
-                '%_porcentaje_de_ventas_(unidades)',
-                '%_porcentaje_de_ventas_(valor)',
+                ...camposDesembolsos,
+                ...camposPorcentajeVentas,
                 // Nuevos campos: responsables y fechas específicas
                 'responsable_carga_venta',
                 'responsable_carga_visita',
                 'fecha_carga_venta',
-                'fecha_carga_visita'
+                'fecha_carga_visita',
+                'responsable_carga_desembolso',
+                'fecha_carga_desembolso'
             ];
 
             // Identificar campos numéricos para visitas
             const camposNumericosVisitas = Object.entries(mapeoCamposVisitas)
                 .filter(([_, config]) => tiposNumericos.includes(config.tipo))
                 .map(([key, _]) => key.toLowerCase().replace(/\s+/g, '_'));
-            
-            // Agregar campos de porcentaje de ventas a los campos numéricos
-            const camposPorcentajeVentas = [
-                '%_porcentaje_de_ventas_(unidades)',
-                '%_porcentaje_de_ventas_(valor)'
+
+            // Campos numéricos de desembolsos
+            const camposNumericosDesembolsos = [
+                'valor_entregado',
+                'valor_por_entregar',
+                'formula_a',
+                'formula_b',
+                'superavit',
+                'cobertura',
+                'maximo_desembolsar'
             ];
-            
+
+            // Definir numericFields con todos los campos numéricos
             const numericFields = [
                 'monto_solicitado_1_desembolso', 'monto_solicitado_cpi',
                 'monto_solicitado_lote', 'total_valor_aprobado', 'valor_lote',
@@ -2012,9 +2074,9 @@
                 'meses_para_venta', 'visitas_a_cobrar', 'vigencia_en_meses',
                 'porcentaje_solicitado_financiables','meses_avanzados', 'plazo_ajustado',
                 ...camposNumericosVisitas,
-                ...camposPorcentajeVentas
+                ...camposPorcentajeVentas,
+                ...camposNumericosDesembolsos
             ];
-
             // Limpiar y formatear datos
             const proyectosLimpios = proyectosCompletos.map(p => {
                 let proyecto = {};
@@ -2192,6 +2254,31 @@
                 );
                 modal.hide();
         });
+
+        // Función para guardar datos de desembolsos en localStorage
+        function guardarDatosDesembolsos(datos) {
+            const historial = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]');
+            const usuario = document.querySelector('#responsable-input').value;
+            
+            const nuevoDesembolso = {
+                proyectoId: datos.proyectoId,
+                campos: {
+                    valorEntregado: datos.valorEntregado,
+                    valorPorEntregar: datos.valorPorEntregar,
+                    formulaA: datos.formulaA,
+                    formulaB: datos.formulaB,
+                    superavit: datos.superavit,
+                    cobertura: datos.cobertura,
+                    maximoDesembolsar: datos.maximoDesembolsar,
+                    requiereVistoBueno: datos.requiereVistoBueno
+                },
+                usuario: usuario,
+                fechaCarga: new Date().toISOString()
+            };
+
+            historial.push(nuevoDesembolso);
+            localStorage.setItem('historialDesembolsos', JSON.stringify(historial));
+        }
 
         // Función para validar fecha de visita
         function validarVencimientoVisita(fechaVisita) {
@@ -2954,6 +3041,29 @@
             // Configurar acción del botón Confirmar
             document.getElementById('confirmActionBtnDesembolsos').onclick = function() {
                 // Aquí iría la lógica para guardar en la base de datos
+
+                // Obtener proyecto y valores calculados
+                const proyecto = obtenerProyectoActual();
+                const valores = calcularValoresDesembolsos(proyecto);
+                const usuario = document.querySelector('#responsable-input').value;
+                 // Guardar en historial de desembolsos
+                guardarDatosDesembolsos({
+                    proyectoId: proyecto.id_proyecto,
+                    valorEntregado: valores.valorEntregado,
+                    valorPorEntregar: valores.valorPorEntregar,
+                    formulaA: valores.formulaA,
+                    formulaB: valores.formulaB,
+                    superavit: valores.superavit,
+                    cobertura: valores.cobertura,
+                    maximoDesembolsar: valores.maximoDesembolsar,
+                    requiereVistoBueno: valores.requiereVistoBueno
+                });
+
+                // Obtener proyectos actualizados
+                const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+
+                // Generar Excel incluyendo desembolsos
+                generarExcel(proyectos, usuario, null);
                 modal.hide();
                 
                 // Mostrar confirmación
