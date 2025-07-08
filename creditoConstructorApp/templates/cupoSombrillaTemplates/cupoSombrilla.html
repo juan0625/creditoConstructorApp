@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bancolombia - Cupo Sombrilla</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bancolombia-blue: #004884;
+            --bancolombia-light-blue: #0066CC;
+            --bancolombia-yellow: #FFD100;
+            --bancolombia-gray: #F5F5F5;
+            --bancolombia-dark-gray: #333333;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--bancolombia-gray);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 0;
+            margin-bottom: 20px;
+        }
+        
+        .logo-container {
+            text-align: center;
+            padding: 15px 0;
+            margin: 0 auto;
+            max-width: 1200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .logo-container img {
+            height: 70px;
+            width: auto;
+            transition: all 0.3s ease;
+        }
+        
+        .content-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+        }
+        
+        .step-card {
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            background-color: #f9f9f9;
+        }
+        .step-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--bancolombia-blue);
+            display: flex;
+            align-items: center;
+        }
+        .step-header i {
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+        .step-content {
+            margin-left: 28px;
+        }
+        .file-list {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .file-list li {
+            margin-bottom: 5px;
+        }
+        .file-list a {
+            text-decoration: none;
+        }
+        .instructions {
+            background-color: #e9f7fe;
+            border-left: 4px solid var(--bancolombia-blue);
+            padding: 10px 15px;
+            margin: 15px 0;
+        }
+        .btn-bancolombia {
+            background-color: var(--bancolombia-blue);
+            color: white;
+            font-weight: bold;
+        }
+        .btn-bancolombia:hover {
+            background-color: var(--bancolombia-light-blue);
+            color: white;
+        }
+        
+        .user-info {
+            text-align: right;
+            padding: 10px 20px;
+            background-color: var(--bancolombia-gray);
+            color: var(--bancolombia-dark-gray);
+            font-size: 0.9rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .container-aligned {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            width: 100%;
+        }
+        
+        .logo-container img:hover {
+            transform: scale(1.05);
+        }
+        
+        .footer {
+            background-color: var(--bancolombia-blue);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            font-size: 0.9rem;
+            margin-top: 40px;
+        }
+        
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid var(--bancolombia-gray);
+            border-top: 5px solid var(--bancolombia-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        user-info {
+            text-align: right;
+            padding: 10px 20px;
+            background-color: var(--bancolombia-gray);
+            color: var(--bancolombia-dark-gray);
+            font-size: 0.9rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        /* Ajustes para mejor alineación */
+        .container-aligned {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            width: 100%;
+        }
+        .breadcrumb {
+            background-color: transparent;
+            padding: 0;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        
+        .breadcrumb-item.active {
+            color: var(--bancolombia-blue);
+            font-weight: 600;
+        }
+         /* Efecto hover para el logo */
+         .logo-container img:hover {
+            transform: scale(1.05);
+        }
+        .logo-container {
+            text-align: center;
+            padding: 10px 0;
+            margin: 0 auto;
+            max-width: 1200px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+    <link rel="shortcut icon" href="{{ url_for('static', filename='LogoBancolombia.ico') }}">
+</head>
+<body>
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+    
+   <!-- Header con logo y usuario -->
+    <div class="header">
+        <div class="container-aligned">
+            <div class="user-info">
+                <span class="role-badge me-3">{{ session.usuario.rol | title }}</span>
+                <i class="fas fa-user-circle"></i> {{ session.usuario.nombre }}
+                | <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
+            </div>
+            <div class="logo-container">
+                <img src="https://www.uam.edu.co/wp-content/uploads/2022/09/logo-bancolombia1.png" 
+                    alt="Bancolombia">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url_for('menu_principal') }}"><i class="fas fa-home"></i> Menú Principal</a></li>
+                        <li class="breadcrumb-item active" aria-current="page"><i class="fas fa-user-tie"></i> Módulo Pilotos</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contenido principal -->
+    <div class="content-container">
+        <div class="container-aligned">
+            <h2 class="mb-4"><i class="fas fa-umbrella"></i> Cupo Sombrilla</h2>
+            
+            <!-- Paso 1 -->
+            <div class="step-card">
+                <div class="step-header">
+                    <i class="fas fa-play-circle"></i> Paso 1: Ejecutar script de Python
+                </div>
+                <div class="step-content">
+                    <p>Ejecutar el código de Python que genera los archivos base.</p>
+                    <button id="runScriptBtn" class="btn btn-bancolombia">
+                        <i class="fas fa-cogs"></i> Ejecutar Script
+                    </button>
+                    <div id="step1Result" class="mt-3"></div>
+                    <div id="step1Files" class="mt-3" style="display: none;">
+                        <h5>Archivos generados:</h5>
+                        <ul class="file-list" id="generatedFilesList"></ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Paso 2 -->
+            <div class="step-card">
+                <div class="step-header">
+                    <i class="fas fa-cog"></i> Paso 2: Procesar cenegar_saldos
+                </div>
+                <div class="step-content">
+                    <div class="instructions">
+                        <p><strong>Instrucciones:</strong></p>
+                        <ol>
+                            <li>Abrir cenegar_saldos.xlsx</li>
+                            <li>Convertir a número la columna C</li>
+                            <li>Insertar columna al lado de la obligación para identificar crédito constructor</li>
+                            <li>Cruzar con archivo de saldos (ubicado en PROCESOS\SABANA FINACLE\SaldosCH)</li>
+                            <li>Eliminar los que son constructor y dejar los ND (deuda corporativa)</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="cenegarFile" class="form-label">Subir archivo cenegar_saldos.xlsx</label>
+                        <input class="form-control" type="file" id="cenegarFile" accept=".xlsx">
+                    </div>
+                    
+                    <button id="processStep2Btn" class="btn btn-bancolombia">
+                        <i class="fas fa-processing"></i> Procesar Paso 2
+                    </button>
+                    <div id="step2Result" class="mt-3"></div>
+                </div>
+            </div>
+            
+            <!-- Paso 3 -->
+            <div class="step-card">
+                <div class="step-header">
+                    <i class="fas fa-cog"></i> Paso 3: Procesar BASE_Sombrilla
+                </div>
+                <div class="step-content">
+                    <div class="instructions">
+                        <p><strong>Instrucciones:</strong></p>
+                        <ol>
+                            <li>Ordenar datos con la jerarquía: Nit Constructor > Radicado</li>
+                            <li>Quitar duplicados a partir del NIT y del radicado</li>
+                            <li>Buscar el NIT constructor de los proyectos en cero</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="baseFile" class="form-label">Subir archivo BASE_Sombrilla.xlsx</label>
+                        <input class="form-control" type="file" id="baseFile" accept=".xlsx">
+                    </div>
+                    
+                    <button id="processStep3Btn" class="btn btn-bancolombia">
+                        <i class="fas fa-processing"></i> Procesar Paso 3
+                    </button>
+                    <div id="step3Result" class="mt-3"></div>
+                </div>
+            </div>
+            
+            <!-- Resultados finales -->
+            <div class="step-card">
+                <div class="step-header">
+                    <i class="fas fa-flag-checkered"></i> Resultados Finales
+                </div>
+                <div class="step-content">
+                    <div id="finalResults" class="mt-3">
+                        <p>Complete todos los pasos para generar los resultados finales.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+        <div class="container-aligned">
+            <p>© 2025 Bancolombia. Todos los derechos reservados.</p>
+            <p>
+                <a href="#">Términos y condiciones</a> | 
+                <a href="#">Política de privacidad</a> | 
+                <a href="#">Ayuda</a>
+            </p>
+            <p>
+                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 | 
+                <i class="fas fa-map-marker-alt"></i> Sede principal: Medellín, Colombia
+            </p>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Ocultar skeleton y mostrar contenido real
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                
+                // Configurar datos del usuario
+                const userRole = "{{ usuario_rol }}";
+                const userName = "{{ usuario_nombre }}";
+                
+                // Actualizar UI (si es necesario)
+                document.getElementById('userName').textContent = userName;
+                document.getElementById('userRole').textContent = userRole;
+                
+            }, 1000);
+            
+            // Paso 1: Ejecutar script
+            $('#runScriptBtn').click(function() {
+                $('#step1Result').html('<div class="spinner-border text-primary" role="status"></div> Ejecutando script...');
+                
+                $.ajax({
+                    url: "{{ url_for('run_cupo_sombrilla_script') }}",
+                    type: 'POST',
+                    success: function(response) {
+                        if (response.success) {
+                            let filesHtml = '';
+                            response.files.forEach(file => {
+                                filesHtml += `<li>
+                                    <a href="{{ url_for('download_cupo_file', filename='') }}${file}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-download"></i> ${file}
+                                    </a>
+                                </li>`;
+                            });
+                            
+                            $('#generatedFilesList').html(filesHtml);
+                            $('#step1Files').show();
+                            $('#step1Result').html(`<div class="alert alert-success">${response.message}</div>`);
+                        } else {
+                            $('#step1Result').html(`<div class="alert alert-danger">${response.error}</div>`);
+                        }
+                    },
+                    error: function() {
+                        $('#step1Result').html('<div class="alert alert-danger">Error en la solicitud</div>');
+                    }
+                });
+            });
+            
+            // Paso 2: Procesar cenegar_saldos
+            $('#processStep2Btn').click(function() {
+                const fileInput = $('#cenegarFile')[0];
+                if (!fileInput.files.length) {
+                    alert('Por favor, seleccione un archivo cenegar_saldos.xlsx');
+                    return;
+                }
+                
+                $('#step2Result').html('<div class="spinner-border text-primary" role="status"></div> Procesando...');
+                
+                const formData = new FormData();
+                formData.append('cenegar_file', fileInput.files[0]);
+                
+                $.ajax({
+                    url: "{{ url_for('process_step2') }}",
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        if (response.success) {
+                            $('#step2Result').html(`<div class="alert alert-success">${response.message}</div>`);
+                        } else {
+                            $('#step2Result').html(`<div class="alert alert-danger">${response.error}</div>`);
+                        }
+                    },
+                    error: function() {
+                        $('#step2Result').html('<div class="alert alert-danger">Error en la solicitud</div>');
+                    }
+                });
+            });
+            
+            // Paso 3: Procesar BASE_Sombrilla
+            $('#processStep3Btn').click(function() {
+                const fileInput = $('#baseFile')[0];
+                if (!fileInput.files.length) {
+                    alert('Por favor, seleccione un archivo BASE_Sombrilla.xlsx');
+                    return;
+                }
+                
+                $('#step3Result').html('<div class="spinner-border text-primary" role="status"></div> Procesando...');
+                
+                const formData = new FormData();
+                formData.append('base_file', fileInput.files[0]);
+                
+                $.ajax({
+                    url: "{{ url_for('process_step3') }}",
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        if (response.success) {
+                            let downloadLink = `<a href="{{ url_for('download_cupo_file', filename='') }}${response.file}" 
+                               class="btn btn-bancolombia">
+                                <i class="fas fa-download"></i> Descargar BASE procesada
+                            </a>`;
+                            
+                            $('#step3Result').html(`
+                                <div class="alert alert-success">${response.message}</div>
+                                ${downloadLink}
+                            `);
+                            
+                            // Mostrar resultados finales
+                            $('#finalResults').html(`
+                                <div class="alert alert-success">
+                                    <h5>Proceso completado!</h5>
+                                    <p>Ahora puede utilizar los archivos generados en el modelo de Cupo Sombrilla.</p>
+                                    ${downloadLink}
+                                </div>
+                            `);
+                        } else {
+                            $('#step3Result').html(`<div class="alert alert-danger">${response.error}</div>`);
+                        }
+                    },
+                    error: function() {
+                        $('#step3Result').html('<div class="alert alert-danger">Error en la solicitud</div>');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
