@@ -22,6 +22,13 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            min-height: 100vh;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
         }
         
         .header {
@@ -186,6 +193,8 @@
             text-align: center;
             font-size: 0.9rem;
             margin-top: 40px;
+            position: sticky;
+            top: 100%;
         }
 
         
@@ -406,192 +415,201 @@
         </div>
     </div>
 
-    <!-- Contenido principal -->
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <a href="{{ url_for('modulo_pilotos') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-left me-2"></i>Volver
-            </a>
-    </div>
-    <div class="card mb-4 shadow">
-        <div class="card-body">
-            <div class="row align-items-center">
-                <div class="col-md-4">
-                    <h5 class="mb-0"><i class="fas fa-project-diagram"></i> Proyecto a Seguir</h5>
+     <!-- Contenido principal (envuelto) -->
+     <div class="contenido-principal">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <a href="{{ url_for('modulo_pilotos') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Volver
+                </a>
+            </div>
+
+            <div class="card mb-4 shadow">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <h5 class="mb-0"><i class="fas fa-project-diagram"></i> Proyecto a Seguir</h5>
+                        </div>
+                        <div class="col-md-8">
+                            <select class="form-select" id="selectorProyecto" onchange="cargarSeguimientos()">
+                                <option value="">Seleccione un proyecto...</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-8">
-                    <select class="form-select" id="selectorProyecto" onchange="cargarSeguimientos()">
-                        <option value="">Seleccione un proyecto...</option>
-                    </select>
+            </div>
+
+            <div class="container mt-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><i class="fas fa-clipboard-list me-2"></i>Seguimiento de Proyectos</h2>
+                    <button class="btn btn-seguimiento" onclick="mostrarFormulario()">
+                        <i class="fas fa-plus me-2"></i>Nuevo Seguimiento
+                    </button>
+                </div>
+
+                <!-- Listado de Seguimientos -->
+                <div class="seguimiento-container">
+                    <nav class="nav nav-seguimiento">
+                        <a class="nav-link active" href="#">Todos</a>
+                        <a class="nav-link" href="#">Pendientes</a>
+                        <a class="nav-link" href="#">Completados</a>
+                    </nav>
+                    <div id="listado-seguimientos">
+                        <!-- Dinámico -->
+                    </div>
+                </div>
+
+                <!-- Formulario Nuevo Seguimiento -->
+                <div class="seguimiento-container formulario-seguimiento" id="formulario" style="display: none;">
+                    <h4><i class="fas fa-file-alt me-2"></i>Nuevo Registro</h4>
+                    <form id="form-nuevo-seguimiento">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Título</label>
+                                <input type="text" class="form-control" id="titulo" required>
+                                <span class="error-mensaje"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Tipo</label>
+                                <select class="form-select" id="tipo" required>
+                                    <option value="avance">Avance de Obra</option>
+                                    <option value="desembolso">Desembolso</option>
+                                    <option value="informe">Informe de Ventas</option>
+                                    <option value="modificacion">Modificación</option>
+                                </select>
+                                <span class="error-mensaje"></span>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Fecha</label>
+                                <input type="date" class="form-control" id="fecha" required>
+                                <span class="error-mensaje"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Estado</label>
+                                <select class="form-select" id="estado" required>
+                                    <option value="pendiente">Pendiente</option>
+                                    <option value="completado">Completado</option>
+                                    <option value="revision">En Revisión</option>
+                                </select>
+                                <span class="error-mensaje"></span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label>Contenido</label>
+                            <textarea class="form-control" rows="4" id="contenido" required></textarea>
+                            <span class="error-mensaje"></span>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" onclick="ocultarFormulario()">Cancelar</button>
+                            <button type="submit" class="btn btn-seguimiento">Guardar</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Botones de carga -->
+                <button class="btn btn-seguimiento" onclick="mostrarFormCargaVentas()" style="margin-left: 10px;">
+                    <i class="fas fa-cash-register me-2"></i>Cargar Ventas
+                </button>
+                <button class="btn btn-seguimiento" onclick="mostrarFormCargaVisitas()" style="margin-left: 10px;">
+                    <i class="fas fa-calendar-check me-2"></i>Cargar Visitas
+                </button>
+                <button class="btn btn-seguimiento" onclick="mostrarFormCargaDesembolsos()" style="margin-left: 10px;">
+                    <i class="fas fa-money-bill-wave me-2"></i>Cargar Desembolsos
+                </button>
+
+                <!-- Formularios de carga -->
+                <div class="seguimiento-container formulario-seguimiento" id="formCargaVentas" style="display: none;">
+                    <h4><i class="fas fa-cash-register me-2"></i>Cargar Informe de Ventas</h4>
+                    <form id="form-carga-ventas">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Seleccionar archivo Excel</label>
+                                <input type="file" class="form-control" id="archivoVentas" accept=".xlsx, .xlsm" required>
+                                <small class="form-text text-muted">Se aceptan archivos con macros (.xlsm)</small>
+                                <span class="error-mensaje"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Responsable de carga</label>
+                                <input type="text" id="responsable-input" class="form-control" value="{{ session.usuario.nombre }}" readonly>
+                            </div>
+                        </div>
+                        <div class="alert alert-warning">
+                            <strong>Validaciones requeridas:</strong>
+                            <ul>
+                                <li>El archivo debe contener la hoja 'Resumen'</li>
+                            </ul>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" onclick="ocultarFormCargaVentas()">Cancelar</button>
+                            <button type="button" class="btn btn-seguimiento" onclick="procesarArchivo()">Procesar</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="seguimiento-container formulario-seguimiento" id="formCargaVisitas" style="display: none;">
+                    <h4><i class="fas fa-calendar-check me-2"></i>Cargar Informe de Visitas</h4>
+                    <form id="form-carga-visitas">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Seleccionar archivo Excel</label>
+                                <input type="file" class="form-control" id="archivoVisitas" accept=".xlsx, .xlsm" required>
+                                <small class="form-text text-muted">Se aceptan archivos con macros (.xlsm)</small>
+                                <span class="error-mensaje"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Responsable de carga</label>
+                                <input type="text" id="responsable-input" class="form-control" value="{{ session.usuario.nombre }}" readonly>
+                            </div>
+                        </div>
+                        <div class="alert alert-warning">
+                            <strong>Validaciones requeridas:</strong>
+                            <ul>
+                                <li>Debe contener: ID PROYECTO, NOMBRE DEL PROYECTO, VALOR COSTOS FINANCIABLES, NOMBRE DEL PERITO</li>
+                            </ul>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" onclick="ocultarFormCargaVisitas()">Cancelar</button>
+                            <button type="button" class="btn btn-seguimiento" onclick="procesarArchivoVisitas()">Procesar</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="seguimiento-container formulario-seguimiento" id="formCargaDesembolsos" style="display: none;">
+                    <h4><i class="fas fa-money-bill-wave me-2"></i>Cargar Desembolsos</h4>
+                    <form id="form-carga-desembolsos">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Responsable de carga</label>
+                                <input type="text" id="responsable-input" class="form-control" value="{{ session.usuario.nombre }}" readonly>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" onclick="ocultarFormCargaDesembolsos()">Cancelar</button>
+                            <button type="button" class="btn btn-seguimiento" onclick="procesarDesembolsos()">Procesar</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
-    <div class="container mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="fas fa-clipboard-list me-2"></i>Seguimiento de Proyectos</h2>
-            <button class="btn btn-seguimiento" onclick="mostrarFormulario()">
-                <i class="fas fa-plus me-2"></i>Nuevo Seguimiento
-            </button>
-        </div>
 
-        <!-- Listado de Seguimientos -->
-        <div class="seguimiento-container">
-            <nav class="nav nav-seguimiento">
-                <a class="nav-link active" href="#">Todos</a>
-                <a class="nav-link" href="#">Pendientes</a>
-                <a class="nav-link" href="#">Completados</a>
-            </nav>
-
-            <div id="listado-seguimientos">
-                <!-- Dinámico -->
-            </div>
-        </div>
-
-        <!-- Formulario Nuevo Seguimiento -->
-        <div class="seguimiento-container formulario-seguimiento" id="formulario" style="display: none;">
-            <h4><i class="fas fa-file-alt me-2"></i>Nuevo Registro</h4>
-            <form id="form-nuevo-seguimiento">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label>Título</label>
-                        <input type="text" class="form-control" id="titulo" required>
-                        <span class="error-mensaje"></span>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label>Tipo</label>
-                        <select class="form-select" id="tipo" required>
-                            <option value="avance">Avance de Obra</option>
-                            <option value="desembolso">Desembolso</option>
-                            <option value="informe">Informe de Ventas</option>
-                            <option value="modificacion">Modificación</option>
-                        </select>
-                        <span class="error-mensaje"></span>
-                    </div>
-                </div>
-            
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label>Fecha</label>
-                        <input type="date" class="form-control" id="fecha" required>
-                        <span class="error-mensaje"></span>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label>Estado</label>
-                        <select class="form-select" id="estado" required>
-                            <option value="pendiente">Pendiente</option>
-                            <option value="completado">Completado</option>
-                            <option value="revision">En Revisión</option>
-                        </select>
-                        <span class="error-mensaje"></span>
-                    </div>
-                </div>
-            
-                <div class="mb-3">
-                    <label>Contenido</label>
-                    <textarea class="form-control" rows="4" id="contenido" required></textarea>
-                    <span class="error-mensaje"></span>
-                </div>
-
-                <div class="d-flex justify-content-end gap-2">
-                    <button type="button" class="btn btn-secondary" onclick="ocultarFormulario()">Cancelar</button>
-                    <button type="submit" class="btn btn-seguimiento">Guardar</button>
-                </div>
-            </form>
+    <!-- Footer -->
+    <div class="footer">
+        <div class="container-aligned">
+            <p>© 2025 Bancolombia. Todos los derechos reservados.</p>
+            <p>
+                <a href="#">Términos y condiciones</a> | 
+                <a href="#">Política de privacidad</a> | 
+                <a href="#">Ayuda</a>
+            </p>
+            <p>
+                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 | 
+                <i class="fas fa-map-marker-alt"></i> Sede principal: Medellín, Colombia
+            </p>
         </div>
     </div>
-    <button class="btn btn-seguimiento" onclick="mostrarFormCargaVentas()" style="margin-left: 10px;">
-        <i class="fas fa-cash-register me-2"></i>Cargar Ventas
-    </button>
-    <button class="btn btn-seguimiento" onclick="mostrarFormCargaVisitas()" style="margin-left: 10px;">
-        <i class="fas fa-calendar-check me-2"></i>Cargar Visitas
-    </button>
-    <button class="btn btn-seguimiento" onclick="mostrarFormCargaDesembolsos()" style="margin-left: 10px;">
-        <i class="fas fa-money-bill-wave me-2"></i>Cargar Desembolsos
-    </button>
-    <!-- Formulario Carga de Ventas -->
-    <div class="seguimiento-container formulario-seguimiento" id="formCargaVentas" style="display: none;">
-        <h4><i class="fas fa-cash-register me-2"></i>Cargar Informe de Ventas</h4>
-        <form id="form-carga-ventas">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label>Seleccionar archivo Excel</label>
-                    <input type="file" class="form-control" id="archivoVentas" 
-                           accept=".xlsx, .xlsm" 
-                           title="Formatos aceptados: .xlsx y .xlsm" 
-                           required>
-                    <small class="form-text text-muted">Se aceptan archivos con macros (.xlsm)</small>
-                    <span class="error-mensaje"></span>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label>Responsable de carga</label>
-                    <input type="text" id="responsable-input" class="form-control" value="{{ session.usuario.nombre }}" readonly>
-                </div>
-            </div>
-    
-            <div class="alert alert-warning">
-                <strong>Validaciones requeridas:</strong>
-                <ul>
-                    <li>El archivo debe contener la hoja 'Resumen'</li>
-                </ul>
-            </div>
-    
-            <div class="d-flex justify-content-end gap-2">
-                <button type="button" class="btn btn-secondary" onclick="ocultarFormCargaVentas()">Cancelar</button>
-                <button type="button" class="btn btn-seguimiento" onclick="procesarArchivo()">Procesar</button>
-            </div>
-        </form>
-    </div>
-    <!-- Formulario Carga de Visitas -->
-    <div class="seguimiento-container formulario-seguimiento" id="formCargaVisitas" style="display: none;">
-        <h4><i class="fas fa-calendar-check me-2"></i>Cargar Informe de Visitas</h4>
-        <form id="form-carga-visitas">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label>Seleccionar archivo Excel</label>
-                    <input type="file" class="form-control" id="archivoVisitas" 
-                        accept=".xlsx, .xlsm" 
-                        title="Formatos aceptados: .xlsx y .xlsm" 
-                        required>
-                    <small class="form-text text-muted">Se aceptan archivos con macros (.xlsm)</small>
-                    <span class="error-mensaje"></span>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label>Responsable de carga</label>
-                    <input type="text" id="responsable-input" class="form-control" value="{{ session.usuario.nombre }}" readonly>
-                </div>
-            </div>
-
-            <div class="alert alert-warning">
-                <strong>Validaciones requeridas:</strong>
-                <ul>
-                    <li> El archivo debe contener: ID PROYECTO, EL NOMBRE DEL PROYECTO, EL VALOR DE COSTOS FINANCIABLES y EL NOMBRE DEL PERITO</li>
-                </ul>
-            </div>
-
-            <div class="d-flex justify-content-end gap-2">
-                <button type="button" class="btn btn-secondary" onclick="ocultarFormCargaVisitas()">Cancelar</button>
-                <button type="button" class="btn btn-seguimiento" onclick="procesarArchivoVisitas()">Procesar</button>
-            </div>
-        </form>
-    </div>
-    <!-- Formulario Desembolsos -->
-    <div class="seguimiento-container formulario-seguimiento" id="formCargaDesembolsos" style="display: none;">
-        <h4><i class="fas fa-money-bill-wave me-2"></i>Cargar Desembolsos</h4>
-        <form id="form-carga-desembolsos">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label>Responsable de carga</label>
-                    <input type="text" id="responsable-input" class="form-control" value="{{ session.usuario.nombre }}" readonly>
-                </div>
-            </div>
-
-            <div class="d-flex justify-content-end gap-2">
-                <button type="button" class="btn btn-secondary" onclick="ocultarFormCargaDesembolsos()">Cancelar</button>
-                <button type="button" class="btn btn-seguimiento" onclick="procesarDesembolsos()">Procesar</button>
-            </div>
-        </form>
-    </div> 
     <!-- Modal de Carga -->
     <div class="modal fade" id="modalCarga" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -3268,21 +3286,6 @@
             }
             return 0;
         }
-    </script>
-     <!-- Footer -->
-     <div class="footer">
-        <div class="container-aligned">
-            <p>© 2025 Bancolombia. Todos los derechos reservados.</p>
-            <p>
-                <a href="#">Términos y condiciones</a> | 
-                <a href="#">Política de privacidad</a> | 
-                <a href="#">Ayuda</a>
-            </p>
-            <p>
-                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 | 
-                <i class="fas fa-map-marker-alt"></i> Sede principal: Medellín, Colombia
-            </p>
-        </div>
-    </div>    
+    </script>   
 </body>
 </html>

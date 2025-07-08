@@ -27,6 +27,13 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            min-height: 100vh;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
         }
         
         .header {
@@ -191,6 +198,8 @@
             text-align: center;
             font-size: 0.9rem;
             margin-top: 40px;
+            position: sticky;
+            top: 100%;
         }
         
         .user-info {
@@ -209,6 +218,21 @@
             margin: 0 auto;
             padding: 0 20px;
             width: 100%;
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+            border-radius: 5px;
+        }
+
+        @keyframes skeleton-loading {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
         }
     </style>
     <link rel="shortcut icon" href="{{ url_for('static', filename='LogoBancolombia.ico') }}">
@@ -234,153 +258,194 @@
             </div>
         </div>
     </div>
-    
-    <!-- Contenido principal -->
-    <div class="module-container">
-        <div class="container-aligned">
-            <h1 class="module-title">
-                <i class="fas fa-user-tie"></i> Módulo de Pilotos
-            </h1>
-            
+    <!-- Loader con skeleton -->
+    <div id="loader" style="min-height: 100vh; background-color: #f5f5f5; position: fixed; width: 100%; top: 0; left: 0; z-index: 9999;">
+        <div class="d-flex flex-column align-items-center py-5">
+            <h5 class="mb-4 text-secondary">Cargando módulo de pilotos...</h5>
             <div class="module-grid">
-                <!-- Gestión de Proyectos -->
+                <!-- Skeleton cards -->
                 <div class="module-card">
-                    <div class="card-header">
-                        Gestión de Proyectos
-                    </div>
+                    <div class="card-header skeleton" style="height: 50px;"></div>
                     <div class="card-body">
                         <div class="card-list">
-                            <div class="card-list-item">Crear nuevo proyecto</div>
-                            <div class="card-list-item">Modificar proyecto existente</div>
-                            <div class="card-list-item">Consultar proyectos</div>
-                            <div class="card-list-item">Filtros avanzados</div>
-                            <div class="card-list-item">Datos generales</div>
-                            <div class="card-list-item">Ficha de proyecto</div>
+                            <div class="skeleton mb-2" style="height: 15px; width: 80%;"></div>
+                            <div class="skeleton mb-2" style="height: 15px; width: 70%;"></div>
+                            <div class="skeleton mb-2" style="height: 15px; width: 90%;"></div>
+                            <div class="skeleton mb-2" style="height: 15px; width: 60%;"></div>
                         </div>
-                        <div class="btn-group">
-                            <a href="{{ url_for('consulta_proyectos') }}" class="btn btn-primary">Acceder</a>
-                            <a href="{{ url_for('crear_proyecto') }}" class="btn btn-success">
-                                {% if session.usuario.rol == 'auxiliar' %}
-                                    Continuar proceso
-                                {% else %}
-                                    Nuevo
-                                {% endif %}
-                            </a>
+                        <div class="btn-group mt-3">
+                            <div class="skeleton" style="height: 35px; width: 100px;"></div>
+                            <div class="skeleton" style="height: 35px; width: 100px;"></div>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Roles y Usuarios -->
-                {% if session.usuario.rol == 'admin' %}
+
+                <!-- Puedes duplicar esto para 2 o 3 tarjetas más si deseas -->
                 <div class="module-card">
-                    <div class="card-header">
-                        Roles y Usuarios
-                    </div>
+                    <div class="card-header skeleton" style="height: 50px;"></div>
                     <div class="card-body">
                         <div class="card-list">
-                            <div class="card-list-item">Identificación de usuarios</div>
-                            <div class="card-list-item">Asignación de roles</div>
-                            <div class="card-list-item">Matriz de roles</div>
-                            <div class="card-list-item">Arquitectos</div>
-                            <div class="card-list-item">Gerentes</div>
-                            <div class="card-list-item">Constructores</div>
+                            <div class="skeleton mb-2" style="height: 15px; width: 85%;"></div>
+                            <div class="skeleton mb-2" style="height: 15px; width: 65%;"></div>
+                            <div class="skeleton mb-2" style="height: 15px; width: 80%;"></div>
+                            <div class="skeleton mb-2" style="height: 15px; width: 75%;"></div>
                         </div>
-                        <div class="btn-group">
-                            <a href="{{ url_for('admin_roles') }}" class="btn btn-danger">Acceder</a>
+                        <div class="btn-group mt-3">
+                            <div class="skeleton" style="height: 35px; width: 100px;"></div>
+                            <div class="skeleton" style="height: 35px; width: 100px;"></div>
                         </div>
                     </div>
                 </div>
-                {% endif %}
-                
-                <!-- Seguimiento -->
-                {% if session.usuario.rol in ['admin', 'arquitecto'] %}
-                <div class="module-card">
-                    <div class="card-header" style="background-color: var(--bancolombia-green);">
-                        Seguimiento
-                    </div>
-                    <div class="card-body">
-                        <div class="card-list">
-                            <div class="card-list-item">Crear seguimiento</div>
-                            <div class="card-list-item">Avances de obra</div>
-                            <div class="card-list-item">Informes de ventas</div>
-                            <div class="card-list-item">Desembolsos</div>
-                            <div class="card-list-item">Historial de modificaciones</div>
-                            <div class="card-list-item">Cumplimiento condiciones</div>
-                        </div>
-                        <div class="btn-group">
-                            <a href="{{ url_for('seguimiento_Proyecto') }}" class="btn btn-success">Nuevo Seguimiento</a>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-                
-                <!-- Históricos -->
-                {% if session.usuario.rol in ['admin', 'arquitecto'] %}
-                <!-- <div class="module-card">
-                    <div class="card-header" style="background-color: var(--bancolombia-orange);">
-                        Históricos
-                    </div>
-                    <div class="card-body">
-                        <div class="card-list">
-                            <div class="card-list-item">Histórico avances de obra</div>
-                            <div class="card-list-item">Histórico informes de ventas</div>
-                            <div class="card-list-item">Histórico desembolsos</div>
-                            <div class="card-list-item">Histórico modificaciones</div>
-                            <div class="card-list-item">Formatos históricos</div>
-                        </div>
-                        <div class="btn-group">
-                            <a href="{{ url_for('historicos_Proyectos') }}" class="btn btn-warning">Consultar</a>
-                        </div>
-                    </div>
-                </div> -->
-                {% endif %}
-                
-                <!-- Mantenimientos -->
-                <!-- <div class="module-card">
-                    <div class="card-header" style="background-color: var(--bancolombia-red);">
-                        Modificación
-                    </div>
-                    <div class="card-body">
-                        <div class="card-list">
-                            <div class="card-list-item">Cambio de titular</div>
-                            <div class="card-list-item">Cambio de nombre</div>
-                            <div class="card-list-item">Cambio de unidades</div>
-                            <div class="card-list-item">Desistimientos</div>
-                            <div class="card-list-item">Ampliaciones de monto</div>
-                            <div class="card-list-item">Ampliaciones de vigencia</div>
-                        </div>
-                        <div class="btn-group">
-                            <a href="#" class="btn btn-danger">Gestionar</a>
-                            <a href="#" class="btn btn-warning">Modificar</a>
-                        </div>
-                    </div>
-                </div> -->
-                
-                <!-- Configuración -->
-                {% if session.usuario.rol == 'admin' %}
-                <div class="module-card">
-                    <div class="card-header">
-                        Configuración
-                    </div>
-                    <div class="card-body">
-                        <div class="card-list">
-                            <div class="card-list-item">Identificar campos</div>
-                            <div class="card-list-item">Tipos de datos</div>
-                            <div class="card-list-item">Validaciones</div>
-                            <div class="card-list-item">Formularios</div>
-                            <div class="card-list-item">Proyectos cancelados</div>
-                            <div class="card-list-item">Base de datos</div>
-                        </div>
-                        <div class="btn-group">
-                            <a href="{{ url_for('config_app') }}" class="btn btn-primary">Configurar</a>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>
-    
+    <!-- Contenido principal -->
+    <div id="contenido" style="display: none;">
+        <div class="module-container">
+            <div class="container-aligned">
+                <h1 class="module-title">
+                    <i class="fas fa-user-tie"></i> Módulo de Pilotos
+                </h1>
+                
+                <div class="module-grid">
+                    <!-- Gestión de Proyectos -->
+                    <div class="module-card">
+                        <div class="card-header">
+                            Gestión de Proyectos
+                        </div>
+                        <div class="card-body">
+                            <div class="card-list">
+                                <div class="card-list-item">Crear nuevo proyecto</div>
+                                <div class="card-list-item">Modificar proyecto existente</div>
+                                <div class="card-list-item">Consultar proyectos</div>
+                                <div class="card-list-item">Filtros avanzados</div>
+                                <div class="card-list-item">Datos generales</div>
+                                <div class="card-list-item">Ficha de proyecto</div>
+                            </div>
+                            <div class="btn-group">
+                                <a href="{{ url_for('consulta_proyectos') }}" class="btn btn-primary">Acceder</a>
+                                <a href="{{ url_for('crear_proyecto') }}" class="btn btn-success">
+                                    {% if session.usuario.rol == 'auxiliar' %}
+                                        Continuar proceso
+                                    {% else %}
+                                        Nuevo
+                                    {% endif %}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Roles y Usuarios -->
+                    {% if session.usuario.rol == 'admin' %}
+                    <div class="module-card">
+                        <div class="card-header">
+                            Roles y Usuarios
+                        </div>
+                        <div class="card-body">
+                            <div class="card-list">
+                                <div class="card-list-item">Identificación de usuarios</div>
+                                <div class="card-list-item">Asignación de roles</div>
+                                <div class="card-list-item">Matriz de roles</div>
+                                <div class="card-list-item">Arquitectos</div>
+                                <div class="card-list-item">Gerentes</div>
+                                <div class="card-list-item">Constructores</div>
+                            </div>
+                            <div class="btn-group">
+                                <a href="{{ url_for('admin_roles') }}" class="btn btn-danger">Acceder</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Seguimiento -->
+                    {% if session.usuario.rol in ['admin', 'arquitecto'] %}
+                    <div class="module-card">
+                        <div class="card-header" style="background-color: var(--bancolombia-green);">
+                            Seguimiento
+                        </div>
+                        <div class="card-body">
+                            <div class="card-list">
+                                <div class="card-list-item">Crear seguimiento</div>
+                                <div class="card-list-item">Avances de obra</div>
+                                <div class="card-list-item">Informes de ventas</div>
+                                <div class="card-list-item">Desembolsos</div>
+                                <div class="card-list-item">Historial de modificaciones</div>
+                                <div class="card-list-item">Cumplimiento condiciones</div>
+                            </div>
+                            <div class="btn-group">
+                                <a href="{{ url_for('seguimiento_Proyecto') }}" class="btn btn-success">Nuevo Seguimiento</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Históricos -->
+                    {% if session.usuario.rol in ['admin', 'arquitecto'] %}
+                    <!-- <div class="module-card">
+                        <div class="card-header" style="background-color: var(--bancolombia-orange);">
+                            Históricos
+                        </div>
+                        <div class="card-body">
+                            <div class="card-list">
+                                <div class="card-list-item">Histórico avances de obra</div>
+                                <div class="card-list-item">Histórico informes de ventas</div>
+                                <div class="card-list-item">Histórico desembolsos</div>
+                                <div class="card-list-item">Histórico modificaciones</div>
+                                <div class="card-list-item">Formatos históricos</div>
+                            </div>
+                            <div class="btn-group">
+                                <a href="{{ url_for('historicos_Proyectos') }}" class="btn btn-warning">Consultar</a>
+                            </div>
+                        </div>
+                    </div> -->
+                    {% endif %}
+                    
+                    <!-- Mantenimientos -->
+                    <!-- <div class="module-card">
+                        <div class="card-header" style="background-color: var(--bancolombia-red);">
+                            Modificación
+                        </div>
+                        <div class="card-body">
+                            <div class="card-list">
+                                <div class="card-list-item">Cambio de titular</div>
+                                <div class="card-list-item">Cambio de nombre</div>
+                                <div class="card-list-item">Cambio de unidades</div>
+                                <div class="card-list-item">Desistimientos</div>
+                                <div class="card-list-item">Ampliaciones de monto</div>
+                                <div class="card-list-item">Ampliaciones de vigencia</div>
+                            </div>
+                            <div class="btn-group">
+                                <a href="#" class="btn btn-danger">Gestionar</a>
+                                <a href="#" class="btn btn-warning">Modificar</a>
+                            </div>
+                        </div>
+                    </div> -->
+                    
+                    <!-- Configuración -->
+                    {% if session.usuario.rol == 'admin' %}
+                    <div class="module-card">
+                        <div class="card-header">
+                            Configuración
+                        </div>
+                        <div class="card-body">
+                            <div class="card-list">
+                                <div class="card-list-item">Identificar campos</div>
+                                <div class="card-list-item">Tipos de datos</div>
+                                <div class="card-list-item">Validaciones</div>
+                                <div class="card-list-item">Formularios</div>
+                                <div class="card-list-item">Proyectos cancelados</div>
+                                <div class="card-list-item">Base de datos</div>
+                            </div>
+                            <div class="btn-group">
+                                <a href="{{ url_for('config_app') }}" class="btn btn-primary">Configurar</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Footer -->
     <div class="footer">
         <div class="container-aligned">
@@ -396,8 +461,15 @@
             </p>
         </div>
     </div>
-
     <!-- Bootstrap JS (Opcional) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            setTimeout(() => {
+                document.getElementById("loader").style.display = "none";
+                document.getElementById("contenido").style.display = "block";
+            }, 1200); // 1.2 segundos de simulacion
+        });
+    </script>
 </body>
 </html>
