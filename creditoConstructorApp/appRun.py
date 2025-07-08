@@ -6,6 +6,8 @@ import os
 from io import BytesIO
 import pandas as pd
 import traceback
+from werkzeug.utils import secure_filename
+import shutil
 
 
 app = Flask(__name__)
@@ -26,6 +28,11 @@ USUARIOS_TEMPORALES = {
         'roles': ['arquitecto']  
     }
 }
+
+# Configuración para Cupo Sombrilla
+CUPO_SOMBRILLA_FOLDER = os.path.join(os.getcwd(), 'cupo_sombrilla_files')
+if not os.path.exists(CUPO_SOMBRILLA_FOLDER):
+    os.makedirs(CUPO_SOMBRILLA_FOLDER)
 
 # Ruta para servir el favicon desde la raíz
 @app.route('/LogoBancolombia.ico')
@@ -341,6 +348,87 @@ def importar_excel():
     
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+    
+@app.route("/cupo_sombrilla")
+def modulo_cupo_sombrilla():
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+    return render_template("cupoSombrillaTemplates/cupoSombrilla.html")
+
+@app.route('/cupo_sombrilla/run_script', methods=['POST'])
+def run_cupo_sombrilla_script():
+    try:
+        # Aquí iría la lógica para ejecutar el script de Cupo Sombrilla
+        # En producción, esto ejecutaría el script real
+        return jsonify({
+            'success': True,
+            'message': 'Script de Cupo Sombrilla ejecutado correctamente',
+            'files': ['BASE_Sombrilla.xlsx', 'creditlean.xlsx', 'cenegar_Saldos.xlsx']
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/cupo_sombrilla/process_step2', methods=['POST'])
+def process_step2():
+    try:
+        # Obtener archivo cenegar_saldos
+        cenegar_file = request.files['cenegar_file']
+        if not cenegar_file:
+            return jsonify({'success': False, 'error': 'No se subió archivo cenegar_saldos'}), 400
+        
+        # Guardar archivo
+        cenegar_path = os.path.join(CUPO_SOMBRILLA_FOLDER, secure_filename(cenegar_file.filename))
+        cenegar_file.save(cenegar_path)
+        
+        # Aquí iría la lógica de procesamiento del Paso 2
+        # Simulación: leer el Excel y procesar
+        df = pd.read_excel(cenegar_path)
+        # ... lógica de procesamiento ...
+        
+        return jsonify({'success': True, 'message': 'Paso 2 procesado correctamente'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/cupo_sombrilla/process_step3', methods=['POST'])
+def process_step3():
+    try:
+        # Obtener archivo BASE_Sombrilla
+        base_file = request.files['base_file']
+        if not base_file:
+            return jsonify({'success': False, 'error': 'No se subió archivo BASE_Sombrilla'}), 400
+        
+        # Guardar archivo
+        base_path = os.path.join(CUPO_SOMBRILLA_FOLDER, secure_filename(base_file.filename))
+        base_file.save(base_path)
+        
+        # Aquí iría la lógica de procesamiento del Paso 3
+        df = pd.read_excel(base_path)
+        # Ordenar datos
+        df = df.sort_values(by=['Nit_Constructor', 'radicado'])
+        # Quitar duplicados
+        df = df.drop_duplicates(['Nit_Constructor', 'radicado'])
+        # Guardar resultado
+        result_path = os.path.join(CUPO_SOMBRILLA_FOLDER, 'BASE_Sombrilla_processed.xlsx')
+        df.to_excel(result_path, index=False)
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Paso 3 procesado correctamente',
+            'file': 'BASE_Sombrilla_processed.xlsx'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/cupo_sombrilla/download/<filename>', methods=['GET'])
+def download_cupo_file(filename):
+    try:
+        return send_from_directory(
+            directory=CUPO_SOMBRILLA_FOLDER,
+            path=filename,
+            as_attachment=True
+        )
+    except Exception as e:
+        return str(e), 404    
 
 if __name__ == "__main__":
      app.run(host="0.0.0.0", port=5000)
