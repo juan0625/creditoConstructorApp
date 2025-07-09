@@ -8,6 +8,9 @@ import pandas as pd
 import traceback
 from werkzeug.utils import secure_filename
 import shutil
+from openpyxl.utils.dataframe import dataframe_to_rows
+import subprocess
+import sys
 
 
 app = Flask(__name__)
@@ -228,6 +231,55 @@ EXCEL_PATH = r'\\servidor\carpeta_compartida\proyectos_pilotos.xlsx'
 #     'admin': {'password': 'admin1234', 'roles': ['admin']}
 # }
 
+def generar_cupo_sombrilla(df_base_codigo, df_base_control, output_path):
+    """Genera el archivo final de Cupo Sombrilla"""
+    # Inicializar libro Excel
+    wb = openpyxl.Workbook()
+    
+    # --- Hoja VISOR (Principal) ---
+    ws_visor = wb.active
+    ws_visor.title = "VISOR"
+    
+    # Añadir fórmulas clave
+    ws_visor['D4'] = datetime.now().strftime('%Y-%m-%d')  # Fecha actualización
+    ws_visor['D16'] = ""  # Cupo Sombilla Recomendado (se calculará después)
+    ws_visor['H25'] = "=IFERROR(H20/(H20+H23), 0)"  # Wallet Share
+    
+    # --- Hoja PARAMETROS (Optimizada) ---
+    ws_param = wb.create_sheet("PARAMETROS")
+    # Ejemplo de estructura simplificada
+    parametros_data = {
+        'Variable': ['% Estrés', 'Participación Deuda Bancolombia', 'Promedio Financiación'],
+        'Valor': [0.35, 0.60, 0.75]
+    }
+    df_param = pd.DataFrame(parametros_data)
+    for r in dataframe_to_rows(df_param, index=False, header=True):
+        ws_param.append(r)
+    
+    # --- Hoja base_codigo (Datos desde Python) ---
+    ws_base_codigo = wb.create_sheet("base_codigo")
+    for r in dataframe_to_rows(df_base_codigo, index=False, header=True):
+        ws_base_codigo.append(r)
+    
+    # --- Hoja base_control (Controles) ---
+    ws_base_control = wb.create_sheet("base_control")
+    for r in dataframe_to_rows(df_base_control, index=False, header=True):
+        ws_base_control.append(r)
+    
+    # --- Calcular y escribir Cupo Recomendado ---
+    cupo_recomendado = calcular_cupo_recomendado(df_base_codigo, df_base_control)
+    ws_visor['D16'] = cupo_recomendado
+    
+    # Guardar archivo final
+    wb.save(output_path)
+
+def calcular_cupo_recomendado(df_base_codigo, df_base_control):
+    """Lógica compleja de cálculo (ejemplo simplificado)"""
+    # Aquí implementarías la lógica real de negocio
+    cupo_modelo = df_base_codigo.loc[0, 'Cupo_Modelo']
+    ajustes = df_base_control.loc[0, 'Ajuste_GC']
+    return cupo_modelo - ajustes
+
 def aplicar_filtros(proyectos, filtros):
     filtered = proyectos
     
@@ -355,66 +407,156 @@ def modulo_cupo_sombrilla():
         return redirect(url_for('login'))
     return render_template("cupoSombrillaTemplates/cupoSombrilla.html")
 
+
+CUPO_SOMBRILLA_FOLDER = r"C:\CreditosConstructor\cupo_sombrilla_files"
+
 @app.route('/cupo_sombrilla/run_script', methods=['POST'])
 def run_cupo_sombrilla_script():
     try:
-        # Aquí iría la lógica para ejecutar el script de Cupo Sombrilla
-        # En producción, esto ejecutaría el script real
+        # Ruta directa según tu estructura real
+        script_path = r"C:\CreditosConstructor\Script_Cupo_Sombrilla_V1.py"
+        
+        # Verificar existencia del script
+        if not os.path.exists(script_path):
+            return jsonify({
+                'success': False,
+                'error': f'Script no encontrado en: {script_path}'
+            }), 404
+
+        # Crear carpeta de destino si no existe
+        os.makedirs(CUPO_SOMBRILLA_FOLDER, exist_ok=True)
+
+        # Ejecutar script
+        python_exec = sys.executable
+        app.logger.info(f"Ejecutando script: {script_path}")
+        
+        result = subprocess.run(
+            [python_exec, script_path],
+            cwd=os.path.dirname(script_path),
+            capture_output=True,
+            text=True,
+            timeout=300
+        )
+
+        # Verificar resultados
+        if result.returncode != 0:
+            error_details = {
+                "returncode": result.returncode,
+                "stdout": result.stdout,
+                "stderr": result.stderr
+            }
+            return jsonify({
+                'success': False,
+                'error': 'Error en ejecución del script',
+                'details': error_details
+            }), 500
+
+        # Buscar archivos generados
+        generated_files = []
+        expected_files = [
+            'BASE_Sombrilla.xlsx',
+            'creditlean.xlsx',
+            'cenegar_Saldos.xlsx'
+        ]
+        
+        for filename in expected_files:
+            src = os.path.join(os.path.dirname(script_path), filename)
+            if os.path.exists(src):
+                dest = os.path.join(CUPO_SOMBRILLA_FOLDER, filename)
+                shutil.move(src, dest)
+                generated_files.append(filename)
+            else:
+                app.logger.warning(f"Archivo esperado no generado: {filename}")
+
+        if not generated_files:
+            return jsonify({
+                'success': False,
+                'error': 'No se generaron archivos de salida'
+            }), 500
+
         return jsonify({
             'success': True,
-            'message': 'Script de Cupo Sombrilla ejecutado correctamente',
-            'files': ['BASE_Sombrilla.xlsx', 'creditlean.xlsx', 'cenegar_Saldos.xlsx']
+            'message': 'Script ejecutado correctamente',
+            'files': generated_files
         })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
 
+    except subprocess.TimeoutExpired:
+        return jsonify({
+            'success': False,
+            'error': 'Tiempo de ejecución excedido (5 minutos)'
+        }), 500
+        
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        app.logger.error(f"Error inesperado: {str(e)}\n{error_trace}")
+        return jsonify({
+            'success': False,
+            'error': f'Error interno: {str(e)}',
+            'trace': error_trace
+        }), 500
+    
 @app.route('/cupo_sombrilla/process_step2', methods=['POST'])
 def process_step2():
     try:
-        # Obtener archivo cenegar_saldos
         cenegar_file = request.files['cenegar_file']
         if not cenegar_file:
             return jsonify({'success': False, 'error': 'No se subió archivo cenegar_saldos'}), 400
         
         # Guardar archivo
-        cenegar_path = os.path.join(CUPO_SOMBRILLA_FOLDER, secure_filename(cenegar_file.filename))
+        cenegar_path = os.path.join(CUPO_SOMBRILLA_FOLDER, 'cenegar_saldos_processed.xlsx')
         cenegar_file.save(cenegar_path)
         
-        # Aquí iría la lógica de procesamiento del Paso 2
-        # Simulación: leer el Excel y procesar
+        # Procesamiento adicional (ejemplo)
         df = pd.read_excel(cenegar_path)
-        # ... lógica de procesamiento ...
+        
+        # 1. Convertir columna C a numérico
+        df['Columna_C'] = pd.to_numeric(df['Columna_C'], errors='coerce')
+        
+        # 2. Insertar columna para identificar crédito constructor
+        df.insert(loc=3, column='Tipo_Credito', value='')
+        
+        # 3. Cruzar con archivo de saldos (simulado)
+        # En producción esto sería una operación real con otro archivo
+        df['Es_Constructor'] = df.apply(lambda row: 'ND' 
+                                        if row['Columna_C'] > 1000000 
+                                        else 'Constructor', axis=1)
+        
+        # 4. Filtrar solo ND (deuda corporativa)
+        df = df[df['Es_Constructor'] == 'ND']
+        
+        # Guardar resultado
+        df.to_excel(cenegar_path, index=False)
         
         return jsonify({'success': True, 'message': 'Paso 2 procesado correctamente'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# Ruta para procesar el Paso 3 (ahora incluye la generación completa)
 @app.route('/cupo_sombrilla/process_step3', methods=['POST'])
 def process_step3():
     try:
-        # Obtener archivo BASE_Sombrilla
-        base_file = request.files['base_file']
-        if not base_file:
-            return jsonify({'success': False, 'error': 'No se subió archivo BASE_Sombrilla'}), 400
+        # Obtener archivos subidos en pasos anteriores
+        base_path = os.path.join(CUPO_SOMBRILLA_FOLDER, 'BASE_Sombrilla_processed.xlsx')
+        control_path = os.path.join(CUPO_SOMBRILLA_FOLDER, 'cenegar_saldos_processed.xlsx')
         
-        # Guardar archivo
-        base_path = os.path.join(CUPO_SOMBRILLA_FOLDER, secure_filename(base_file.filename))
-        base_file.save(base_path)
+        if not os.path.exists(base_path) or not os.path.exists(control_path):
+            return jsonify({
+                'success': False, 
+                'error': 'Faltan archivos procesados de pasos anteriores'
+            }), 400
         
-        # Aquí iría la lógica de procesamiento del Paso 3
-        df = pd.read_excel(base_path)
-        # Ordenar datos
-        df = df.sort_values(by=['Nit_Constructor', 'radicado'])
-        # Quitar duplicados
-        df = df.drop_duplicates(['Nit_Constructor', 'radicado'])
-        # Guardar resultado
-        result_path = os.path.join(CUPO_SOMBRILLA_FOLDER, 'BASE_Sombrilla_processed.xlsx')
-        df.to_excel(result_path, index=False)
+        # Cargar datos procesados
+        df_base_codigo = pd.read_excel(base_path)
+        df_base_control = pd.read_excel(control_path)
+        
+        # Generar archivo final
+        result_path = os.path.join(CUPO_SOMBRILLA_FOLDER, 'CUPO_SOMBRILLA_AUTOMATIZADO_V2.xlsx')
+        generar_cupo_sombrilla(df_base_codigo, df_base_control, result_path)
         
         return jsonify({
             'success': True, 
-            'message': 'Paso 3 procesado correctamente',
-            'file': 'BASE_Sombrilla_processed.xlsx'
+            'message': 'Archivo de Cupo Sombrilla generado correctamente',
+            'file': 'CUPO_SOMBRILLA_AUTOMATIZADO_V2.xlsx'
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
