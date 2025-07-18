@@ -1,333 +1,282 @@
+# -*- coding: utf-8 -*-
 """
-Fecha Actualizaci�n: Mayo 2025
+Fecha Actualización: Julio 2025
 Area: RC Corp Inmobiliario y Constructor
 Objetivo: Cupo Sombrilla
-
 
 Elementos necesarios: 
     - ODBC Impala
     - Usuario Landing Zone
     - Acceso a zona LZ datos crudos
-    - Acceso a la carpeta de la Divisi�n de Cr�dito Constructor
+    - Acceso a la carpeta de la División de Crédito Constructor
 
 Insumo Requeridos: 
     - Base Enroque: 'Consolidado_Historico_Enroque-Cuadro'
-    - IT: 'Base Informe T�cnico'
-    - Control Constructor: 'Hist�rico_control'
-- 
-
-Tablas LZ:
-    - S_Apoyo_Financiero.CREDITLENS_CRDLZ_UPHISTBCOLCORP
-    - resultados_riesgos.ceniegarc_lz
+    - IT: 'Base Informe Técnico'
+    - Control Constructor: 'Histórico_control'
 """
 
-
 import pandas as pd
-from pandas import ExcelWriter
-from collections import OrderedDict
 import pyodbc
-from datetime import datetime, timedelta
-from datetime import date
+from datetime import datetime
 import calendar
-       
+import os
 
+# =============================================================================
+# CONFIGURACIÓN INICIAL
+# =============================================================================
+print("="*80)
+print("INICIANDO PROCESO DE CUPO SOMBRILLA")
+print("="*80)
 
-
-# Obtener la fecha actual
+# Configuración de rutas y fechas
+ruta_informes = r"C:\Codigo Python\Cupo Sombrilla\AUTOMATIZACIÓN CUPO SOMBRILLA\INFORMES"
 now = datetime.now()
-        
-# Calcular el a�o y mes del mes anterior
-year_v, mes_v = divmod(now.month - 2, 12)
-year_v += now.year - 1 if year_v < 0 else now.year
-mes_v += 1
-         
-# Obtener la cantidad de d�as en el mes anterior
+year_v, mes_v = (now.year, now.month - 2) if now.month > 2 else (now.year - 1, 12 + now.month - 2)
 ultimo_dia_mes_anterior = calendar.monthrange(year_v, mes_v)[1]
 
+# Crear directorio si no existe
+os.makedirs(ruta_informes, exist_ok=True)
 
+# =============================================================================
+# FUNCIONES AUXILIARES
+# =============================================================================
+def conectar_impala():
+    """Establece conexión con Impala"""
+    print("\nConectando a Impala...")
+    try:
+        conn = pyodbc.connect("DSN=IMPALA_PROD", autocommit=True)
+        print("✅ Conexión exitosa a Impala")
+        return conn
+    except pyodbc.Error as ex:
+        print(f"❌ Error en conexión Impala: {ex}")
+        return None
 
-#Ruta donde se van a guardar los archivos
-ruta_informes = "C:\Codigo Python\Cupo Sombrilla\AUTOMATIZACI�N CUPO SOMBRILLA\INFORMES"
+def ejecutar_consulta(conn, query):
+    """Ejecuta consulta SQL y devuelve DataFrame"""
+    try:
+        cursor = conn.cursor()
+        cursor.execute(query)
+        column_names = [col[0] for col in cursor.description]
+        df = pd.DataFrame.from_records(cursor.fetchall(), columns=column_names)
+        print(f"✅ Consulta ejecutada - Registros obtenidos: {len(df)}")
+        return df
+    except Exception as e:
+        print(f"❌ Error en consulta SQL: {e}")
+        return pd.DataFrame()
 
-# SE CONECTA CON ENRROQUE PARA LA CAPTURAR LOS DATOS"
-filePath = "Z:\AUTOMATIZACION ENROQUE\INSUMOS TABLERO\Consolidado_Historico_Enroque-Cuadro.xlsx"
+# =============================================================================
+# PROCESAMIENTO DE DATOS LOCALES
+# =============================================================================
+print("\n" + "="*80)
+print("PROCESANDO ARCHIVOS LOCALES")
+print("="*80)
 
- #Definiendo las hojas
-df = pd.read_excel(filePath, sheet_name='Sheet1')
-df.columns= df.columns.str.lower().str.replace(" ","_")
-df2 = df[['nit','sociedad', 'radicado','proyecto','grupo','creditosaprobados','tipodecredito','saldoactual','valorentregado','valorentregar','fecha_historico']]
-
-print("\n Conectando a la base consolidada del Enroque")
-
-df2.to_excel(ruta_informes + r'\BASE_Sombrilla.xlsx', index = False)
-
-print("\n Finaliz� la conexi�n al enroque")
-
-# SE CONECTA CON INFORME TECNICO CON BUSQUEDA POR RADICADO
-filePath2 = "Z:\FORMATOS CREDITOS CONSTRUCTORES\PLANOS\Base Informe T�cnico.xlsx"
-
-print("Se ley� la base de informe t�cnico")
-
-# Definiendo las hojas
-df3 = pd.read_excel(filePath2, sheet_name='base')
-df3.columns= df3.columns.str.lower().str.replace(" ","_")
-
-#Sobre escibre el nombre del campo para unirlo con la otra tabla que tiene nombre radicado en el campo
-df3.rename(columns = {'radicado_cr�dito_constructor':'radicado'}, inplace = True)
-
-#Se une las tablas con respecto al atributo radicado
-df4 = pd.merge(df2, df3[['radicado','municipio_','costo_urbanismo','costo_directos','costo_indirectos','honorarios','costo_total','costos_financiables',
-                         'credito_constructor','credito_preoperativo','credito_lote','tipo_fiducia','fecha__inicio_obra_','total_unidades','meses_programaci�n','total_ventas_esperadas',
-                         'unidades_por_vender']],how="left")
-
-#Se pasan los datos a excel
-df4.to_excel(ruta_informes + r'\BASE_Sombrilla.xlsx', index = False)
-
-print("\n Termin� consulta a Informe T�cnico")
-
-# SE CONECTA CON CONTROL CON BUSQUEDA POR RADICADO
-filePath3 =  "Z:\AUTOMATIZACI�N CONTROLES\INSUMOS TABLERO\Hist�rico_control.xlsx"
-
-print("Se ley� el Control con �xito")
-
-# Definiendo las hojas
-df5 = pd.read_excel(filePath3, sheet_name='Sheet1')
-df5.columns= df5.columns.str.lower().str.replace(" ","_")
-
-#Sobre escibre el nombre del campo para unirlo con la otra tabla que tiene nombre radicado en el campo
-df5.rename(columns = {'RADICADO':'radicado'}, inplace = True)
-
-#Se une las tablas con respecto al atributo radicado
-df6 = pd.merge(df4, df5[['radicado','mes_inicio_obra','avance_obra_meses','numero_inmuebles_por_vender','numero_inmuebles_vendidos','valor_total_ventas',
-                         'programacion_actual','meses_prorrogados','vencimiento_credito','avance_obra']],how="left")
-df6['inmuebles_totales'] = df6['numero_inmuebles_por_vender']+df6['numero_inmuebles_vendidos']
-
-#Se pasan los datos a excel
-df6.to_excel(ruta_informes + r'\BASE_Sombrilla.xlsx', index = False)
-
-print("\n Termin� la consulta al Control")
-
-
-#SE CONECTA CON EL NIT PARA LA CONSULTA DE CREDITLEANS
-
-filePath4 = ruta_informes + r'\BASE_llave.xlsx'
-
-df7 = pd.read_excel(filePath4, sheet_name='Llaves')
-df8 = pd.merge(df6, df7 [['grupo','Nit_Constructor']],how="left")
-df8['Nit_Constructor'] = df8['Nit_Constructor'].fillna(0)
-
-df8.to_excel(ruta_informes + r'\BASE_Sombrilla.xlsx', index = False)
-
-#SE CONECTA CON CREDILEANS EEFF SACAR ACTIVO - PASIVO - PATRIMONIO
-
-print("Conectando a Impala")
-
-CONN_STR = "DSN=IMPALA_PROD" 
-
-def as_pandas(cursor):
-    names = [metadata[0] for metadata in cursor.description]
-    return pd.DataFrame([dict(zip(names, row)) for row in cursor], columns=names)
-
-try:
-    cn = pyodbc.connect(CONN_STR, autocommit = True )
-    print("Conexion Exitosa")
-except pyodbc.Error as ex:
-    print(ex)
-
-now = datetime.now()
-ano = now.strftime("%Y")
-mes = now.strftime("%m")
-dia = now.strftime("%d")
-
-filePath5 = ruta_informes + r'\BASE_Sombrilla.xlsx'
-
-df9 = pd.read_excel(filePath5, sheet_name='Sheet1')
-column_name="Nit_Constructor"
-mylist = df9[column_name].tolist()
-mylist=list(set(mylist))
-cadena=str(mylist[0])
-
-for i in range(1,len(mylist)):
-    cadena=cadena+', '+str(mylist[i])
-
-print("concatenaci�n de informe")
-
-query_str = """WITH
-EEFF AS (
-SELECT  cast(numeroid as bigint) as numeroid,
-        totaldeudacp as Deuda_Cp,
-        totaldeudalp as Deuda_LP,
-        totalassets as Activo_Total,
-        totalnetworth as Patrimonio,
-        statementdate as Fecha,
-        endeudsinvalorperc as Endeudamientosinvaloriza,
-        coberturainteresveces as Ebitdasobreintereses,
-        pasivofinancebitdaveces as Pasivofinancierosobreebitda,
-        acctspayabledays as Rotacionproveedoresdias,
-        grsacctsrecdays as Rotacioncarteradias,
-        totalinvdays as Rotacioninventariodias,
-        totalinventory as Totalinventario,
-        endeudfinperc as Endeudamientofinanciero,
-        auditmethod as Auditor,
-        CAST(concat(strleft(statementdate,4),substr(statementdate,6,2)) AS BIGINT) AS statementdate_corte
-FROM S_Apoyo_Financiero.CREDITLENS_CRDLZ_UPHISTBCOLCORP
-WHERE YEAR = YEAR(DATE_SUB(NOW(), 1))  AND ingestion_MONTH = MONTH(DATE_SUB(NOW(), 1)) AND ingestion_DAY = DAY(DATE_SUB(NOW(), 1))
-AND LOCATE('SIMULACION – ', TRIM(UPPER(customername))) = 0
-AND cast(numeroid as bigint) IN ("""+cadena+ """)
+# 1. Procesar Enroque
+print("\nLeyendo base Enroque...")
+df_enroque = pd.read_excel(
+    r"Z:\AUTOMATIZACION ENROQUE\INSUMOS TABLERO\Consolidado_Historico_Enroque-Cuadro.xlsx",
+    sheet_name='Sheet1'
 )
-, EEFF_fecha AS (
-select  numeroid,
-        cast(Deuda_Cp as bigint) as Deuda_Cp,
-        cast(Deuda_Lp as bigint) as Deuda_LP,
-        cast(Activo_Total as bigint) as Activo_Total,
-        Cast(Patrimonio as bigint) as Patrimonio,
-        Cast(Endeudamientosinvaloriza as bigint) as Endeudamientosinvaloriza,
-        Cast(Ebitdasobreintereses as bigint) as Ebitdasobreintereses,
-        Cast(Pasivofinancierosobreebitda as bigint) as Pasivofinancierosobreebitda,
-        Cast(Rotacionproveedoresdias as bigint) as Rotacionproveedoresdias,
-        Cast(Rotacioncarteradias as bigint) as Rotacioncarteradias,
-        Cast(Rotacioninventariodias as bigint) as Rotacioninventariodias,
-        Cast(Totalinventario as bigint) as Totalinventario,
-        Cast(Endeudamientofinanciero as bigint) as Endeudamientofinanciero,
-        TRIM(Auditor) as Auditor,
-        Fecha,
-        max(statementdate_corte) as corte_ult_EEFF 
-from EEFF 
-group by 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15)
-,Max_EEFF as (SELECT *, row_number() over (partition by numeroid order by corte_ult_EEFF desc) as rn
-FROM EEFF_fecha)
-SELECT * FROM Max_EEFF WHERE rn<=1;"""
+df_enroque.columns = df_enroque.columns.str.lower().str.replace(" ", "_")
+df_enroque = df_enroque[['nit', 'sociedad', 'radicado', 'proyecto', 'grupo', 
+                         'creditosaprobados', 'tipodecredito', 'saldoactual', 
+                         'valorentregado', 'valorentregar', 'fecha_historico']]
+print("✅ Base Enroque procesada")
 
-#Ejecutando la consulta y convierto a dataframe
+# 2. Procesar Informe Técnico
+print("\nLeyendo Informe Técnico...")
+df_it = pd.read_excel(
+    r"Z:\FORMATOS CREDITOS CONSTRUCTORES\PLANOS\Base Informe Técnico.xlsx",
+    sheet_name='base'
+)
+df_it.columns = df_it.columns.str.lower().str.replace(" ", "_")
+df_it.rename(columns={'radicado_crédito_constructor': 'radicado'}, inplace=True)
+print("✅ Informe Técnico procesado")
 
-cursor = cn.cursor()
-creditleans = as_pandas(cursor.execute(query_str))
+# 3. Procesar Control Constructor
+print("\nLeyendo Control Constructor...")
+df_control = pd.read_excel(
+    r"Z:\AUTOMATIZACIÓN CONTROLES\INSUMOS TABLERO\Histórico_control.xlsx",
+    sheet_name='Sheet1'
+)
+df_control.columns = df_control.columns.str.lower().str.replace(" ", "_")
+df_control.rename(columns={'radicado': 'radicado'}, inplace=True)
+print("✅ Control Constructor procesado")
 
-creditleans.to_excel(ruta_informes + r'\creditlean.xlsx', index = False)
+# 4. Procesar Llaves
+print("\nLeyendo base de llaves...")
+df_llaves = pd.read_excel(
+    os.path.join(ruta_informes, 'BASE_llave.xlsx'),
+    sheet_name='Llaves'
+)
+print("✅ Base de llaves procesada")
 
-print('Termino la consulta a creditlens')
-      
+# 5. Fusionar datasets
+print("\nFusionando datasets locales...")
+df_merged = (
+    df_enroque
+    .merge(df_it, on='radicado', how='left')
+    .merge(df_control, on='radicado', how='left')
+    .merge(df_llaves[['grupo', 'Nit_Constructor']], on='grupo', how='left')
+)
 
-#CRUCE ENTRE BASE_sombrilla y CREDILEANS
+df_merged['Nit_Constructor'] = df_merged['Nit_Constructor'].fillna(0)
+df_merged['inmuebles_totales'] = df_merged['numero_inmuebles_por_vender'] + df_merged['numero_inmuebles_vendidos']
+print("✅ Datasets locales fusionados")
 
-filePath6 = ruta_informes + r'\creditlean.xlsx'
+# =============================================================================
+# CONSULTAS A BASES DE DATOS
+# =============================================================================
+print("\n" + "="*80)
+print("CONSULTANDO BASES DE DATOS REMOTAS")
+print("="*80)
 
-df10_completo = pd.read_excel(filePath6, sheet_name='Sheet1')
+# Obtener lista de NITs únicos
+nits = df_merged['Nit_Constructor'].dropna().unique()
+nits_str = ",".join(map(str, nits))
+print(f"\nNITs a consultar: {len(nits)}")
 
-#ELIMINA LOS DIFERENTES DE REVISOR
-df10 =  df10_completo[(df10_completo['auditor'] == "Revisor")]
+# 1. Consulta a CreditLens
+print("\nConsultando CreditLens...")
+conn = conectar_impala()
+if conn:
+    query_creditlens = f"""
+    WITH EEFF AS (
+        SELECT CAST(numeroid AS BIGINT) AS numeroid,
+               totaldeudacp AS Deuda_Cp,
+               totaldeudalp AS Deuda_LP,
+               totalassets AS Activo_Total,
+               totalnetworth AS Patrimonio,
+               statementdate AS Fecha,
+               endeudsinvalorperc AS Endeudamientosinvaloriza,
+               coberturainteresveces AS Ebitdasobreintereses,
+               pasivofinancebitdaveces AS Pasivofinancierosobreebitda,
+               acctspayabledays AS Rotacionproveedoresdias,
+               grsacctsrecdays AS Rotacioncarteradias,
+               totalinvdays AS Rotacioninventariodias,
+               totalinventory AS Totalinventario,
+               endeudfinperc AS Endeudamientofinanciero,
+               auditmethod AS Auditor,
+               CAST(CONCAT(STRLEFT(statementdate,4), SUBSTR(statementdate,6,2)) AS BIGINT) AS statementdate_corte
+        FROM S_Apoyo_Financiero.CREDITLENS_CRDLZ_UPHISTBCOLCORP
+        WHERE YEAR = YEAR(DATE_SUB(NOW(), 1))
+          AND ingestion_MONTH = MONTH(DATE_SUB(NOW(), 1))
+          AND ingestion_DAY = DAY(DATE_SUB(NOW(), 1))
+          AND LOCATE('SIMULACIÓN – ', TRIM(UPPER(customername))) = 0
+          AND CAST(numeroid AS BIGINT) IN ({nits_str})
+    )
+    SELECT * FROM (
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY numeroid ORDER BY statementdate_corte DESC) AS rn
+        FROM EEFF
+    ) sub WHERE rn = 1;
+    """
+    
+    df_creditlens = ejecutar_consulta(conn, query_creditlens)
+    
+    if not df_creditlens.empty:
+        df_creditlens.rename(columns={'numeroid': 'Nit_Constructor'}, inplace=True)
+        df_creditlens['pasivo_total'] = df_creditlens['Activo_Total'] - df_creditlens['Patrimonio']
+        df_creditlens['deuda_Total'] = df_creditlens['Deuda_Cp'] + df_creditlens['Deuda_Lp']
+        df_creditlens = df_creditlens[df_creditlens['Auditor'] == "Revisor"]
+        
+        # Fusionar con datos locales
+        df_merged = df_merged.merge(df_creditlens, on='Nit_Constructor', how='left')
+        print("✅ Datos de CreditLens fusionados")
+    else:
+        print("⚠️ No se encontraron datos en CreditLens")
+else:
+    print("⚠️ Saltando consulta a CreditLens por error de conexión")
 
-#CALCULA EL PASIVO 
-df10['pasivo_total'] = df10['activo_total']-df10['patrimonio']
-df10['deuda_Total'] = df10['deuda_cp']+df10['deuda_lp']
-#Sobre escibre el nombre del campo para unirlo con la otra tabla que tiene nombre radicado en el campo
-df10.rename(columns = {'numeroid':'Nit_Constructor'}, inplace = True)
-#Se une las tablas con respecto al atributo radicado
-df11 = pd.merge(df8, df10[['Nit_Constructor','activo_total','patrimonio','pasivo_total','endeudamientosinvaloriza',
-                           'ebitdasobreintereses','pasivofinancierosobreebitda','rotacionproveedoresdias',
-                           'rotacioninventariodias','rotacioncarteradias','totalinventario','fecha','endeudamientofinanciero','auditor',
-                           'deuda_cp','deuda_lp','deuda_Total']],how="left")
+# 2. Consulta a CENIEGAR
+print("\nConsultando CENIEGAR...")
+if conn:
+    query_ceniegar = f"""
+    SELECT id,
+           IF(ofcenie=470,'Leasing','Banco') AS linea,
+           obl,
+           vdesem,
+           sk,
+           (CASE califi
+                WHEN 'A' THEN 'C1'
+                WHEN 'B' THEN 'C2'
+                WHEN 'C' THEN 'C3'
+                WHEN 'D' THEN 'C4'
+                WHEN 'E' THEN 'C5'
+                WHEN 'F' THEN 'C6'
+                WHEN 'G' THEN 'C7'
+                WHEN 'H' THEN 'C8'
+                WHEN 'N' THEN 'C9'
+                WHEN 'O' THEN 'C10'
+                WHEN 'P' THEN 'C11'
+                WHEN 'Q' THEN 'C12'
+                WHEN 'R' THEN 'C13'
+                WHEN 'S' THEN 'C14'
+                WHEN 'T' THEN 'C15'
+                WHEN 'U' THEN 'C16'
+                WHEN 'V' THEN 'C17'
+                WHEN 'W' THEN 'C18'
+                WHEN 'X' THEN 'C19'        
+            END) AS calificacion,
+           pitotal,
+           pktotal,
+           altmora 
+    FROM resultados_riesgos.ceniegarc_lz
+    WHERE ingestion_year = {year_v} 
+      AND ingestion_month = {mes_v}
+      AND CAST(id AS BIGINT) IN ({nits_str});
+    """
+    
+    df_ceniegar = ejecutar_consulta(conn, query_ceniegar)
+    conn.close()
+    
+    if not df_ceniegar.empty:
+        # Guardar resultados de CENIEGAR
+        ruta_ceniegar = os.path.join(ruta_informes, 'cenegar_Saldos.xlsx')
+        df_ceniegar.to_excel(ruta_ceniegar, index=False)
+        print(f"✅ Resultados de CENIEGAR guardados en: {ruta_ceniegar}")
+    else:
+        print("⚠️ No se encontraron datos en CENIEGAR")
+else:
+    print("⚠️ Saltando consulta a CENIEGAR por error de conexión")
 
-print('Termino consolidaci�n con creditleans')
+# =============================================================================
+# PROCESAMIENTO FINAL Y GUARDADO
+# =============================================================================
+print("\n" + "="*80)
+print("PROCESAMIENTO FINAL")
+print("="*80)
 
-#CONECTA CON CENIEGARC PARA TOMAR LA DEUDA CORPORATIVA
+# Seleccionar y ordenar columnas finales
+print("\nPreparando dataset final...")
+columnas_finales = [
+    'Nit_Constructor', 'radicado', 'sociedad', 'proyecto', 'grupo', 
+    'creditosaprobados', 'tipodecredito', 'saldoactual', 'valorentregado',
+    'valorentregar', 'fecha_historico', 'municipio_', 'costo_urbanismo',
+    'costo_directos', 'costo_indirectos', 'honorarios', 'costo_total',
+    'costos_financiables', 'credito_constructor', 'credito_preoperativo',
+    'credito_lote', 'tipo_fiducia', 'mes_inicio_obra', 'avance_obra_meses',
+    'numero_inmuebles_por_vender', 'numero_inmuebles_vendidos', 'inmuebles_totales',
+    'valor_total_ventas', 'programacion_actual', 'activo_total', 'patrimonio',
+    'pasivo_total', 'meses_prorrogados', 'vencimiento_credito', 'avance_obra',
+    'endeudamientosinvaloriza', 'ebitdasobreintereses', 'pasivofinancierosobreebitda',
+    'rotacionproveedoresdias', 'rotacioninventariodias', 'rotacioncarteradias',
+    'totalinventario', 'fecha', 'endeudamientofinanciero', 'auditor',
+    'fecha__inicio_obra_', 'total_unidades', 'meses_programación', 
+    'total_ventas_esperadas', 'unidades_por_vender', 'deuda_cp', 'deuda_lp', 'deuda_Total'
+]
 
-print("Conectando a Impala")
-CONN_STR = "DSN=IMPALA_PROD" 
+df_final = df_merged[columnas_finales]
 
-def as_pandas(cursor):
-    names = [metadata[0] for metadata in cursor.description]
-    return pd.DataFrame([dict(zip(names, row)) for row in cursor], columns=names)
+# Guardar resultado final
+ruta_final = os.path.join(ruta_informes, 'BASE_Sombrilla.xlsx')
+df_final.to_excel(ruta_final, index=False)
+print(f"✅ Dataset final guardado en: {ruta_final}")
+print(f"📊 Total de registros procesados: {len(df_final)}")
 
-try:
-    cn = pyodbc.connect(CONN_STR, autocommit = True )
-    print("Conexion Exitosa")
-except pyodbc.Error as ex:
-    print(ex)
-
-now = datetime.now()
-ano = now.strftime("%Y")
-mes = now.strftime("%m")
-dia = now.strftime("%d")
-
-filePath7 = ruta_informes + r'\BASE_Sombrilla.xlsx'
-
-df12 = pd.read_excel(filePath7, sheet_name='Sheet1')
-column_name="Nit_Constructor"
-mylist = df12[column_name].tolist()
-mylist=list(set(mylist))
-cadena=str(mylist[0])
-
-for i in range(1,len(mylist)):
-    cadena=cadena+', '+str(mylist[i])
-
-print("concatenaci�n de informe")
-
-query_str = """select id,
-        if(ofcenie=470,'Leasing','Banco') as linea,
-        obl,
-        vdesem,
-        sk,
-        (case
-        when califi='A' then 'C1'
-        when califi='B' then 'C2'
-        when califi='C' then 'C3'
-        when califi='D' then 'C4'
-        when califi='E' then 'C5'
-        when califi='F' then 'C6'
-        when califi='G' then 'C7'
-        when califi='H' then 'C8'
-        when califi='N' then 'C9'
-        when califi='O' then 'C10'
-        when califi='P' then 'C11'
-        when califi='Q' then 'C12'
-        when califi='R' then 'C13'
-        when califi='S' then 'C14'
-        when califi='T' then 'C15'
-        when califi='U' then 'C16'
-        when califi='V' then 'C17'
-        when califi='W' then 'C18'
-        when califi='X' then 'C19'        
-        end) as calificacion,
-        pitotal,
-        pktotal,
-        altmora 
-from 
-resultados_riesgos.ceniegarc_lz
-where ingestion_year = {} AND ingestion_month = {}
-AND cast(id as BIGINT) IN ({})""".format(year_v, mes_v, cadena)
-
-cursor = cn.cursor()
-finacle = as_pandas(cursor.execute(query_str))
-     
-finacle.to_excel(ruta_informes + r'\cenegar_Saldos.xlsx', index = False)
-
-print('Finalizo la consulta a ceniegarc')
-
-#TABLA DINAMICA QUE SUMA LA DEUDA POR OBLIGACIÓN
-#df11.groupby(by=["b"]).sum()
-
-
-df11 = df11 [['Nit_Constructor','radicado','sociedad','proyecto','grupo','creditosaprobados','tipodecredito','saldoactual',
-              'valorentregado','valorentregar','fecha_historico','municipio_','costo_urbanismo','costo_directos','costo_indirectos',
-              'honorarios','costo_total','costos_financiables','credito_constructor','credito_preoperativo','credito_lote',
-              'tipo_fiducia','mes_inicio_obra','avance_obra_meses','numero_inmuebles_por_vender','numero_inmuebles_vendidos','inmuebles_totales',
-              'valor_total_ventas','programacion_actual','activo_total','patrimonio','pasivo_total','meses_prorrogados','vencimiento_credito','avance_obra',
-              'endeudamientosinvaloriza','ebitdasobreintereses','pasivofinancierosobreebitda','rotacionproveedoresdias',
-              'rotacioninventariodias','rotacioncarteradias','totalinventario','fecha','endeudamientofinanciero','auditor',
-              'fecha__inicio_obra_','total_unidades','meses_programaci�n','total_ventas_esperadas','unidades_por_vender',
-              'deuda_cp','deuda_lp','deuda_Total']]
-
-#ORDENA POR NIT, RADICADO Y TIPO DE CREDITO 
-#df11 = df11.sort_values(by = ['Nit_Constructor','radicado','tipodecredito','fecha_historico'],
-                           # ascending=[True,True,True,False])
-                            
-#QUITA DUPLICADOS 
-#df11_=df11.drop_duplicates(['Nit_Constructor','radicado','tipodecredito'])
-
-#ELIMINA LOS PROYECTOS QUE ESTAN ESTUDIO PERO NO APROBADOS 
-#df11_=  df11_[(df11_['saldoactual'] + df11_['valorentregar']) !=0 ]
-
-df11.to_excel(ruta_informes + r'\BASE_Sombrilla.xlsx', index = False)
-
-print('Termin� con �xito la ejecuci�n del script del cupo sombrilla')
+# =============================================================================
+# FIN DEL PROCESO
+# =============================================================================
+print("\n" + "="*80)
+print("PROCESO COMPLETADO EXITOSAMENTE")
+print("="*80)
