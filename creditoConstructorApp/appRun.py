@@ -356,21 +356,42 @@ def exportar_excel():
             if not all(key in proyecto for key in campos_obligatorios):
                 return jsonify({'success': False, 'message': f'Falta campo obligatorio en proyecto {proyecto.get("id_proyecto")}'}), 400
 
-            # Convertir condiciones a lista
             if 'condiciones_aprobacion' in proyecto and isinstance(proyecto['condiciones_aprobacion'], str):
                 proyecto['condiciones_aprobacion'] = proyecto['condiciones_aprobacion'].split('; ')
 
-        # Crear DataFrame dinámico
         df = pd.DataFrame(proyectos).fillna('')
 
-        # Crear directorio si no existe
         if not os.path.exists(EXPORTAR_RUTA):
             os.makedirs(EXPORTAR_RUTA)
 
         output = BytesIO()
+        
+        # SOLUCIÓN ACTUALIZADA - Compatible con versiones antiguas
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             df.to_excel(writer, index=False, sheet_name='Proyectos')
+            workbook = writer.book
             worksheet = writer.sheets['Proyectos']
+            
+            # 1. Protección de hoja (compatible con todas versiones)
+            worksheet.protect('Riesgos2025*', {
+                'objects':               False,
+                'scenarios':             False,
+                'format_cells':          False,
+                'insert_columns':        False,
+                'insert_rows':           False,
+                'delete_columns':        False,
+                'delete_rows':           False
+            })
+            
+            # 2. Protección de libro (solo para versiones recientes)
+            try:
+                # Intenta usar la protección moderna
+                workbook.protect(password='Riesgos2025*', structure=True)
+            except AttributeError:
+                # Fallback para versiones antiguas
+                print("Advertencia: La protección de libro no está disponible en esta versión de XlsxWriter")
+            
+            # 3. Ajustar columnas
             for idx, col in enumerate(df.columns):
                 max_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
                 worksheet.set_column(idx, idx, max_len)
