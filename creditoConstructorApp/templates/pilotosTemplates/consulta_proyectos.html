@@ -259,6 +259,19 @@
             min-width: 20px;
             margin-right: 10px;
         }
+        .historial-contenido {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .modal-xl .modal-dialog {
+            max-width: 90%;
+            width: 90%;
+        }
+
+        #btn-export-pdf {
+            margin-left: 10px;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
@@ -266,6 +279,7 @@
         const USUARIO_ROL = '{{ session.usuario.rol }}';
     </script>
     <link rel="shortcut icon" href="{{ url_for('static', filename='LogoBancolombia.ico') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
      <!-- Header con logo y usuario -->
@@ -883,7 +897,13 @@
                 // 2. Construir contenido dinámico
                 const contenidoHTML = `
                     <div class="container-fluid">
-                        <h4 class="mb-3">${proyecto.nombre_proyecto || 'Proyecto sin nombre'}</h4>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4>${proyecto.nombre_proyecto || 'Proyecto sin nombre'}</h4>
+                        <button class="btn btn-primary btn-sm" onclick="mostrarHistorial('${id}')">
+                            <i class="fas fa-history me-2"></i>Ver Historial
+                        </button>
+                    </div>
+
                         
                         <div class="row">
                             <div class="col-md-6">
@@ -1144,6 +1164,750 @@
     }
         // Cargar inicial
         document.addEventListener('DOMContentLoaded', () => cargarProyectos());
+        // Función para mostrar el historial
+        function mostrarHistorial(idProyecto) {
+            const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+            const proyecto = proyectos.find(p => p.id_proyecto === idProyecto);
+            
+            if (!proyecto) {
+                Swal.fire('Error', 'Proyecto no encontrado', 'error');
+                return;
+            }
+
+            // Configurar modal
+            document.getElementById('historialModal').dataset.proyectoId = idProyecto;
+            
+            // Cargar datos iniciales (ventas)
+            cargarHistorialVentas(idProyecto);
+            
+            // Mostrar modal
+            new bootstrap.Modal(document.getElementById('historialModal')).show();
+        }
+        // Función auxiliar para obtener valores anidados
+        function getNestedValue(obj, path) {
+            try {
+                return path.split('.').reduce((o, p) => o[p], obj);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Función para cargar historial de ventas (versión corregida y verificada)
+        function cargarHistorialVentas(idProyecto) {
+            const historial = JSON.parse(localStorage.getItem('historialVentas') || []);
+            const ventasProyecto = historial.filter(v => v.proyectoId === idProyecto);
+            const tbody = document.querySelector('#tabla-ventas tbody');
+            tbody.innerHTML = '';
+
+            ventasProyecto.forEach(v => {
+                const campos = v.campos || {};
+                const porcentajeVentas = getNestedValue(campos, '% PORCENTAJE DE VENTAS (unidades).valor') || 0;
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${formatFecha(v.fechaCarga)}</td>
+                        <td>${v.usuario || 'N/A'}</td>
+                        <td>${getNestedValue(campos, 'FECHA INICIO DE VENTAS.valor') || 'N/A'}</td>
+                        <td>${getNestedValue(campos, 'INMUEBLES VENDIDOS (unidades).valor') || 0}</td>
+                        <td>${(porcentajeVentas * 100).toFixed(2)}%</td>
+                        <td>${formatCurrency(getNestedValue(campos, 'valor inmuebles vendidos.valor') || 0)}</td>
+                        <td>${formatCurrency(getNestedValue(campos, 'cartera RECAUDADA.valor') || 0)}</td>
+                    </tr>
+                `;
+            });
+
+            if (ventasProyecto.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay registros de ventas</td></tr>';
+            }
+        }
+
+       // Función para cargar historial de visitas (versión corregida y mejorada)
+        function cargarHistorialVisitas(idProyecto) {
+            try {
+                const historial = JSON.parse(localStorage.getItem('historialVisitas')) || [];
+                const visitasProyecto = historial.filter(v => v.proyectoId === idProyecto);
+                const tbody = document.querySelector('#tabla-visitas tbody');
+                tbody.innerHTML = '';
+
+                visitasProyecto.forEach(v => {
+                    const campos = v.campos || {};
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${formatFecha(getNestedValue(campos, 'FECHA VISITA.valor'))}</td>
+                            <td>${v.usuario || 'Usuario no registrado'}</td>
+                            <td>${getNestedValue(campos, 'NUMERO VISITA.valor') || 'N/A'}</td>
+                            <td>${getNestedValue(campos, 'AVANCE OBRA.valor') || 'N/A'}</td>
+                            <td>${(getNestedValue(campos, 'AVANCE ESPERADO PORCENTAJE.valor') || 0).toFixed(2)}%</td>
+                            <td>${getNestedValue(campos, 'ESTADO EJECUCIÓN OBRA.valor') || 'N/A'}</td>
+                            <td>${getNestedValue(campos, 'RESUMEN ALERTA DEL PROYECTO.valor') || 'Sin alertas'}</td>
+                        </tr>
+                    `;
+                });
+
+                if (visitasProyecto.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay registros de visitas</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error cargando historial de visitas:', error);
+                const tbody = document.querySelector('#tabla-visitas tbody');
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error al cargar los datos</td></tr>';
+            }
+        }
+
+        // Función para cargar historial de desembolsos (versión corregida y mejorada)
+        function cargarHistorialDesembolsos(idProyecto) {
+            try {
+                const historial = JSON.parse(localStorage.getItem('historialDesembolsos')) || [];
+                const desembolsosProyecto = historial.filter(d => d.proyectoId === idProyecto);
+                const tbody = document.querySelector('#tabla-desembolsos tbody');
+                tbody.innerHTML = '';
+
+                desembolsosProyecto.forEach(d => {
+                    const campos = d.campos || {};
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${formatFecha(d.fechaCarga)}</td>
+                            <td>${d.usuario || 'Usuario no registrado'}</td>
+                            <td>${formatCurrency(campos.valorEntregado || 0)}</td>
+                            <td>${formatCurrency(campos.valorPorEntregar || 0)}</td>
+                            <td>${(campos.cobertura || 0).toFixed(2)}%</td>
+                            <td>${formatCurrency(campos.superavit || 0)}</td>
+                            <td>${campos.requiereVistoBueno ? 'Sí' : 'No'}</td>
+                        </tr>
+                    `;
+                });
+
+                if (desembolsosProyecto.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay registros de desembolsos</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error cargando historial de desembolsos:', error);
+                const tbody = document.querySelector('#tabla-desembolsos tbody');
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error al cargar los datos</td></tr>';
+            }
+        }
+
+        function formatFecha(valor) {
+            if (!valor) return 'N/A';
+            
+            try {
+                // Si es una cadena de fecha ISO
+                if (typeof valor === 'string' && valor.includes('T')) {
+                    const fecha = new Date(valor);
+                    return fecha.toLocaleDateString('es-CO');
+                }
+                
+                // Si es un objeto de fecha de Excel (timestamp serial)
+                if (typeof valor === 'number') {
+                    const fecha = new Date((valor - 25569) * 86400 * 1000);
+                    return fecha.toLocaleDateString('es-CO');
+                }
+                
+                // Si ya está formateado
+                return valor;
+            } catch (e) {
+                console.error('Error formateando fecha:', valor, e);
+                return 'Formato inválido';
+            }
+        }
+
+        function formatCurrency(value) {
+            if (isNaN(value)) return '$0';
+            return new Intl.NumberFormat('es-CO', {
+                style: 'currency',
+                currency: 'COP',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(value);
+        }
+
+        // Event listeners para los botones de historial
+        document.addEventListener('DOMContentLoaded', () => {
+            // Manejar clic en botones de tipo de historial
+            document.querySelectorAll('[data-tipo]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tipo = this.dataset.tipo;
+                    const proyectoId = document.getElementById('historialModal').dataset.proyectoId;
+                    
+                    // Actualizar botones activos
+                    document.querySelectorAll('[data-tipo]').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Ocultar todos los contenidos
+                    document.querySelectorAll('.historial-contenido').forEach(c => c.style.display = 'none');
+                    
+                    // Mostrar contenido seleccionado y cargar datos
+                    document.getElementById(`contenido-${tipo}`).style.display = 'block';
+                    
+                    switch(tipo) {
+                        case 'ventas':
+                            cargarHistorialVentas(proyectoId);
+                            break;
+                        case 'visitas':
+                            cargarHistorialVisitas(proyectoId);
+                            break;
+                        case 'desembolsos':
+                            cargarHistorialDesembolsos(proyectoId);
+                            break;
+                    }
+                });
+            });
+
+            document.getElementById('btn-export-pdf').addEventListener('click', function() {
+                const tipoActivo = document.querySelector('[data-tipo].active').dataset.tipo;
+                exportarAPDF(tipoActivo);
+            });
+        });
+        
+        let isGeneratingPDF = false;
+
+        async function exportarAPDF(tipo) {
+            if (isGeneratingPDF) return;
+            isGeneratingPDF = true;
+
+            try {
+                Swal.fire({
+                    title: 'Generando PDF',
+                    html: 'Preparando documento...',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading()
+                });
+
+                const modal = document.getElementById('historialModal');
+                const activeTabContent = modal.querySelector(`#contenido-${tipo}`);
+
+                if (!activeTabContent) {
+                    throw new Error(`No se encontró el contenido para ${tipo}`);
+                }
+
+                const contentClone = activeTabContent.cloneNode(true);
+
+                const elementsToHide = contentClone.querySelectorAll('.btn, .no-print');
+                elementsToHide.forEach(el => el.style.display = 'none');
+
+                const printStyles = `
+                    <style>
+                        * {
+                            box-sizing: border-box;
+                        }
+                        body {
+                            font-family: Arial, sans-serif;
+                            font-size: 11px;
+                            margin: 0;
+                            padding: 0;
+                        }
+                        .pdf-content {
+                            padding: 20px 45px 30px 55px; /* Aumentado el padding izquierdo a 55px */
+                            max-width: 100%;
+                            width: 100%;
+                        }
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-top: 15px;
+                            table-layout: fixed;
+                            word-wrap: break-word;
+                            font-size: 10px;
+                        }
+                        th, td {
+                            padding: 6px;
+                            border: 1px solid #ddd;
+                            text-align: left;
+                            word-break: break-word;
+                            font-size: 9.5px;
+                        }
+                        th {
+                            background-color: #004884;
+                            color: white;
+                        }
+                        .text-center {
+                            text-align: center;
+                        }
+                        .text-right {
+                            text-align: right;
+                        }
+                        h1 {
+                            color: #004884;
+                            text-align: center;
+                            margin-bottom: 5px;
+                            font-size: 16px;
+                        }
+                        h2 {
+                            text-align: center;
+                            margin-top: 0;
+                            margin-bottom: 15px;
+                            font-size: 14px;
+                        }
+                        .footer {
+                            text-align: right;
+                            margin-top: 30px;
+                            font-size: 0.8em;
+                            color: #666;
+                        }
+                    </style>
+                `;
+
+                const proyectoId = modal.dataset.proyectoId;
+                const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+                const proyecto = proyectos.find(p => p.id_proyecto === proyectoId) || {};
+
+                const header = `
+                    <h1>Historial de ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}</h1>
+                    <h2>${proyecto.nombre_proyecto || 'Proyecto no encontrado'}</h2>
+                `;
+
+                const footer = `
+                    <div class="footer">
+                        Generado el ${new Date().toLocaleDateString('es-CO', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })}
+                    </div>
+                `;
+
+                const pdfContainer = document.createElement('div');
+                pdfContainer.innerHTML = `
+                    ${printStyles}
+                    <div class="pdf-content">
+                        ${header}
+                        ${contentClone.innerHTML}
+                        ${footer}
+                    </div>
+                `;
+                document.body.appendChild(pdfContainer);
+
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                const options = {
+                    margin: 0,
+                    filename: `Historial_${tipo}_${proyecto.nombre_proyecto || 'proyecto'}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: {
+                        scale: 2,
+                        useCORS: true,
+                        allowTaint: true,
+                        scrollX: 0,
+                        scrollY: 0,
+                        windowWidth: 2000, // aumentamos mas el viewport simulado
+                        letterRendering: true
+                    },
+                    jsPDF: {
+                        unit: 'mm',
+                        format: [330, 216],
+                        orientation: 'landscape'
+                    }
+                };
+
+                await html2pdf().set(options).from(pdfContainer).save();
+
+                document.body.removeChild(pdfContainer);
+                Swal.close();
+
+            } catch (error) {
+                console.error('Error al generar PDF:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: `No se pudo generar el PDF: ${error.message}`
+                });
+            } finally {
+                isGeneratingPDF = false;
+            }
+        }
+        
+        // Event listener mejorado
+        document.addEventListener('DOMContentLoaded', function() {
+            const btnExportPdf = document.getElementById('btn-export-pdf');
+            
+            if (btnExportPdf) {
+                btnExportPdf.addEventListener('click', function() {
+                    const activeTab = document.querySelector('[data-tipo].active');
+                    if (activeTab) {
+                        exportarAPDF(activeTab.dataset.tipo);
+                    } else {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Seleccione una pestaña',
+                            text: 'Por favor active una pestaña (Ventas, Visitas o Desembolsos) antes de exportar'
+                        });
+                    }
+                });
+            }
+        });
+
+        // Función para generar contenido de ventas en PDF (síncrona ahora)
+        function generarContenidoVentasPDF(proyecto) {
+            try {
+                const historial = JSON.parse(localStorage.getItem('historialVentas')) || [];
+                const ventasProyecto = historial.filter(v => v.proyectoId === proyecto.id_proyecto);
+                
+                // Verificar si hay datos
+                if (ventasProyecto.length === 0) {
+                    return `
+                        <div style="font-family: Arial, sans-serif; padding: 20px;">
+                            <h1 style="text-align: center; color: #004884;">Historial de Ventas</h1>
+                            <h2 style="text-align: center;">${proyecto.nombre_proyecto}</h2>
+                            <p style="text-align: center; color: red; margin-top: 50px;">
+                                No hay datos de ventas disponibles para este proyecto
+                            </p>
+                            <p style="text-align: right; margin-top: 30px; font-size: 0.8em;">
+                                Generado el ${new Date().toLocaleDateString('es-CO', { 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </p>
+                        </div>
+                    `;
+                }
+
+                const rows = ventasProyecto.map(v => {
+                    const campos = v.campos || {};
+                    const fechaInicioVentas = campos['FECHA INICIO DE VENTAS']?.valor || campos['FECHA INICIO DE VENTAS'] || 'N/A';
+                    const inmueblesVendidos = campos['INMUEBLES VENDIDOS (unidades)']?.valor || campos['INMUEBLES VENDIDOS (unidades)'] || 0;
+                    const porcentajeVentas = campos['% PORCENTAJE DE VENTAS (unidades)']?.valor || campos['% PORCENTAJE DE VENTAS (unidades)'] || 0;
+                    const valorVendido = campos['valor inmuebles vendidos']?.valor || campos['valor inmuebles vendidos'] || 0;
+                    const carteraRecaudada = campos['cartera RECAUDADA']?.valor || campos['cartera RECAUDADA'] || 0;
+
+                    return `
+                        <tr>
+                            <td style="padding: 6px; border: 1px solid #ddd;">${formatFecha(v.fechaCarga)}</td>
+                            <td style="padding: 6px; border: 1px solid #ddd;">${v.usuario || 'N/A'}</td>
+                            <td style="padding: 6px; border: 1px solid #ddd;">${formatFecha(fechaInicioVentas)}</td>
+                            <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${inmueblesVendidos}</td>
+                            <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${(porcentajeVentas * 100).toFixed(2)}%</td>
+                            <td style="padding: 6px; border: 1px solid #ddd; text-align: right;">${formatCurrency(valorVendido)}</td>
+                            <td style="padding: 6px; border: 1px solid #ddd; text-align: right;">${formatCurrency(carteraRecaudada)}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                return `
+                    <div style="font-family: Arial, sans-serif; padding: 20px; width: 100%;">
+                        <h1 style="text-align: center; color: #004884;">Historial de Ventas</h1>
+                        <h2 style="text-align: center;">${proyecto.nombre_proyecto}</h2>
+                        <p style="text-align: center;">${proyecto.direccion || ''}</p>
+                        
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            <thead>
+                                <tr style="background-color: #004884; color: white;">
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Fecha Carga</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Usuario</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Inicio Ventas</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Inmuebles Vendidos</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">% Ventas</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Valor Vendido</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Cartera Recaudada</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows}
+                            </tbody>
+                        </table>
+                        
+                        <p style="text-align: right; margin-top: 30px; font-size: 0.8em;">
+                            Generado el ${new Date().toLocaleDateString('es-CO', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            })}
+                        </p>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error generando contenido de ventas:', error);
+                return generarErrorPDF('ventas', error.message);
+            }
+        }
+
+        // Función para generar contenido de visitas en PDF (síncrona ahora)
+        function generarContenidoVisitasPDF(proyecto) {
+            try {
+                const historial = JSON.parse(localStorage.getItem('historialVisitas')) || [];
+                const visitasProyecto = historial.filter(v => v.proyectoId === proyecto.id_proyecto);
+                
+                // Verificar si hay datos
+                if (visitasProyecto.length === 0) {
+                    return `
+                        <div style="font-family: Arial, sans-serif; padding: 20px;">
+                            <h1 style="text-align: center; color: #004884;">Historial de Visitas</h1>
+                            <h2 style="text-align: center;">${proyecto.nombre_proyecto}</h2>
+                            <p style="text-align: center; color: red; margin-top: 50px;">
+                                No hay datos de visitas disponibles para este proyecto
+                            </p>
+                            <p style="text-align: right; margin-top: 30px; font-size: 0.8em;">
+                                Generado el ${new Date().toLocaleDateString('es-CO', { 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </p>
+                        </div>
+                    `;
+                }
+
+                const rows = visitasProyecto.map(v => {
+                    const campos = v.campos || {};
+                    const fechaVisita = campos['FECHA VISITA']?.valor || campos['FECHA VISITA'] || 'N/A';
+                    const numeroVisita = campos['NUMERO VISITA']?.valor || campos['NUMERO VISITA'] || 'N/A';
+                    const avanceObra = campos['AVANCE OBRA']?.valor || campos['AVANCE OBRA'] || 'N/A';
+                    const avanceEsperado = campos['AVANCE ESPERADO PORCENTAJE']?.valor || campos['AVANCE ESPERADO PORCENTAJE'] || 0;
+                    const estadoObra = campos['ESTADO EJECUCIÓN OBRA']?.valor || campos['ESTADO EJECUCIÓN OBRA'] || 'N/A';
+                    const alertas = campos['RESUMEN ALERTA DEL PROYECTO']?.valor || campos['RESUMEN ALERTA DEL PROYECTO'] || 'Sin alertas';
+
+                    return `
+                        <tr>
+                            <td style="padding: 6px; border: 1px solid #ddd;">${formatFecha(fechaVisita)}</td>
+                            <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${numeroVisita}</td>
+                            <td style="padding: 6px; border: 1px solid #ddd;">${v.usuario || 'N/A'}</td>
+                            <td style="padding: 6px; border: 1px solid #ddd;">${avanceObra}</td>
+                            <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${avanceEsperado.toFixed(2)}%</td>
+                            <td style="padding: 6px; border: 1px solid #ddd;">${estadoObra}</td>
+                            <td style="padding: 6px; border: 1px solid #ddd;">${alertas}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                return `
+                    <div style="font-family: Arial, sans-serif; padding: 20px; width: 100%;">
+                        <h1 style="text-align: center; color: #004884;">Historial de Visitas</h1>
+                        <h2 style="text-align: center;">${proyecto.nombre_proyecto}</h2>
+                        <p style="text-align: center;">${proyecto.direccion || ''}</p>
+                        
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            <thead>
+                                <tr style="background-color: #004884; color: white;">
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Fecha Visita</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">N° Visita</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Usuario</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Avance Obra</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">% Ejecución</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Estado Obra</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Alertas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows}
+                            </tbody>
+                        </table>
+                        
+                        <p style="text-align: right; margin-top: 30px; font-size: 0.8em;">
+                            Generado el ${new Date().toLocaleDateString('es-CO', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            })}
+                        </p>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error generando contenido de visitas:', error);
+                return generarErrorPDF('visitas', error.message);
+            }
+        }
+
+        // Función para generar contenido de desembolsos en PDF (síncrona ahora)
+        function generarContenidoDesembolsosPDF(proyecto) {
+            try {
+                const historial = JSON.parse(localStorage.getItem('historialDesembolsos')) || [];
+                const desembolsosProyecto = historial.filter(d => d.proyectoId === proyecto.id_proyecto);
+                
+                // Verificar si hay datos
+                if (desembolsosProyecto.length === 0) {
+                    return `
+                        <div style="font-family: Arial, sans-serif; padding: 20px;">
+                            <h1 style="text-align: center; color: #004884;">Historial de Desembolsos</h1>
+                            <h2 style="text-align: center;">${proyecto.nombre_proyecto}</h2>
+                            <p style="text-align: center; color: red; margin-top: 50px;">
+                                No hay datos de desembolsos disponibles para este proyecto
+                            </p>
+                            <p style="text-align: right; margin-top: 30px; font-size: 0.8em;">
+                                Generado el ${new Date().toLocaleDateString('es-CO', { 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </p>
+                        </div>
+                    `;
+                }
+
+                const rows = desembolsosProyecto.map(d => {
+                    const campos = d.campos || {};
+                    const valorEntregado = campos.valorEntregado || 0;
+                    const valorPorEntregar = campos.valorPorEntregar || 0;
+                    const cobertura = campos.cobertura || 0;
+                    const superavit = campos.superavit || 0;
+                    const requiereVistoBueno = campos.requiereVistoBueno ? 'Sí' : 'No';
+
+                    return `
+                        <tr>
+                            <td style="padding: 6px; border: 1px solid #ddd;">${formatFecha(d.fechaCarga)}</td>
+                            <td style="padding: 6px; border: 1px solid #ddd;">${d.usuario || 'N/A'}</td>
+                            <td style="padding: 6px; border: 1px solid #ddd; text-align: right;">${formatCurrency(valorEntregado)}</td>
+                            <td style="padding: 6px; border: 1px solid #ddd; text-align: right;">${formatCurrency(valorPorEntregar)}</td>
+                            <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${cobertura.toFixed(2)}%</td>
+                            <td style="padding: 6px; border: 1px solid #ddd; text-align: right;">${formatCurrency(superavit)}</td>
+                            <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${requiereVistoBueno}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                return `
+                    <div style="font-family: Arial, sans-serif; padding: 20px; width: 100%;">
+                        <h1 style="text-align: center; color: #004884;">Historial de Desembolsos</h1>
+                        <h2 style="text-align: center;">${proyecto.nombre_proyecto}</h2>
+                        <p style="text-align: center;">${proyecto.direccion || ''}</p>
+                        
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            <thead>
+                                <tr style="background-color: #004884; color: white;">
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Fecha</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Usuario</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Valor Entregado</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Valor por Entregar</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Cobertura</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Superávit</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Visto Bueno</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows}
+                            </tbody>
+                        </table>
+                        
+                        <p style="text-align: right; margin-top: 30px; font-size: 0.8em;">
+                            Generado el ${new Date().toLocaleDateString('es-CO', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            })}
+                        </p>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error generando contenido de desembolsos:', error);
+                return generarErrorPDF('desembolsos', error.message);
+            }
+        }
+
+        // Función para generar PDF de error
+        function generarErrorPDF(tipo, mensajeError) {
+            return `
+                <div style="font-family: Arial, sans-serif; padding: 20px; color: red;">
+                    <h1 style="text-align: center;">Error al generar el reporte de ${tipo}</h1>
+                    <h2 style="text-align: center;">Detalles del error:</h2>
+                    <p style="text-align: center; margin-top: 30px;">${mensajeError}</p>
+                    <p style="text-align: right; margin-top: 50px; font-size: 0.8em;">
+                        Generado el ${new Date().toLocaleDateString('es-CO', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })}
+                    </p>
+                </div>
+            `;
+        }
+
+        // Función para formatear fechas
+        function formatFecha(valor) {
+            if (!valor) return 'N/A';
+            
+            try {
+                // Si es una cadena de fecha ISO
+                if (typeof valor === 'string' && valor.includes('T')) {
+                    const fecha = new Date(valor);
+                    return fecha.toLocaleDateString('es-CO', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    });
+                }
+                
+                // Si es un objeto de fecha de Excel (timestamp serial)
+                if (typeof valor === 'number') {
+                    const fecha = new Date((valor - 25569) * 86400 * 1000);
+                    return fecha.toLocaleDateString('es-CO', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    });
+                }
+                
+                // Si ya está formateado
+                return valor;
+            } catch (e) {
+                console.error('Error formateando fecha:', valor, e);
+                return 'Formato inválido';
+            }
+        }
+
+        // Función para formatear moneda
+        function formatCurrency(value) {
+            if (isNaN(value)) return '$0';
+            return new Intl.NumberFormat('es-CO', {
+                style: 'currency',
+                currency: 'COP',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(value);
+        }
+
+        // Event listener mejorado para el botón de exportar PDF
+        document.addEventListener('DOMContentLoaded', function() {
+            const btnExportPdf = document.getElementById('btn-export-pdf');
+            if (btnExportPdf) {
+                btnExportPdf.addEventListener('click', function() {
+                    const tipoActivo = document.querySelector('[data-tipo].active');
+                    if (tipoActivo) {
+                        exportarAPDF(tipoActivo.dataset.tipo);
+                    } else {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Seleccione un tipo',
+                            text: 'Por favor seleccione un tipo de historial (ventas, visitas o desembolsos) antes de exportar'
+                        });
+                    }
+                });
+            } else {
+                console.error('El botón btn-export-pdf no fue encontrado en el DOM');
+            }
+        });
+        // Event listener para el botón de exportar PDF
+        document.addEventListener('DOMContentLoaded', function() {
+            const btnExportPdf = document.getElementById('btn-export-pdf');
+            if (btnExportPdf) {
+                btnExportPdf.addEventListener('click', function() {
+                    const tipoActivo = document.querySelector('[data-tipo].active');
+                    if (tipoActivo) {
+                        exportarAPDF(tipoActivo.dataset.tipo);
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Por favor seleccione un tipo de historial primero'
+                        });
+                    }
+                });
+            }
+        });
     </script>
     <!-- Modal Detalles -->
     <div class="modal fade" id="detalleModal" tabindex="-1">
@@ -1354,6 +2118,89 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary" onclick="guardarGestion()">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Modal Historial -->
+    <div class="modal fade" id="historialModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Historial del Proyecto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-4">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-primary active" data-tipo="ventas">Ventas</button>
+                            <button type="button" class="btn btn-outline-primary" data-tipo="visitas">Visitas</button>
+                            <button type="button" class="btn btn-outline-primary" data-tipo="desembolsos">Desembolsos</button>
+                        </div>
+                        <button id="btn-export-pdf" class="btn btn-success float-end">
+                            <i class="fas fa-file-pdf me-2"></i>Exportar a PDF
+                        </button>
+                    </div>
+                    
+                    <div id="contenido-ventas" class="historial-contenido">
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="tabla-ventas">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Fecha Carga</th>
+                                        <th>Usuario</th>
+                                        <th>Inicio Ventas</th>
+                                        <th>Inmuebles Vendidos</th>
+                                        <th>% Ventas (Unidades)</th>
+                                        <th>Valor Vendido</th>
+                                        <th>Cartera Recaudada</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div id="contenido-visitas" class="historial-contenido" style="display:none;">
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="tabla-visitas">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Fecha Visita</th>
+                                        <th>Usuario</th>
+                                        <th>N° Visita</th>
+                                        <th>Avance Obra</th>
+                                        <th>% Ejecución</th>
+                                        <th>Estado Obra</th>
+                                        <th>Alertas</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div id="contenido-desembolsos" class="historial-contenido" style="display:none;">
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="tabla-desembolsos">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Usuario</th>
+                                        <th>Valor Entregado</th>
+                                        <th>Valor por Entregar</th>
+                                        <th>Cobertura</th>
+                                        <th>Superávit</th>
+                                        <th>Requiere Visto Bueno</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                 </div>
             </div>
         </div>
