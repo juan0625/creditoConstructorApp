@@ -323,7 +323,7 @@
                                 <div class="card-list-item">Ficha de proyecto</div>
                             </div>
                             <div class="btn-group">
-                                <a href="{{ url_for('consulta_proyectos') }}" class="btn btn-primary">Acceder</a>
+                                <a href="{{ url_for('consulta_proyectos') }}" class="btn btn-primary">Consulta</a>
                                 <a href="{{ url_for('crear_proyecto') }}" class="btn btn-success">
                                     {% if session.usuario.rol == 'auxiliar' %}
                                         Continuar proceso

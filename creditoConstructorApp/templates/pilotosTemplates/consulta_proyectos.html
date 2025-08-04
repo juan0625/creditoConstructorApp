@@ -72,11 +72,26 @@
         .resultados-table {
             margin-top: 30px;
         }
+
+        .resultados-table table {
+            font-size: 0.85rem; /* Reduce solo el tamaño de letra */
+        }
         
         .resultados-table th {
             background-color: var(--bancolombia-blue);
             color: white;
         }
+
+        .resultados-table td {
+            white-space: nowrap; /* Evita saltos de línea */
+            padding: 8px 12px; /* Padding más compacto */
+        }
+
+        .table-responsive {
+            overflow-y: visible !important; 
+            max-height: none !important;
+        }
+
         .footer {
             background-color: var(--bancolombia-blue);
             color: white;
@@ -272,6 +287,71 @@
         #btn-export-pdf {
             margin-left: 10px;
         }
+
+        /* Fix definitivo para modal bloqueado */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1060;
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+            outline: 0;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1040;
+            width: 100vw;
+            height: 100vh;
+            background-color: #000;
+            opacity: 0.5;
+        }
+
+        .modal-content {
+            position: relative;
+            z-index: 1060;
+        }
+
+        /* Estilos para la tabla */
+        #lista-desembolsos .badge {
+            font-size: 0.85em;
+            padding: 0.35em 0.65em;
+        }
+
+        /* Fix definitivo para modal */
+        #modalDesembolsos.modal {
+            z-index: 1060 !important;
+        }
+
+        #modalDesembolsos .modal-dialog {
+            z-index: 1061 !important;
+        }
+
+        #modalDesembolsos .modal-content {
+            z-index: 1062 !important;
+        }
+
+        /* Asegurar que el body no se desplace */
+        body.modal-open {
+            overflow: hidden;
+            padding-right: 0 !important;
+        }
+
+        /* Estilos para la tabla */
+        #modalDesembolsos .table-dark {
+            background-color: var(--bancolombia-dark-gray);
+        }
+
+        #modalDesembolsos .badge {
+            font-size: 0.85em;
+            padding: 0.35em 0.65em;
+        }
+
     </style>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
@@ -279,6 +359,8 @@
         const USUARIO_ROL = '{{ session.usuario.rol }}';
     </script>
     <link rel="shortcut icon" href="{{ url_for('static', filename='LogoBancolombia.ico') }}">
+     <!-- Bootstrap JS -->
+     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
@@ -324,7 +406,11 @@
                             <div class="card-body">
                                 <h5 class="card-title text-bancolombia">Datos Generales</h5>
                                 <div class="mb-3">
-                                    <label class="form-label">Proyecto</label>
+                                    <label class="form-label">ID Proyecto</label>
+                                    <input type="text" class="form-control" name="id" id="id_proyecto">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Nombre Proyecto</label>
                                     <input type="text" class="form-control" name="proyecto">
                                 </div>
                                 <div class="mb-3">
@@ -400,27 +486,59 @@
                         </div>
                     </div>
                     
-                    <!-- Filtro 4: Desembolsos -->
-                    <div class="col-md-6">
-                        <div class="card filtro-card">
-                            <div class="card-body">
-                                <h5 class="card-title text-bancolombia">Desembolsos</h5>
-                                <div class="mb-3">
-                                    <label class="form-label">Monto Min.</label>
-                                    <input type="number" class="form-control" name="monto_min">
+                <!-- Filtro 4: Desembolsos - Versión modificada -->
+                <div class="col-md-6">
+                    <div class="card filtro-card">
+                        <div class="card-body">
+                            <h5 class="card-title text-bancolombia">Desembolsos</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Fecha Desde</label>
+                                <input type="date" class="form-control" name="fecha_desde">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Fecha Hasta</label>
+                                <input type="date" class="form-control" name="fecha_hasta">
+                            </div>
+                            <button class="btn btn-bancolombia w-100" id="btn-ver-desembolsos">
+                                <i class="fas fa-search me-2"></i>Ver Desembolsos
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+               <!-- Modal para Desembolsos -->
+                <div class="modal fade" id="modalDesembolsos" tabindex="-1" aria-labelledby="modalDesembolsosLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title" id="modalDesembolsosLabel">Historial de Desembolsos</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <h6 id="titulo-proyecto" class="mb-3 text-primary"></h6>
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Fecha</th>
+                                                <th>Monto</th>
+                                                <th>Concepto</th>
+                                                <th>Estado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="lista-desembolsos">
+                                            <!-- Datos dinámicos -->
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Monto Max.</label>
-                                    <input type="number" class="form-control" name="monto_max">
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Fecha Desde</label>
-                                    <input type="date" class="form-control" name="fecha_desde">
-                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
                             </div>
                         </div>
                     </div>
                 </div>
+
                 
                 <!-- Botones -->
                 <div class="d-flex justify-content-end mt-4">
@@ -478,13 +596,160 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- Script para manejar la búsqueda -->
 
     <script>
-        
+        document.getElementById('btn-ver-desembolsos').addEventListener('click', function() {
+            // Obtener ID del proyecto ingresado
+            const idProyecto = document.getElementById('id_proyecto').value.trim();
+            
+            if (!idProyecto) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Campo requerido',
+                    text: 'Debe ingresar el ID del proyecto para buscar desembolsos'
+                });
+                return;
+            }
+
+            // 1. Buscar el proyecto en localStorage para verificar que existe
+            const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+            const proyecto = proyectos.find(p => p.id_proyecto === idProyecto);
+            
+            if (!proyecto) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Proyecto no encontrado',
+                    text: `No existe un proyecto con ID: ${idProyecto}`
+                });
+                return;
+            }
+
+            // 2. Obtener desembolsos del proyecto (usando datos de prueba por ahora)
+            const desembolsos = [
+                { 
+                    fecha: "2023-10-15", 
+                    monto: "15,000,000", 
+                    concepto: "Pago fase 1", 
+                    estado: "Aprobado",
+                    proyectoId: idProyecto
+                },
+                { 
+                    fecha: "2023-08-20", 
+                    monto: "10,000,000", 
+                    concepto: "Materiales", 
+                    estado: "Aprobado",
+                    proyectoId: idProyecto
+                },
+                { 
+                    fecha: "2023-05-10", 
+                    monto: "8,000,000", 
+                    concepto: "Honorarios", 
+                    estado: "Rechazado",
+                    proyectoId: idProyecto
+                },
+                { 
+                    fecha: "2023-04-05", 
+                    monto: "12,000,000", 
+                    concepto: "Materiales fase 2", 
+                    estado: "Aprobado",
+                    proyectoId: idProyecto
+                }
+            ];
+
+            // 3. Obtener las fechas desde y hasta
+            const fechaDesde = document.querySelector('input[name="fecha_desde"]').value;
+            const fechaHasta = document.querySelector('input[name="fecha_hasta"]').value;
+
+            // 4. Validación de que la fecha "Hasta" no sea menor que la fecha "Desde"
+            if (fechaDesde && fechaHasta && new Date(fechaHasta) < new Date(fechaDesde)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Fecha inválida',
+                    text: 'La fecha "Hasta" no puede ser menor que la fecha "Desde".'
+                });
+                return; // No continuar con la lógica si las fechas son inválidas
+            }
+
+            // 5. Filtrar los desembolsos según las fechas y el estado
+            let desembolsosFiltrados = desembolsos
+                .filter(d => d.proyectoId === idProyecto && d.estado === "Aprobado");
+
+            // Filtrar por fecha desde si se ha ingresado
+            if (fechaDesde) {
+                desembolsosFiltrados = desembolsosFiltrados.filter(d => new Date(d.fecha) >= new Date(fechaDesde));
+            }
+
+            // Filtrar por fecha hasta si se ha ingresado
+            if (fechaHasta) {
+                desembolsosFiltrados = desembolsosFiltrados.filter(d => new Date(d.fecha) <= new Date(fechaHasta));
+            }
+
+            // Ordenar por fecha de manera descendente
+            desembolsosFiltrados = desembolsosFiltrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+            // 6. Mostrar los datos en el modal
+            const lista = document.getElementById('lista-desembolsos');
+            
+            if (desembolsosFiltrados.length === 0) {
+                lista.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center">No hay desembolsos aprobados para este proyecto, en ese rango de fechas que incluiste.</td>
+                    </tr>
+                `;
+            } else {
+                lista.innerHTML = desembolsosFiltrados.map(desembolso => `
+                    <tr>
+                        <td>${desembolso.fecha}</td>
+                        <td>$${desembolso.monto}</td>
+                        <td>${desembolso.concepto}</td>
+                        <td><span class="badge bg-success">${desembolso.estado}</span></td>
+                    </tr>
+                `).join('');
+            }
+
+            // 7. Establecer título del proyecto
+            document.getElementById('titulo-proyecto').textContent = `Proyecto: ${proyecto.nombre_proyecto || 'Sin nombre'} (ID: ${idProyecto})`;
+
+            // 8. Solución definitiva para el modal
+            const modalEl = document.getElementById('modalDesembolsos');
+            
+            // Destruir cualquier instancia previa
+            const existingModal = bootstrap.Modal.getInstance(modalEl);
+            if (existingModal) {
+                existingModal.dispose();
+            }
+            
+            // Crear nueva instancia con configuración adecuada
+            const modal = new bootstrap.Modal(modalEl, {
+                backdrop: true,  // Permite cerrar haciendo click fuera
+                keyboard: true,  // Permite cerrar con ESC
+                focus: true      // Enfoca el modal al mostrarse
+            });
+            
+            // Mostrar el modal
+            modal.show();
+            
+            // Fix para backdrop (asegura que no bloquee)
+            modalEl.addEventListener('shown.bs.modal', function() {
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) {
+                    backdrop.style.zIndex = '1050';
+                    backdrop.style.pointerEvents = 'none';
+                }
+            });
+            
+            // Configurar cierre correctamente
+            const closeButtons = modalEl.querySelectorAll('[data-bs-dismiss="modal"]');
+            closeButtons.forEach(btn => {
+                btn.onclick = function() {
+                    modal.hide();
+                };
+            });
+        });
+
+
         // Función de formato de fecha mejorada
         function formatFecha(valor) {
             try {
@@ -595,7 +860,7 @@
                         <button class="btn btn-accion btn-accion-secondary"
                                 onclick="editarProyecto('${p.id_proyecto}')"
                                 data-bs-toggle="tooltip" title="Editar proyecto">
-                            <i class="fas fa-edit"></i> Editar
+                            <i class="fas fa-edit"></i> Editar Grupo
                         </button>
                         <div class="dropdown">
                             <button class="btn btn-accion btn-accion-secondary"
@@ -1162,11 +1427,151 @@
             Swal.fire('Error', 'No se pudieron guardar los cambios', 'error');
         }
     }
-        // Cargar inicial
-        document.addEventListener('DOMContentLoaded', () => cargarProyectos());
-        // Función para mostrar el historial
-        function mostrarHistorial(idProyecto) {
-            const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+       // Funciones de utilidad (globales)
+    function formatFecha(valor) {
+        if (!valor) return 'N/A';
+        try {
+            if (typeof valor === 'string' && valor.includes('T')) {
+                return new Date(valor).toLocaleDateString('es-CO');
+            }
+            if (typeof valor === 'number') {
+                return new Date((valor - 25569) * 86400 * 1000).toLocaleDateString('es-CO');
+            }
+            return valor;
+        } catch (e) {
+            console.error('Error formateando fecha:', valor, e);
+            return 'Formato inválido';
+        }
+    }
+
+    function formatCurrency(value) {
+        if (isNaN(value)) return '$0';
+        return new Intl.NumberFormat('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(value);
+    }
+
+    function getNestedValue(obj, path) {
+        try {
+            return path.split('.').reduce((o, p) => o[p], obj);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Funciones de historial
+    function cargarHistorialVentas(idProyecto) {
+        try {
+            const historial = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+            const ventasProyecto = historial.filter(v => v.proyectoId === idProyecto);
+            const tbody = document.querySelector('#tabla-ventas tbody');
+            tbody.innerHTML = '';
+
+            if (ventasProyecto.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay registros de ventas</td></tr>';
+                return;
+            }
+
+            ventasProyecto.forEach(v => {
+                const campos = v.campos || {};
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${formatFecha(v.fechaCarga)}</td>
+                        <td>${v.usuario || 'N/A'}</td>
+                        <td>${getNestedValue(campos, 'FECHA INICIO DE VENTAS.valor') || 'N/A'}</td>
+                        <td>${getNestedValue(campos, 'INMUEBLES VENDIDOS (unidades).valor') || 0}</td>
+                        <td>${(getNestedValue(campos, '% PORCENTAJE DE VENTAS (unidades).valor') || 0 * 100).toFixed(2)}%</td>
+                        <td>${formatCurrency(getNestedValue(campos, 'valor inmuebles vendidos.valor') || 0)}</td>
+                        <td>${formatCurrency(getNestedValue(campos, 'cartera RECAUDADA.valor') || 0)}</td>
+                    </tr>
+                `;
+            });
+        } catch (error) {
+            console.error('Error cargando ventas:', error);
+            const tbody = document.querySelector('#tabla-ventas tbody');
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error al cargar ventas</td></tr>';
+        }
+    }
+
+    // Función mejorada para cargar historial de visitas
+    function cargarHistorialVisitas(idProyecto) {
+        try {
+            // Obtener datos del localStorage con valor por defecto seguro
+            const historialData = localStorage.getItem('historialVisitas') || '[]';
+            const historial = JSON.parse(historialData);
+            
+            const visitasProyecto = Array.isArray(historial) ? 
+                historial.filter(v => v.proyectoId === idProyecto) : [];
+                
+            const tbody = document.querySelector('#tabla-visitas tbody');
+            tbody.innerHTML = '';
+
+            if (visitasProyecto.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay registros de visitas</td></tr>';
+                return;
+            }
+
+            visitasProyecto.forEach(v => {
+                const campos = v.campos || {};
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${formatFecha(getNestedValue(campos, 'FECHA VISITA.valor'))}</td>
+                        <td>${v.usuario || 'N/A'}</td>
+                        <td>${getNestedValue(campos, 'NUMERO VISITA.valor') || 'N/A'}</td>
+                        <td>${getNestedValue(campos, 'AVANCE OBRA.valor') || 'N/A'}</td>
+                        <td>${(getNestedValue(campos, 'AVANCE ESPERADO PORCENTAJE.valor') || 0).toFixed(2)}%</td>
+                        <td>${getNestedValue(campos, 'ESTADO EJECUCIÓN OBRA.valor') || 'N/A'}</td>
+                        <td>${getNestedValue(campos, 'RESUMEN ALERTA DEL PROYECTO.valor') || 'Sin alertas'}</td>
+                    </tr>
+                `;
+            });
+        } catch (error) {
+            console.error('Error cargando visitas:', error);
+            const tbody = document.querySelector('#tabla-visitas tbody');
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error al cargar los datos de visitas</td></tr>';
+        }
+    }
+
+    function cargarHistorialDesembolsos(idProyecto) {
+        try {
+            const historial = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]');
+            const desembolsosProyecto = historial.filter(d => d.proyectoId === idProyecto);
+            const tbody = document.querySelector('#tabla-desembolsos tbody');
+            tbody.innerHTML = '';
+
+            if (desembolsosProyecto.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay registros de desembolsos</td></tr>';
+                return;
+            }
+
+            desembolsosProyecto.forEach(d => {
+                const campos = d.campos || {};
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${formatFecha(d.fechaCarga)}</td>
+                        <td>${d.usuario || 'N/A'}</td>
+                        <td>${formatCurrency(campos.valorEntregado || 0)}</td>
+                        <td>${formatCurrency(campos.valorPorEntregar || 0)}</td>
+                        <td>${(campos.cobertura || 0).toFixed(2)}%</td>
+                        <td>${formatCurrency(campos.superavit || 0)}</td>
+                        <td>${campos.requiereVistoBueno ? 'Sí' : 'No'}</td>
+                    </tr>
+                `;
+            });
+        } catch (error) {
+            console.error('Error cargando desembolsos:', error);
+            const tbody = document.querySelector('#tabla-desembolsos tbody');
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error al cargar desembolsos</td></tr>';
+        }
+    }
+
+    // Función mejorada para mostrar el historial
+    function mostrarHistorial(idProyecto) {
+        try {
+            const proyectos = JSON.parse(localStorage.getItem('proyectos') || '[]');
             const proyecto = proyectos.find(p => p.id_proyecto === idProyecto);
             
             if (!proyecto) {
@@ -1174,190 +1579,91 @@
                 return;
             }
 
-            // Configurar modal
-            document.getElementById('historialModal').dataset.proyectoId = idProyecto;
+            const modal = document.getElementById('historialModal');
+            modal.dataset.proyectoId = idProyecto;
             
-            // Cargar datos iniciales (ventas)
-            cargarHistorialVentas(idProyecto);
+            // Verificar si todos los historiales están vacíos
+            const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+            const historialVisitas = JSON.parse(localStorage.getItem('historialVisitas') || '[]');
+            const historialDesembolsos = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]');
             
-            // Mostrar modal
-            new bootstrap.Modal(document.getElementById('historialModal')).show();
-        }
-        // Función auxiliar para obtener valores anidados
-        function getNestedValue(obj, path) {
-            try {
-                return path.split('.').reduce((o, p) => o[p], obj);
-            } catch (e) {
-                return null;
-            }
-        }
-
-        // Función para cargar historial de ventas (versión corregida y verificada)
-        function cargarHistorialVentas(idProyecto) {
-            const historial = JSON.parse(localStorage.getItem('historialVentas') || []);
-            const ventasProyecto = historial.filter(v => v.proyectoId === idProyecto);
-            const tbody = document.querySelector('#tabla-ventas tbody');
-            tbody.innerHTML = '';
-
-            ventasProyecto.forEach(v => {
-                const campos = v.campos || {};
-                const porcentajeVentas = getNestedValue(campos, '% PORCENTAJE DE VENTAS (unidades).valor') || 0;
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${formatFecha(v.fechaCarga)}</td>
-                        <td>${v.usuario || 'N/A'}</td>
-                        <td>${getNestedValue(campos, 'FECHA INICIO DE VENTAS.valor') || 'N/A'}</td>
-                        <td>${getNestedValue(campos, 'INMUEBLES VENDIDOS (unidades).valor') || 0}</td>
-                        <td>${(porcentajeVentas * 100).toFixed(2)}%</td>
-                        <td>${formatCurrency(getNestedValue(campos, 'valor inmuebles vendidos.valor') || 0)}</td>
-                        <td>${formatCurrency(getNestedValue(campos, 'cartera RECAUDADA.valor') || 0)}</td>
-                    </tr>
-                `;
-            });
-
-            if (ventasProyecto.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay registros de ventas</td></tr>';
-            }
-        }
-
-       // Función para cargar historial de visitas (versión corregida y mejorada)
-        function cargarHistorialVisitas(idProyecto) {
-            try {
-                const historial = JSON.parse(localStorage.getItem('historialVisitas')) || [];
-                const visitasProyecto = historial.filter(v => v.proyectoId === idProyecto);
-                const tbody = document.querySelector('#tabla-visitas tbody');
-                tbody.innerHTML = '';
-
-                visitasProyecto.forEach(v => {
-                    const campos = v.campos || {};
-                    tbody.innerHTML += `
-                        <tr>
-                            <td>${formatFecha(getNestedValue(campos, 'FECHA VISITA.valor'))}</td>
-                            <td>${v.usuario || 'Usuario no registrado'}</td>
-                            <td>${getNestedValue(campos, 'NUMERO VISITA.valor') || 'N/A'}</td>
-                            <td>${getNestedValue(campos, 'AVANCE OBRA.valor') || 'N/A'}</td>
-                            <td>${(getNestedValue(campos, 'AVANCE ESPERADO PORCENTAJE.valor') || 0).toFixed(2)}%</td>
-                            <td>${getNestedValue(campos, 'ESTADO EJECUCIÓN OBRA.valor') || 'N/A'}</td>
-                            <td>${getNestedValue(campos, 'RESUMEN ALERTA DEL PROYECTO.valor') || 'Sin alertas'}</td>
-                        </tr>
-                    `;
-                });
-
-                if (visitasProyecto.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay registros de visitas</td></tr>';
-                }
-            } catch (error) {
-                console.error('Error cargando historial de visitas:', error);
-                const tbody = document.querySelector('#tabla-visitas tbody');
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error al cargar los datos</td></tr>';
-            }
-        }
-
-        // Función para cargar historial de desembolsos (versión corregida y mejorada)
-        function cargarHistorialDesembolsos(idProyecto) {
-            try {
-                const historial = JSON.parse(localStorage.getItem('historialDesembolsos')) || [];
-                const desembolsosProyecto = historial.filter(d => d.proyectoId === idProyecto);
-                const tbody = document.querySelector('#tabla-desembolsos tbody');
-                tbody.innerHTML = '';
-
-                desembolsosProyecto.forEach(d => {
-                    const campos = d.campos || {};
-                    tbody.innerHTML += `
-                        <tr>
-                            <td>${formatFecha(d.fechaCarga)}</td>
-                            <td>${d.usuario || 'Usuario no registrado'}</td>
-                            <td>${formatCurrency(campos.valorEntregado || 0)}</td>
-                            <td>${formatCurrency(campos.valorPorEntregar || 0)}</td>
-                            <td>${(campos.cobertura || 0).toFixed(2)}%</td>
-                            <td>${formatCurrency(campos.superavit || 0)}</td>
-                            <td>${campos.requiereVistoBueno ? 'Sí' : 'No'}</td>
-                        </tr>
-                    `;
-                });
-
-                if (desembolsosProyecto.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay registros de desembolsos</td></tr>';
-                }
-            } catch (error) {
-                console.error('Error cargando historial de desembolsos:', error);
-                const tbody = document.querySelector('#tabla-desembolsos tbody');
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error al cargar los datos</td></tr>';
-            }
-        }
-
-        function formatFecha(valor) {
-            if (!valor) return 'N/A';
+            const tieneVentas = historialVentas.some(v => v.proyectoId === idProyecto);
+            const tieneVisitas = historialVisitas.some(v => v.proyectoId === idProyecto);
+            const tieneDesembolsos = historialDesembolsos.some(d => d.proyectoId === idProyecto);
             
-            try {
-                // Si es una cadena de fecha ISO
-                if (typeof valor === 'string' && valor.includes('T')) {
-                    const fecha = new Date(valor);
-                    return fecha.toLocaleDateString('es-CO');
-                }
-                
-                // Si es un objeto de fecha de Excel (timestamp serial)
-                if (typeof valor === 'number') {
-                    const fecha = new Date((valor - 25569) * 86400 * 1000);
-                    return fecha.toLocaleDateString('es-CO');
-                }
-                
-                // Si ya está formateado
-                return valor;
-            } catch (e) {
-                console.error('Error formateando fecha:', valor, e);
-                return 'Formato inválido';
-            }
-        }
-
-        function formatCurrency(value) {
-            if (isNaN(value)) return '$0';
-            return new Intl.NumberFormat('es-CO', {
-                style: 'currency',
-                currency: 'COP',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0
-            }).format(value);
-        }
-
-        // Event listeners para los botones de historial
-        document.addEventListener('DOMContentLoaded', () => {
-            // Manejar clic en botones de tipo de historial
-            document.querySelectorAll('[data-tipo]').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const tipo = this.dataset.tipo;
-                    const proyectoId = document.getElementById('historialModal').dataset.proyectoId;
-                    
-                    // Actualizar botones activos
-                    document.querySelectorAll('[data-tipo]').forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    
-                    // Ocultar todos los contenidos
-                    document.querySelectorAll('.historial-contenido').forEach(c => c.style.display = 'none');
-                    
-                    // Mostrar contenido seleccionado y cargar datos
-                    document.getElementById(`contenido-${tipo}`).style.display = 'block';
-                    
-                    switch(tipo) {
-                        case 'ventas':
-                            cargarHistorialVentas(proyectoId);
-                            break;
-                        case 'visitas':
-                            cargarHistorialVisitas(proyectoId);
-                            break;
-                        case 'desembolsos':
-                            cargarHistorialDesembolsos(proyectoId);
-                            break;
-                    }
+            if (!tieneVentas && !tieneVisitas && !tieneDesembolsos) {
+                Swal.fire({
+                    title: 'Historial vacío',
+                    text: 'Este proyecto no tiene registros de ventas, visitas ni desembolsos',
+                    icon: 'info',
+                    confirmButtonText: 'Entendido'
                 });
-            });
+            } else {
+                // Cargar datos iniciales (prioridad: ventas > visitas > desembolsos)
+                if (tieneVentas) {
+                    cargarHistorialVentas(idProyecto);
+                    document.querySelector('[data-tipo="ventas"]').classList.add('active');
+                    document.getElementById('contenido-ventas').style.display = 'block';
+                } else if (tieneVisitas) {
+                    cargarHistorialVisitas(idProyecto);
+                    document.querySelector('[data-tipo="visitas"]').classList.add('active');
+                    document.getElementById('contenido-visitas').style.display = 'block';
+                } else if (tieneDesembolsos) {
+                    cargarHistorialDesembolsos(idProyecto);
+                    document.querySelector('[data-tipo="desembolsos"]').classList.add('active');
+                    document.getElementById('contenido-desembolsos').style.display = 'block';
+                }
+            }
+            
+            new bootstrap.Modal(modal).show();
+        } catch (error) {
+            console.error('Error mostrando historial:', error);
+            Swal.fire('Error', 'No se pudo cargar el historial', 'error');
+        }
+    }
 
-            document.getElementById('btn-export-pdf').addEventListener('click', function() {
-                const tipoActivo = document.querySelector('[data-tipo].active').dataset.tipo;
-                exportarAPDF(tipoActivo);
+    // Configuración de event listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        // Cargar proyectos iniciales
+        cargarProyectos();
+        
+        // Manejar botones de tipo de historial
+        document.querySelectorAll('[data-tipo]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const tipo = this.dataset.tipo;
+                const proyectoId = document.getElementById('historialModal').dataset.proyectoId;
+                
+                // Actualizar botones activos
+                document.querySelectorAll('[data-tipo]').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Ocultar todos los contenidos
+                document.querySelectorAll('.historial-contenido').forEach(c => c.style.display = 'none');
+                
+                // Mostrar contenido seleccionado
+                document.getElementById(`contenido-${tipo}`).style.display = 'block';
+                
+                // Cargar datos según el tipo
+                switch(tipo) {
+                    case 'ventas':
+                        cargarHistorialVentas(proyectoId);
+                        break;
+                    case 'visitas':
+                        cargarHistorialVisitas(proyectoId);
+                        break;
+                    case 'desembolsos':
+                        cargarHistorialDesembolsos(proyectoId);
+                        break;
+                }
             });
         });
+
+        // Botón de exportar PDF
+        document.getElementById('btn-export-pdf').addEventListener('click', function() {
+            const tipoActivo = document.querySelector('[data-tipo].active').dataset.tipo;
+            exportarAPDF(tipoActivo);
+        });
+    });
         
         let isGeneratingPDF = false;
 
