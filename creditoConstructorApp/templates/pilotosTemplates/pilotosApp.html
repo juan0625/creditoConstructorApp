@@ -10,24 +10,42 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --bancolombia-blue: #004884;
-            --bancolombia-light-blue: #0066CC;
-            --bancolombia-yellow: #FFD100;
-            --bancolombia-gray: #F5F5F5;
-            --bancolombia-dark-gray: #333333;
-            --bancolombia-green: #4CAF50;
-            --bancolombia-orange: #FF9800;
-            --bancolombia-red: #F44336;
+            /* ===== Colores principales (grises equivalentes) ===== */
+            --bancolombia-blue: #2C2A29;        
+            --bancolombia-light-blue: #5A5A5A;   
+            --bancolombia-green: #707070;       
+            --bancolombia-yellow: #D9D9D9;       
+
+            /* ===== Neutrales ===== */
+            --bancolombia-gray: #F5F5F5;         
+            --bancolombia-dark-gray: #1E1E1E;     
+            --text-secondary: #5A5A5A;            
+            --border-light: #E0E0E0;             
+            --pure-white: #FFFFFF;               
         }
         
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: "Cambria", serif;
+            font-size: 18px;
             background-color: var(--bancolombia-gray);
-            color: var(--bancolombia-dark-gray);
-            min-height: 100vh;
+            height: 100vh;
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
+        }
+
+        /* 1. Botón Primario (Azul original → Gris oscuro) */
+        .btn-primary {
+            background-color: var(--bancolombia-blue);
+            color: var(--pure-white);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn-primary:hover {
+            background-color: #1E1E1E; /* 10% más oscuro al hover */
         }
 
         html, body {
@@ -169,14 +187,6 @@
             padding: 8px 15px;
             font-weight: 600;
             min-width: 100px;
-        }
-        
-        .btn-primary {
-            background-color: var(--bancolombia-blue);
-        }
-        
-        .btn-primary:hover {
-            background-color: var(--bancolombia-light-blue);
         }
         
         .btn-success {
@@ -351,7 +361,7 @@
                                 <div class="card-list-item">Constructores</div>
                             </div>
                             <div class="btn-group">
-                                <a href="{{ url_for('admin_roles') }}" class="btn btn-danger">Acceder</a>
+                                <a href="{{ url_for('admin_roles') }}" class="btn btn-success">Entrar</a>
                             </div>
                         </div>
                     </div>
