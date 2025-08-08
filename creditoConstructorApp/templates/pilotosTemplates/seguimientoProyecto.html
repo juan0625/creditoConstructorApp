@@ -539,6 +539,10 @@
                 <button class="btn btn-seguimiento" onclick="mostrarFormCargaDesembolsos()" style="margin-left: 10px;">
                     <i class="fas fa-money-bill-wave me-2"></i>Cargar Desembolsos
                 </button>
+                <!-- Botón nuevo para Desembolsos Diarios -->
+                <button class="btn btn-seguimiento" onclick="mostrarFormCargaDesembolsosDiarios()" style="margin-left: 10px;">
+                    <i class="fas fa-file-excel me-2"></i>Actualizar Desembolsos Diarios
+                </button>
 
                 <!-- Formularios de carga -->
                 <div class="seguimiento-container formulario-seguimiento" id="formCargaVentas" style="display: none;">
@@ -612,6 +616,34 @@
                         </div>
                     </form>
                 </div>
+            </div>
+            <!-- Formulario de carga para Desembolsos Diarios -->
+            <div class="seguimiento-container formulario-seguimiento" id="formCargaDesembolsosDiarios" style="display: none;">
+                <h4><i class="fas fa-file-excel me-2"></i>Actualizar Desembolsos Diarios</h4>
+                <form id="form-carga-desembolsos-diarios">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label>Seleccionar archivo Excel</label>
+                            <input type="file" class="form-control" id="archivoDesembolsosDiarios" accept=".xlsx, .xls" required>
+                            <small class="form-text text-muted">Archivo con desembolsos del día</small>
+                            <span class="error-mensaje"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label>Responsable de carga</label>
+                            <input type="text" id="responsable-desembolsos-diarios" class="form-control" value="{{ session.usuario.nombre }}" readonly>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning">
+                        <strong>Validaciones requeridas:</strong>
+                        <ul>
+                            <li>El archivo debe contener las columnas: Fecha de desembolso inicial def, Código del Proyecto, Valor total desembolsos en Pesos</li>
+                        </ul>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-secondary" onclick="ocultarFormCargaDesembolsosDiarios()">Cancelar</button>
+                        <button type="button" class="btn btn-seguimiento" onclick="procesarDesembolsosDiarios()">Procesar</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -3306,6 +3338,173 @@
                 return parseFloat(cleaned.replace(/\./g, '').replace(',', '.')) || 0;
             }
             return 0;
+        }
+        // Funciones para mostrar/ocultar el formulario
+        function mostrarFormCargaDesembolsosDiarios() {
+            ocultarFormCargaVentas();
+            ocultarFormCargaVisitas();
+            ocultarFormCargaDesembolsos();
+            document.getElementById('formCargaDesembolsosDiarios').style.display = 'block';
+        }
+
+        function ocultarFormCargaDesembolsosDiarios() {
+            document.getElementById('formCargaDesembolsosDiarios').style.display = 'none';
+        }
+
+        // Función principal para procesar desembolsos diarios
+        async function procesarDesembolsosDiarios() {
+            const archivo = document.getElementById('archivoDesembolsosDiarios').files[0];
+            if (!archivo) {
+                mostrarErrorModal("Seleccione un archivo válido");
+                return;
+            }
+
+            try {
+                // Leer el archivo Excel
+                const data = await leerExcel(archivo);
+                // Suponemos que los datos están en la primera hoja
+                const sheetName = Object.keys(data)[0];
+                const worksheet = data[sheetName];
+                
+                // Convertir la hoja a JSON comenzando desde la fila 7 (encabezados)
+                const desembolsos = XLSX.utils.sheet_to_json(worksheet, { 
+                    header: 1, 
+                    range: 6 // Comenzar desde la fila 7 (0-indexed: 6)
+                });
+                
+                // Si no hay filas, mostrar error
+                if (desembolsos.length === 0) {
+                    mostrarErrorModal("El archivo no contiene datos a partir de la fila 7");
+                    return;
+                }
+                
+                // Obtener los encabezados (primera fila del rango, fila 7 del Excel)
+                const headers = desembolsos[0].map(header => header ? header.trim() : '');
+                
+                // Validar encabezados requeridos
+                const requiredHeaders = ['Fecha de desembolso inicial def', 'Código del Proyecto', 'Valor total desembolsos en Pesos'];
+                const missingHeaders = requiredHeaders.filter(header => !headers.includes(header));
+                
+                if (missingHeaders.length > 0) {
+                    mostrarErrorModal(`Faltan encabezados requeridos: ${missingHeaders.join(', ')}`);
+                    return;
+                }
+                
+                // Obtener índices de las columnas
+                const fechaIndex = headers.indexOf('Fecha de desembolso inicial def');
+                const codigoProyectoIndex = headers.indexOf('Código del Proyecto');
+                const valorIndex = headers.indexOf('Valor total desembolsos en Pesos');
+                
+                // Procesar filas (empezando desde la fila 8 del Excel)
+                const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+                const proyectosNoEncontrados = [];
+                const desembolsosAgregados = [];
+                
+                for (let i = 1; i < desembolsos.length; i++) {
+                    const row = desembolsos[i];
+                    if (!row || row.length === 0) continue;
+                    
+                    // Asegurarse que la fila tiene suficientes columnas
+                    if (fechaIndex >= row.length || codigoProyectoIndex >= row.length || valorIndex >= row.length) {
+                        continue; // Saltar filas incompletas
+                    }
+                    
+                    const fecha = row[fechaIndex];
+                    const codigoProyecto = String(row[codigoProyectoIndex]);
+                    const valor = row[valorIndex];
+                    
+                    // Si alguna celda está vacía, saltar
+                    if (!fecha || !codigoProyecto || valor === undefined || valor === null) {
+                        continue;
+                    }
+                    
+                    // Buscar proyecto por código
+                    const proyecto = proyectos.find(p => p.id_proyecto === codigoProyecto);
+                    
+                    if (proyecto) {
+                        // Agregar el desembolso al proyecto
+                        if (!proyecto.desembolsos) {
+                            proyecto.desembolsos = [];
+                        }
+                        
+                        // Convertir la fecha a un formato de fecha sin hora
+                        const fechaObj = new Date(fecha);
+                        const fechaFormateada = fechaObj.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+                        
+                        const existeDesembolso = proyecto.desembolsos.some(d => {
+                            const dFecha = new Date(d.fecha);
+                            return dFecha.toISOString().split('T')[0] === fechaFormateada;
+                        });
+                        
+                        if (!existeDesembolso) {
+                            proyecto.desembolsos.push({
+                                fecha: fecha,
+                                valor: valor
+                            });
+                            
+                            // Actualizar el valor total entregado
+                            proyecto.valor_entregado = (proyecto.valor_entregado || 0) + valor;
+                            desembolsosAgregados.push({ proyecto: proyecto.nombre_proyecto, fecha: fecha, valor: valor });
+                        }
+                    } else {
+                        proyectosNoEncontrados.push(codigoProyecto);
+                    }
+                }
+                
+                // Guardar los proyectos actualizados en localStorage
+                localStorage.setItem('proyectos', JSON.stringify(proyectos));
+                
+                // Mostrar resultados
+                if (desembolsosAgregados.length > 0 || proyectosNoEncontrados.length > 0) {
+                    let mensaje = '';
+                    
+                    if (desembolsosAgregados.length > 0) {
+                        mensaje += `<strong>Desembolsos agregados:</strong><ul>`;
+                        desembolsosAgregados.forEach(d => {
+                            mensaje += `<li>${d.proyecto}: ${d.fecha} - ${formatCurrency(d.valor)}</li>`;
+                        });
+                        mensaje += `</ul>`;
+                    }
+                    
+                    if (proyectosNoEncontrados.length > 0) {
+                        mensaje += `<strong>Proyectos no encontrados:</strong><ul>`;
+                        const uniqueProyectos = [...new Set(proyectosNoEncontrados)];
+                        uniqueProyectos.forEach(codigo => {
+                            mensaje += `<li>${codigo}</li>`;
+                        });
+                        mensaje += `</ul>`;
+                    }
+                    
+                    Swal.fire({
+                        title: 'Proceso completado',
+                        html: mensaje,
+                        icon: 'info',
+                        confirmButtonText: 'Aceptar'
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'No se realizaron cambios',
+                        text: 'No se encontraron desembolsos nuevos para agregar',
+                        icon: 'info',
+                        confirmButtonText: 'Aceptar'
+                    });
+                }
+                
+                // Ocultar formulario
+                ocultarFormCargaDesembolsosDiarios();
+                
+            } catch (error) {
+                mostrarErrorModal(`Error al procesar el archivo: ${error.message}`);
+            }
+        }
+
+        // Función auxiliar para formatear moneda
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('es-CO', {
+                style: 'currency',
+                currency: 'COP',
+                minimumFractionDigits: 0
+            }).format(value);
         }
     </script>   
 </body>
