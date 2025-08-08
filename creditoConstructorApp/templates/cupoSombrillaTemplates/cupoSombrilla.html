@@ -8,19 +8,42 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --bancolombia-blue: #004884;
-            --bancolombia-light-blue: #0066CC;
-            --bancolombia-yellow: #FFD100;
-            --bancolombia-gray: #F5F5F5;
-            --bancolombia-dark-gray: #333333;
+            /* ===== Colores principales (grises equivalentes) ===== */
+            --bancolombia-blue: #2C2A29;        
+            --bancolombia-light-blue: #5A5A5A;   
+            --bancolombia-green: #707070;       
+            --bancolombia-yellow: #D9D9D9;       
+
+            /* ===== Neutrales ===== */
+            --bancolombia-gray: #F5F5F5;         
+            --bancolombia-dark-gray: #1E1E1E;     
+            --text-secondary: #5A5A5A;            
+            --border-light: #E0E0E0;             
+            --pure-white: #FFFFFF;               
         }
         
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: "Cambria", serif;
+            font-size: 18px;
             background-color: var(--bancolombia-gray);
-            min-height: 100vh;
+            height: 100vh;
             display: flex;
             flex-direction: column;
+        }
+
+        /* 1. Botón Primario (Azul original → Gris oscuro) */
+        .btn-primary {
+            background-color: var(--bancolombia-blue);
+            color: var(--pure-white);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn-primary:hover {
+            background-color: #1E1E1E; /* 10% más oscuro al hover */
         }
         
         .header {
