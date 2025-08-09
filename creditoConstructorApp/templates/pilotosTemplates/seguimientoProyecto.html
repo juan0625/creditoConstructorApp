@@ -645,6 +645,24 @@
                     </div>
                 </form>
             </div>
+            <!-- Modal de confirmación -->
+            <div class="modal fade" id="modalConfirmacionDesembolsosDiarios" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">Confirmar Desembolsos Diarios</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body" id="confirmacionDesembolsosBody">
+                            <!-- Contenido dinámico -->
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-success" id="btnConfirmarDesembolsos">Confirmar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1444,6 +1462,7 @@
         function mostrarFormCargaVentas() {
             ocultarFormCargaVisitas();
             ocultarFormCargaDesembolsos();
+            ocultarFormCargaDesembolsosDiarios();
             document.getElementById('formCargaVentas').style.display = 'block';
         }
 
@@ -1456,6 +1475,7 @@
         function mostrarFormCargaVisitas() {
             ocultarFormCargaVentas(); // Asegura que el otro formulario esté cerrado
             ocultarFormCargaDesembolsos();
+            ocultarFormCargaDesembolsosDiarios();
             document.getElementById('formCargaVisitas').style.display = 'block';
         }
 
@@ -1466,6 +1486,7 @@
         function mostrarFormCargaDesembolsos() {
             ocultarFormCargaVentas();
             ocultarFormCargaVisitas();
+            ocultarFormCargaDesembolsosDiarios();
             document.getElementById('formCargaDesembolsos').style.display = 'block';
         }
 
@@ -1885,191 +1906,175 @@
             new bootstrap.Modal(document.getElementById('errorModal')).show();
         }
 
+        // Función para normalizar IDs (añadir al inicio de generarExcel)
+        function normalizeId(id) {
+            return String(id).trim().replace(/\s+/g, '');
+        }
+
+       
         function generarExcel(proyectos, usuario, datosProcesados) {
-            // Funciones auxiliares para formatear fechas
-            function formatearFechaDDMMAAAA(fechaString) {
-                if (!fechaString) return '';
-                const fecha = new Date(fechaString);
-                if (isNaN(fecha)) return '';
-                const dia = fecha.getDate().toString().padStart(2, '0');
-                const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
-                const anio = fecha.getFullYear();
-                return `${dia}-${mes}-${anio}`;
-            }
-
-            function formatearFechaConHora(fechaString) {
-                if (!fechaString) return '';
-                const fecha = new Date(fechaString);
-                if (isNaN(fecha)) return '';
-                
-                const dia = fecha.getDate().toString().padStart(2, '0');
-                const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
-                const anio = fecha.getFullYear();
-                const horas = fecha.getHours().toString().padStart(2, '0');
-                const minutos = fecha.getMinutes().toString().padStart(2, '0');
-                const segundos = fecha.getSeconds().toString().padStart(2, '0');
-                
-                return `${dia}-${mes}-${anio} ${horas}:${minutos}:${segundos}`;
-            }
-
-            // Obtener historial de ventas y visitas
-            const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
-            const historialVisitas = JSON.parse(localStorage.getItem('historialVisitas') || '[]');
-            const historialDesembolsos = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]');
-            const usuarioInput = document.getElementById('responsable-input');
-            const responsableUsuario = usuarioInput ? usuarioInput.value : "Usuario no definido";
-                    
-            // Identificar campos numéricos
-            const tiposNumericos = ['entero', 'porcentaje', 'moneda', 'decimal'];
-            
-            // Mapeo de nombres deseados
-            const mapeoNombres = {
-                'valor_anticipos': 'VALOR ANTICIPOS',
-                'valor_anticipos_almacen': 'VALOR ANTICIPOS ALMACEN',
-                'programacion_inicial': 'PROGRAMACION INICIAL',
-                'mes_inicio_obra': 'MES INICIO OBRA',
-                'avance_obra_meses': 'AVANCE OBRA MESES',
-                'avance_esperado_porcentaje': 'AVANCE ESPERADO PORCENTAJE',
-                'avance_obra': 'AVANCE OBRA',
-                'inversion_del_proyecto': 'INVERSION DEL PROYECTO',
-                'tipo_inmueble': 'TIPO INMUEBLE',
-                'numero_de_inmuebles': 'NUMERO DE INMUEBLES',
-                // Campos de porcentaje de ventas
-                '%_porcentaje_de_ventas_(unidades)': '% PORCENTAJE DE VENTAS (UNIDADES)',
-                '%_porcentaje_de_ventas_(valor)': '% PORCENTAJE DE VENTAS (VALOR)'
+            // ---------- Helpers: usar funciones globales si existen, si no, definimos localmente ----------
+            const _cleanNumber = (typeof cleanNumber === 'function') ? cleanNumber : (v) => {
+                if (v === null || v === undefined) return 0;
+                if (typeof v === 'string') v = v.replace(/[^\d.-]/g, '');
+                return parseFloat(v) || 0;
+            };
+            const _normalizeId = (typeof normalizeId === 'function') ? normalizeId : (id) => String(id || '').trim().replace(/\s+/g, '');
+            const _safeParseJSON = (typeof safeParseJSON === 'function') ? safeParseJSON : (key) => {
+                try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
+            };
+            const _formatFechaDD = (typeof formatearFechaDDMMAAAA === 'function') ? formatearFechaDDMMAAAA : (f) => {
+                if (!f) return 'N/A';
+                const d = new Date(f);
+                if (isNaN(d)) return 'N/A';
+                const dd = String(d.getDate()).padStart(2,'0');
+                const mm = String(d.getMonth()+1).padStart(2,'0');
+                const yyyy = d.getFullYear();
+                return `${dd}-${mm}-${yyyy}`;
             };
 
-            // Combinar datos
-            const proyectosCompletos = proyectos.map(p => {
-                // 1. Procesar ventas
-                const ventasProyecto = historialVentas.filter(v => v.proyectoId === p.id_proyecto);
+            // ---------- Obtener historiales (seguro) ----------
+            const historialVentas = _safeParseJSON('historialVentas');
+            const historialVisitas = _safeParseJSON('historialVisitas');
+            const historialDesembolsos = _safeParseJSON('historialDesembolsos');
+            const historialDesembolsosDiarios = _safeParseJSON('historialDesembolsosDiarios');
+
+            // ---------- Procesar por proyecto (no depender de selector global) ----------
+            const proyectosCompletos = (proyectos || []).map(p => {
+                // 1) Ventas (igual que antes)
+                const ventasProyecto = (Array.isArray(historialVentas) ? historialVentas : []).filter(v => String(v.proyectoId) === String(p.id_proyecto));
                 let ventasAplanadas = {};
                 let responsableVenta = '';
                 let fechaVenta = '';
-                
                 if (ventasProyecto.length > 0) {
                     const ultimaVenta = ventasProyecto[ventasProyecto.length - 1];
-                    Object.entries(ultimaVenta.campos).forEach(([nombreCampo, infoCampo]) => {
-                        // Usar nombres deseados para campos específicos
-                        const nombreNormalizado = nombreCampo.toLowerCase().replace(/\s+/g, '_');
-                        const nombreFinal = mapeoNombres[nombreNormalizado] || nombreCampo;
-                        const key = nombreFinal.toLowerCase().replace(/\s+/g, '_');
-                        
-                        // Extraer y formatear el valor del campo
-                        let valor = null;
-                        if (infoCampo && typeof infoCampo === 'object' && 'valor' in infoCampo) {
-                            // Formatear fechas durante la extracción
-                            if (infoCampo.tipo === 'fecha') {
-                                valor = formatearFechaDDMMAAAA(infoCampo.valor);
-                            } else {
-                                valor = infoCampo.valor;
-                            }
-                        } else {
-                            valor = infoCampo;
-                        }
-                        
+                    Object.entries(ultimaVenta.campos || {}).forEach(([nombreCampo, infoCampo]) => {
+                        const key = (nombreCampo || '').toLowerCase().replace(/\s+/g, '_');
+                        let valor = (infoCampo && typeof infoCampo === 'object' && 'valor' in infoCampo) ? infoCampo.valor : infoCampo;
+                        if (infoCampo && infoCampo.tipo === 'fecha') valor = _formatFechaDD(infoCampo.valor);
                         ventasAplanadas[key] = valor;
                     });
-                    
                     responsableVenta = ultimaVenta.usuario || '';
-                    fechaVenta = ultimaVenta.fechaCarga || ultimaVenta.fechaModificacion || ultimaVenta.fecha;
-                    fechaVenta = formatearFechaConHora(fechaVenta); // Formatear fecha con hora
+                    fechaVenta = typeof ultimaVenta.fechaCarga === 'string' ? ultimaVenta.fechaCarga : (ultimaVenta.fecha || '');
                 }
 
-                // 2. Procesar visitas
+                // 2) Visitas (igual que antes)
                 let visitaAplanada = {};
                 let responsableVisita = '';
                 let fechaVisita = '';
-                const visitaProyecto = historialVisitas.find(v => v.proyectoId === p.id_proyecto);
-                
+                const visitaProyecto = (Array.isArray(historialVisitas) ? historialVisitas : []).find(v => String(v.proyectoId) === String(p.id_proyecto));
                 if (visitaProyecto) {
-                    Object.entries(visitaProyecto.campos).forEach(([nombreCampo, infoCampo]) => {
-                        // Usar nombres deseados para campos específicos
-                        const nombreNormalizado = nombreCampo.toLowerCase().replace(/\s+/g, '_');
-                        const nombreFinal = mapeoNombres[nombreNormalizado] || nombreCampo;
-                        const key = nombreFinal.toLowerCase().replace(/\s+/g, '_');
-                        
-                        // Extraer y formatear el valor del campo
-                        let valor = null;
-                        if (infoCampo && typeof infoCampo === 'object' && 'valor' in infoCampo) {
-                            // Formatear fechas durante la extracción
-                            if (infoCampo.tipo === 'fecha') {
-                                valor = formatearFechaDDMMAAAA(infoCampo.valor);
-                            } else {
-                                valor = infoCampo.valor;
-                            }
-                        } else {
-                            valor = infoCampo;
-                        }
-                        
+                    Object.entries(visitaProyecto.campos || {}).forEach(([nombreCampo, infoCampo]) => {
+                        const key = (nombreCampo || '').toLowerCase().replace(/\s+/g, '_');
+                        let valor = (infoCampo && typeof infoCampo === 'object' && 'valor' in infoCampo) ? infoCampo.valor : infoCampo;
+                        if (infoCampo && infoCampo.tipo === 'fecha') valor = _formatFechaDD(infoCampo.valor);
                         visitaAplanada[key] = valor;
                     });
-
                     responsableVisita = visitaProyecto.usuario || '';
-                    fechaVisita = visitaProyecto.fechaCarga || visitaProyecto.fechaModificacion || visitaProyecto.fecha;
-                    fechaVisita = formatearFechaConHora(fechaVisita); // Formatear fecha con hora
+                    fechaVisita = visitaProyecto.fechaCarga || visitaProyecto.fecha || '';
                 }
 
-                // 3. PROCESAR DESEMBOLSOS (NUEVO)
-                const desembolsosProyecto = historialDesembolsos.filter(d => d.proyectoId === p.id_proyecto);
+                // 3) Desembolsos normales: extraer valorEntregado del ultimo desembolso normal
+                const desembolsosProyecto = (Array.isArray(historialDesembolsos) ? historialDesembolsos : [])
+                    .filter(d => _normalizeId(String(d.proyectoId)) === _normalizeId(String(p.id_proyecto)));
+
                 let desembolsoAplanado = {};
                 let responsableDesembolso = '';
                 let fechaDesembolso = '';
-                
+                let valorEntregadoNormal = 0;
+
                 if (desembolsosProyecto.length > 0) {
-                    // Tomar el último desembolso
-                    const ultimoDesembolso = desembolsosProyecto[desembolsosProyecto.length - 1];
-                    
-                    // Aplanar campos de desembolso
-                    Object.entries(ultimoDesembolso.campos).forEach(([nombreCampo, infoCampo]) => {
-                        const nombreFinal = nombreCampo; // Usar el nombre original
-                        const key = nombreFinal.toLowerCase().replace(/\s+/g, '_');
-                        
-                        // Extraer valor del campo
-                        let valor = null;
-                        if (infoCampo && typeof infoCampo === 'object' && 'valor' in infoCampo) {
-                            valor = infoCampo.valor;
-                        } else {
-                            valor = infoCampo;
+                    const ultimo = desembolsosProyecto[desembolsosProyecto.length - 1];
+                    Object.entries(ultimo.campos || {}).forEach(([nombreCampo, infoCampo]) => {
+                        const key = (nombreCampo || '').toLowerCase().replace(/\s+/g, '_');
+                        let valor = (infoCampo && typeof infoCampo === 'object' && 'valor' in infoCampo) ? infoCampo.valor : infoCampo;
+                        if (nombreCampo === 'valorEntregado' || key === 'valor_entregado') {
+                            valorEntregadoNormal = _cleanNumber(valor);
                         }
-                        
                         desembolsoAplanado[key] = valor;
                     });
-
-                    responsableDesembolso = ultimoDesembolso.usuario || '';
-                    fechaDesembolso = ultimoDesembolso.fechaCarga || '';
-                    fechaDesembolso = formatearFechaConHora(fechaDesembolso);
+                    responsableDesembolso = ultimo.usuario || '';
+                    fechaDesembolso = ultimo.fechaCarga || ultimo.fecha || '';
                 }
+
+                // 4) Desembolsos diarios: tomar historial global + p.desembolsosDiarios, pero deduplicar POR REGISTRO EXACTO (ISO completo) para evitar double-counting
+                const diariosGlobal = Array.isArray(historialDesembolsosDiarios) ? historialDesembolsosDiarios : [];
+                const diariosProyectoInSitu = Array.isArray(p.desembolsosDiarios) ? p.desembolsosDiarios : [];
+
+                // combinar
+                const combinados = diariosGlobal.concat(diariosProyectoInSitu).filter(Boolean);
+
+                // dedupe por clave precisa: proyectoId | valor (numero) | fechaISO (full)
+                const seenKeys = new Set();
+                const unicos = [];
+                combinados.forEach(d => {
+                    const pid = _normalizeId(String(d.proyectoId || ''));
+                    const val = String(_cleanNumber(d.valor || 0));
+                    // usar fecha ISO completa si posible (incluye hora) para permitir multiples el mismo dia
+                    let fechaISO = '';
+                    try {
+                        fechaISO = d.fecha ? (new Date(d.fecha)).toISOString() : '';
+                    } catch (e) {
+                        fechaISO = String(d.fecha || '');
+                    }
+                    const key = `${pid}|${val}|${fechaISO}`;
+                    if (!seenKeys.has(key)) {
+                        seenKeys.add(key);
+                        unicos.push({
+                            proyectoId: d.proyectoId,
+                            proyectoNombre: d.proyectoNombre || d.nombreProyecto || '',
+                            valor: _cleanNumber(d.valor),
+                            fecha: d.fecha
+                        });
+                    }
+                });
+
+                // filtrar solo los del proyecto actual
+                const desembolsosDiariosProyecto = unicos.filter(d => _normalizeId(String(d.proyectoId)) === _normalizeId(String(p.id_proyecto)));
+
+                // sumar
+                const totalDesembolsadoDiario = desembolsosDiariosProyecto.reduce((s, r) => s + _cleanNumber(r.valor), 0);
+
+                // detalle
+                const detalleDesembolsos = desembolsosDiariosProyecto.map(d => {
+                    const vf = _cleanNumber(d.valor).toLocaleString('es-CO', { maximumFractionDigits: 0 });
+                    const ff = d.fecha ? _formatFechaDD(d.fecha) : 'Fecha no disponible';
+                    return `${vf} (${ff})`;
+                });
+
+                const detalleCompletoTexto = desembolsosDiariosProyecto.length > 0
+                    ? `Suma: ${totalDesembolsadoDiario.toLocaleString('es-CO', {minimumFractionDigits:0})} : ${detalleDesembolsos.join(' + ')}`
+                    : 'Sin desembolsos diarios';
+
+                // 5) Total final
+                const valorEntregadoTotal = (_cleanNumber(valorEntregadoNormal) || 0) + (totalDesembolsadoDiario || 0);
+
+                // LOG para debug (opcional)
+                console.log(`Resumen desembolsos para ${p.nombre_proyecto || p.id_proyecto} => Normal: ${valorEntregadoNormal}, Diario: ${totalDesembolsadoDiario}, Total: ${valorEntregadoTotal}`);
 
                 return {
                     ...p,
                     ...ventasAplanadas,
                     ...visitaAplanada,
                     ...desembolsoAplanado,
+                    valor_entregado: valorEntregadoTotal,
+                    detalle_completo_desembolsos: detalleCompletoTexto,
                     responsable_carga_venta: responsableVenta,
                     responsable_carga_visita: responsableVisita,
                     responsable_carga_desembolso: responsableDesembolso,
                     fecha_carga_venta: fechaVenta,
                     fecha_carga_visita: fechaVisita,
-                    // Formatear otras fechas importantes sin hora
-                    fecha_aprobacion: formatearFechaDDMMAAAA(p.fecha_aprobacion),
-                    fecha_radicacion: formatearFechaDDMMAAAA(p.fecha_radicacion),
-                    fecha_confirmacion: formatearFechaDDMMAAAA(p.fecha_confirmacion),
-                    fecha_primera_visita: formatearFechaDDMMAAAA(p.fecha_primera_visita),
                     fecha_carga_desembolso: fechaDesembolso
                 };
             });
 
-            // Generar lista de campos (KEYS) incluyendo campos de visitas
-            const camposAdicionales = Object.keys(mapeoCampos).map(key => 
-                key.toLowerCase().replace(/\s+/g, '_')
-            );
+            // ---------- Construir KEYS / limpieza (igual que antes, pero usando proyectosCompletos resultantes) ----------
+            const mapeoCamposLocal = typeof window.mapeoCampos === 'object' ? window.mapeoCampos : {};
+            const mapeoCamposVisitasLocal = typeof window.mapeoCamposVisitas === 'object' ? window.mapeoCamposVisitas : {};
 
-            const camposAdicionalesVisitas = Object.keys(mapeoCamposVisitas).map(key => 
-                key.toLowerCase().replace(/\s+/g, '_')
-            );
+            const camposAdicionales = Object.keys(mapeoCamposLocal).map(key => key.toLowerCase().replace(/\s+/g,'_'));
+            const camposAdicionalesVisitas = Object.keys(mapeoCamposVisitasLocal).map(key => key.toLowerCase().replace(/\s+/g,'_'));
 
-            // Campos de desembolsos
             const camposDesembolsos = [
                 'valor_entregado',
                 'valor_por_entregar',
@@ -2083,16 +2088,14 @@
                 'fecha_carga_desembolso'
             ];
 
-            // Campos de porcentaje de ventas
             const camposPorcentajeVentas = [
                 '%_porcentaje_de_ventas_(unidades)',
                 '%_porcentaje_de_ventas_(valor)'
             ];
 
-            // Definir KEYS con todos los campos (incluyendo desembolsos)
             const KEYS = [
                 'id_proyecto', 'fecha_creacion', 'tipo_producto', 'rango_proyecto',
-                'grupoPrincipal', 'subgrupo_1', 'subgrupo_2', 'subgrupo_3', 
+                'grupoPrincipal', 'subgrupo_1', 'subgrupo_2', 'subgrupo_3',
                 'nit_grupo_riesgo', 'nit_titular', 'titular_credito',
                 'nombre_proyecto', 'tipo_inmuebles', 'segmento', 'ciudad', 'tipo_fiducia',
                 'fiduciaria', 'gerente', 'arquitecto', 'auxiliar', 'perito',
@@ -2100,33 +2103,25 @@
                 'monto_solicitado_lote', 'total_valor_aprobado', 'calificacion_it',
                 'costos_financiables', 'valor_lote', 'valor_total_proyecto',
                 'meses_programacion', 'total_inmuebles', 'meses_para_venta',
-                // Nuevos campos de aprobaciones GOSO
-                'tipo_credito', 'departamento', 'caso_pcp_bizagi', 'visitas_a_cobrar',
-                'cobrar_estudio_tecnico', 'fecha_aprobacion', 'alerta_fecha_aprobacion',
-                'vigencia_en_meses', 'instancia_aprobacion', 'condiciones_aprobacion',
-                'porcentaje_solicitado_financiables','validacion_licencia', 'fecha_radicacion',
-                'poliza_decenal', 'caso_bizagi_juridico','control_cruzado', 'fecha_confirmacion',
-                'fecha_primera_visita', 'id_garantia', 'meses_avanzados', 'plazo_ajustado',
-                // Campos adicionales de mapeoCampos
                 ...camposAdicionales,
                 ...camposAdicionalesVisitas,
                 ...camposDesembolsos,
                 ...camposPorcentajeVentas,
-                // Nuevos campos: responsables y fechas específicas
                 'responsable_carga_venta',
                 'responsable_carga_visita',
                 'fecha_carga_venta',
                 'fecha_carga_visita',
                 'responsable_carga_desembolso',
-                'fecha_carga_desembolso'
+                'fecha_carga_desembolso',
+                'detalle_completo_desembolsos'
             ];
 
-            // Identificar campos numéricos para visitas
-            const camposNumericosVisitas = Object.entries(mapeoCamposVisitas)
+            // Campos numericos (mantener lógica previa)
+            const tiposNumericos = ['entero', 'porcentaje', 'moneda', 'decimal'];
+            const camposNumericosVisitas = Object.entries(mapeoCamposVisitasLocal)
                 .filter(([_, config]) => tiposNumericos.includes(config.tipo))
                 .map(([key, _]) => key.toLowerCase().replace(/\s+/g, '_'));
 
-            // Campos numéricos de desembolsos
             const camposNumericosDesembolsos = [
                 'valor_entregado',
                 'valor_por_entregar',
@@ -2137,7 +2132,6 @@
                 'maximo_desembolsar'
             ];
 
-            // Definir numericFields con todos los campos numéricos
             const numericFields = [
                 'monto_solicitado_1_desembolso', 'monto_solicitado_cpi',
                 'monto_solicitado_lote', 'total_valor_aprobado', 'valor_lote',
@@ -2146,49 +2140,32 @@
                 'porcentaje_solicitado_financiables','meses_avanzados', 'plazo_ajustado',
                 ...camposNumericosVisitas,
                 ...camposPorcentajeVentas,
-                ...camposNumericosDesembolsos
+                ...camposNumericosDesembolsos,
+                'valor_entregado'
             ];
-            // Limpiar y formatear datos
+
+            // Limpiar/formatear proyectos finales
             const proyectosLimpios = proyectosCompletos.map(p => {
                 let proyecto = {};
                 KEYS.forEach(key => {
-                    if (key === 'condiciones_aprobacion') {
-                        proyecto[key] = Array.isArray(p[key]) 
-                            ? p[key].join(', ') 
-                            : p[key] || 'Sin condiciones';
-                    } else {
-                        let value = p[key];
-                        
-                        // Manejar campos numéricos especiales
-                        if (numericFields.includes(key)) {
-                            if (value === 0 || value === "0" || value === null || value === undefined) {
-                                value = 'N/A';
-                            } else {
-                                const numValue = parseFloat(value);
-                                value = isNaN(numValue) ? 'N/A' : numValue;
-                                
-                                // Ajustar porcentajes solo si son números válidos
-                                if ((key.includes('porcentaje') || key.includes('%') || camposPorcentajeVentas.includes(key)) 
-                                    && typeof value === 'number') {
-                                    // Ajuste especial para porcentajes de ventas
-                                    value = value < 1 ? value * 100 : value;
-                                    
-                                    // Formatear a 2 decimales
-                                    value = Math.round(value * 100) / 100;
-                                }
-                            }
+                    let value = p[key];
+
+                    if (numericFields.includes(key)) {
+                        if (value === 0 || value === "0" || value === null || value === undefined) {
+                            value = 'N/A';
                         } else {
-                            // Para campos no numéricos
-                            value = value ?? '';
-                            
-                            // Manejar campos de texto vacíos
-                            if (value === '') {
-                                value = 'N/A';
+                            const numValue = parseFloat(value);
+                            value = isNaN(numValue) ? 'N/A' : numValue;
+                            if ((key.includes('porcentaje') || key.includes('%') || camposPorcentajeVentas.includes(key)) && typeof value === 'number') {
+                                value = value < 1 ? value * 100 : value;
+                                value = Math.round(value * 100) / 100;
                             }
                         }
-                        
-                        proyecto[key] = value;
+                    } else {
+                        if (value === null || value === undefined || value === '') value = 'N/A';
                     }
+
+                    proyecto[key] = value;
                 });
                 return proyecto;
             });
@@ -2197,17 +2174,12 @@
             fetch('/exportar_excel', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ 
-                    proyectos: proyectosLimpios, 
+                body: JSON.stringify({
+                    proyectos: proyectosLimpios,
                     usuario,
-                    mapeo_encabezados: mapeoNombres,
+                    mapeo_encabezados: {}, // si quieres mantener mapeo original, pásalo aquí
                     campos_especiales: {
-                        porcentaje: [
-                            ...camposNumericosVisitas.filter(f => 
-                                f.includes('porcentaje') || f.includes('porcentage')
-                            ),
-                            ...camposPorcentajeVentas
-                        ]
+                        porcentaje: camposNumericosVisitas.filter(f => f.includes('porcentaje') || f.includes('porcentage')).concat(camposPorcentajeVentas)
                     }
                 })
             })
@@ -3171,7 +3143,16 @@
             const valorRecaudado = cleanNumber(proyecto.valor_recaudado || 0);
             const valorLote = cleanNumber(proyecto.valor_lote || 0);
             const valorPreoperativo = cleanNumber(proyecto.valor_preoperativo || 0);
-            const valorEntregado = cleanNumber(proyecto.valor_entregado || 0); // Suma de desembolsos
+            // Recalcular valorEntregado sumando normales y diarios desde localStorage
+            const historialNormales = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]')
+                .filter(d => String(d.proyectoId) === String(proyecto.id_proyecto))
+                .reduce((sum, d) => sum + (d.valor || 0), 0);
+
+            const historialDiarios = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]')
+                .filter(d => String(d.proyectoId) === String(proyecto.id_proyecto))
+                .reduce((sum, d) => sum + (d.valor || 0), 0);
+
+            const valorEntregado = historialNormales + historialDiarios;
             const valorDesistido = cleanNumber(proyecto.valor_desistido || 0);
             const valorAmpliacion = cleanNumber(proyecto.valor_ampliacion || 0);
             const valorAprobado = cleanNumber(proyecto.valor_aprobado || 0);
@@ -3339,6 +3320,7 @@
             }
             return 0;
         }
+
         // Funciones para mostrar/ocultar el formulario
         function mostrarFormCargaDesembolsosDiarios() {
             ocultarFormCargaVentas();
@@ -3350,8 +3332,108 @@
         function ocultarFormCargaDesembolsosDiarios() {
             document.getElementById('formCargaDesembolsosDiarios').style.display = 'none';
         }
+        // ==================================================================
+        // FUNCIÓN PARA GUARDAR DESEMBOLSOS EN EL SISTEMA (CORREGIDA)
+        // ==================================================================
 
-        // Función principal para procesar desembolsos diarios
+        // REEMPLAZAR la funcion guardarDesembolsosDiarios existente por esta
+        function guardarDesembolsosDiarios(desembolsosAgregados) {
+            const responsable = "{{ session.usuario.nombre }}" || 'Usuario';
+
+            try {
+                const proyectosData = localStorage.getItem('proyectos');
+                const proyectos = proyectosData ? JSON.parse(proyectosData) : [];
+
+                // cargar historial existente de forma segura
+                let historialDesembolsosDiarios = [];
+                try {
+                    historialDesembolsosDiarios = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
+                    if (!Array.isArray(historialDesembolsosDiarios)) historialDesembolsosDiarios = [];
+                } catch (e) {
+                    console.error('parse historialDesembolsosDiarios fallo, se inicializa array vacio', e);
+                    historialDesembolsosDiarios = [];
+                }
+
+                desembolsosAgregados.forEach(d => {
+                    const proyectoId = String(d.proyectoId || '').trim();
+                    const proyectoNombre = d.proyectoNombre || '';
+                    const valor = cleanNumber(d.valor);
+                    const fechaISO = (d.fecha && !isNaN(new Date(d.fecha).getTime())) ? new Date(d.fecha).toISOString() : new Date().toISOString();
+
+                    const registro = {
+                        proyectoId: proyectoId,
+                        proyectoNombre: proyectoNombre,
+                        valor: valor,
+                        fecha: fechaISO,
+                        usuario: responsable,
+                        fechaCarga: new Date().toISOString()
+                    };
+
+                    // ... dentro del forEach de desembolsosAgregados, antes de push(registro)
+                    const claveRegistro = `${normalizeId(proyectoId)}|${cleanNumber(valor)}|${fechaISO.slice(0,10)}`;
+                    const existeEnHist = historialDesembolsosDiarios.some(h => {
+                        const claveH = `${normalizeId(String(h.proyectoId||''))}|${cleanNumber(h.valor||0)}|${(h.fecha?new Date(h.fecha).toISOString().slice(0,10):'')}`;
+                        return claveH === claveRegistro;
+                    });
+                    if (!existeEnHist) {
+                        historialDesembolsosDiarios.push(registro);
+                    }
+
+
+                    // 1) Siempre guardar en historial global (asi no se pierde)
+                    historialDesembolsosDiarios.push(registro);
+
+                    // 2) Si existe el proyecto, también guardar dentro del proyecto (busqueda normalizada)
+                    const proyecto = proyectos.find(p => normalizeId(String(p.id_proyecto)) === normalizeId(proyectoId));
+                    if (proyecto) {
+                        if (!Array.isArray(proyecto.desembolsosDiarios)) proyecto.desembolsosDiarios = [];
+                        const existeEnProyecto = proyecto.desembolsosDiarios.some(h => {
+                            return normalizeId(String(h.proyectoId||'')) === normalizeId(proyectoId)
+                                && cleanNumber(h.valor||0) === cleanNumber(valor)
+                                && (h.fecha ? new Date(h.fecha).toISOString().slice(0,10) : '') === fechaISO.slice(0,10);
+                        });
+                        if (!existeEnProyecto) proyecto.desembolsosDiarios.push(registro);
+                    }else {
+                        // opcional: log para debug si proyecto no encontrado
+                        console.warn('guardarDesembolsosDiarios: no se encontro proyecto para id=', proyectoId);
+                    }
+                });
+
+                // Persistir cambios
+                try {
+                    localStorage.setItem('historialDesembolsosDiarios', JSON.stringify(historialDesembolsosDiarios));
+                    localStorage.setItem('proyectos', JSON.stringify(proyectos));
+                } catch (e) {
+                    console.error('Error al guardar en localStorage:', e);
+                    throw new Error('Error al guardar los datos en el almacenamiento local');
+                }
+
+                // Cerrar modal si esta abierto
+                try { 
+                    const modalInst = bootstrap.Modal.getInstance(document.getElementById('modalConfirmacionDesembolsosDiarios'));
+                    modalInst && modalInst.hide();
+                } catch(e){ /* noop */ }
+
+                Swal.fire({
+                    title: 'Desembolsos agregados',
+                    text: `Se han agregado ${desembolsosAgregados.length} desembolsos al sistema`,
+                    icon: 'success',
+                    confirmButtonText: 'Aceptar'
+                });
+
+                // Forzar recarga si existe la funcion que refresca la vista
+                if (typeof cargarSeguimientos === 'function') cargarSeguimientos();
+            } catch (error) {
+                console.error('Error en guardarDesembolsosDiarios:', error);
+                mostrarErrorModal(`Error al guardar los desembolsos: ${error.message}`);
+            }
+        }
+
+
+        // ==================================================================
+        // FUNCIÓN PARA PROCESAR DESEMBOLSOS DIARIOS (OPTIMIZADA)
+        // ==================================================================
+
         async function procesarDesembolsosDiarios() {
             const archivo = document.getElementById('archivoDesembolsosDiarios').files[0];
             if (!archivo) {
@@ -3361,24 +3443,23 @@
 
             try {
                 // Leer el archivo Excel
-                const data = await leerExcel(archivo);
-                // Suponemos que los datos están en la primera hoja
-                const sheetName = Object.keys(data)[0];
-                const worksheet = data[sheetName];
+                const buffer = await archivo.arrayBuffer();
+                const workbook = XLSX.read(buffer, { type: 'array' });
+                const sheetName = Object.keys(workbook.Sheets)[0];
+                const worksheet = workbook.Sheets[sheetName];
                 
-                // Convertir la hoja a JSON comenzando desde la fila 7 (encabezados)
+                // Convertir la hoja a JSON
                 const desembolsos = XLSX.utils.sheet_to_json(worksheet, { 
-                    header: 1, 
+                    header: 1,
                     range: 6 // Comenzar desde la fila 7 (0-indexed: 6)
                 });
                 
-                // Si no hay filas, mostrar error
                 if (desembolsos.length === 0) {
-                    mostrarErrorModal("El archivo no contiene datos a partir de la fila 7");
+                    mostrarErrorModal("El archivo no contiene datos válidos");
                     return;
                 }
                 
-                // Obtener los encabezados (primera fila del rango, fila 7 del Excel)
+                // Obtener encabezados
                 const headers = desembolsos[0].map(header => header ? header.trim() : '');
                 
                 // Validar encabezados requeridos
@@ -3395,108 +3476,177 @@
                 const codigoProyectoIndex = headers.indexOf('Código del Proyecto');
                 const valorIndex = headers.indexOf('Valor total desembolsos en Pesos');
                 
-                // Procesar filas (empezando desde la fila 8 del Excel)
-                const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
-                const proyectosNoEncontrados = [];
+                // Procesar filas
+                const proyectosData = localStorage.getItem('proyectos');
+                const proyectos = proyectosData ? JSON.parse(proyectosData) : [];
+                const proyectosNoEncontrados = new Set();
                 const desembolsosAgregados = [];
                 
                 for (let i = 1; i < desembolsos.length; i++) {
                     const row = desembolsos[i];
-                    if (!row || row.length === 0) continue;
+                    if (!row || row.length < Math.max(fechaIndex, codigoProyectoIndex, valorIndex) + 1) continue;
                     
-                    // Asegurarse que la fila tiene suficientes columnas
-                    if (fechaIndex >= row.length || codigoProyectoIndex >= row.length || valorIndex >= row.length) {
-                        continue; // Saltar filas incompletas
-                    }
+                    // Obtener valores de las celdas
+                    const fechaRaw = row[fechaIndex];
+                    const codigoProyecto = String(row[codigoProyectoIndex]).trim();
+                    const valorRaw = row[valorIndex];
                     
-                    const fecha = row[fechaIndex];
-                    const codigoProyecto = String(row[codigoProyectoIndex]);
-                    const valor = row[valorIndex];
-                    
-                    // Si alguna celda está vacía, saltar
-                    if (!fecha || !codigoProyecto || valor === undefined || valor === null) {
+                    // Validar valores requeridos
+                    if (!fechaRaw || !codigoProyecto || valorRaw === null || valorRaw === undefined) {
                         continue;
                     }
                     
-                    // Buscar proyecto por código
+                    // Convertir fecha si es número de Excel
+                    let fecha = fechaRaw;
+                    if (typeof fechaRaw === 'number') {
+                        // Convertir número de Excel a fecha (días desde 1900-01-01)
+                        const fechaBase = new Date(1900, 0, 1);
+                        fecha = new Date(fechaBase.getTime() + (fechaRaw - 1) * 24 * 60 * 60 * 1000);
+                    }
+                    
+                    // Limpiar y validar valor
+                    const valor = cleanNumber(valorRaw);
+                    if (isNaN(valor) || valor <= 0) continue;
+                    
+                    // Buscar proyecto
                     const proyecto = proyectos.find(p => p.id_proyecto === codigoProyecto);
                     
                     if (proyecto) {
-                        // Agregar el desembolso al proyecto
-                        if (!proyecto.desembolsos) {
-                            proyecto.desembolsos = [];
-                        }
-                        
-                        // Convertir la fecha a un formato de fecha sin hora
-                        const fechaObj = new Date(fecha);
-                        const fechaFormateada = fechaObj.toISOString().split('T')[0]; // Formato YYYY-MM-DD
-                        
-                        const existeDesembolso = proyecto.desembolsos.some(d => {
-                            const dFecha = new Date(d.fecha);
-                            return dFecha.toISOString().split('T')[0] === fechaFormateada;
+                        desembolsosAgregados.push({
+                            proyectoId: codigoProyecto.trim(),
+                            proyectoNombre: proyecto.nombre_proyecto,
+                            fecha: fecha instanceof Date ? fecha.toISOString() : fecha,
+                            valor: valor
                         });
-                        
-                        if (!existeDesembolso) {
-                            proyecto.desembolsos.push({
-                                fecha: fecha,
-                                valor: valor
-                            });
-                            
-                            // Actualizar el valor total entregado
-                            proyecto.valor_entregado = (proyecto.valor_entregado || 0) + valor;
-                            desembolsosAgregados.push({ proyecto: proyecto.nombre_proyecto, fecha: fecha, valor: valor });
-                        }
                     } else {
-                        proyectosNoEncontrados.push(codigoProyecto);
+                        proyectosNoEncontrados.add(codigoProyecto);
                     }
                 }
                 
-                // Guardar los proyectos actualizados en localStorage
-                localStorage.setItem('proyectos', JSON.stringify(proyectos));
-                
-                // Mostrar resultados
-                if (desembolsosAgregados.length > 0 || proyectosNoEncontrados.length > 0) {
-                    let mensaje = '';
-                    
-                    if (desembolsosAgregados.length > 0) {
-                        mensaje += `<strong>Desembolsos agregados:</strong><ul>`;
-                        desembolsosAgregados.forEach(d => {
-                            mensaje += `<li>${d.proyecto}: ${d.fecha} - ${formatCurrency(d.valor)}</li>`;
-                        });
-                        mensaje += `</ul>`;
-                    }
-                    
-                    if (proyectosNoEncontrados.length > 0) {
-                        mensaje += `<strong>Proyectos no encontrados:</strong><ul>`;
-                        const uniqueProyectos = [...new Set(proyectosNoEncontrados)];
-                        uniqueProyectos.forEach(codigo => {
-                            mensaje += `<li>${codigo}</li>`;
-                        });
-                        mensaje += `</ul>`;
-                    }
-                    
-                    Swal.fire({
-                        title: 'Proceso completado',
-                        html: mensaje,
-                        icon: 'info',
-                        confirmButtonText: 'Aceptar'
-                    });
-                } else {
-                    Swal.fire({
-                        title: 'No se realizaron cambios',
-                        text: 'No se encontraron desembolsos nuevos para agregar',
-                        icon: 'info',
-                        confirmButtonText: 'Aceptar'
-                    });
+                if (desembolsosAgregados.length === 0 && proyectosNoEncontrados.size === 0) {
+                    mostrarErrorModal("No se encontraron desembolsos válidos para agregar");
+                    return;
                 }
                 
-                // Ocultar formulario
+                // Mostrar confirmación
+                mostrarConfirmacionDesembolsosDiarios(desembolsosAgregados, Array.from(proyectosNoEncontrados));
                 ocultarFormCargaDesembolsosDiarios();
                 
             } catch (error) {
+                console.error('Error en procesarDesembolsosDiarios:', error);
                 mostrarErrorModal(`Error al procesar el archivo: ${error.message}`);
             }
         }
+
+        // ==================================================================
+        // FUNCIÓN PARA MOSTRAR CONFIRMACIÓN DE DESEMBOLSOS (ACTUALIZADA)
+        // ==================================================================
+
+        function mostrarConfirmacionDesembolsosDiarios(desembolsosAgregados, proyectosNoEncontrados) {
+            let contenido = '';
+            const responsable = "{{ session.usuario.nombre }}" || 'Usuario';
+
+            // Cabecera con responsable
+            contenido += `<div class="alert alert-info"><strong>Responsable:</strong> ${responsable}</div>`;
+
+            // Si hay desembolsos a agregar, mostramos la tabla
+            if (desembolsosAgregados && desembolsosAgregados.length > 0) {
+                contenido += `<h5>Desembolsos a Agregar</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead>
+                            <tr>
+                                <th>Proyecto</th>
+                                <th>Fecha</th>
+                                <th>Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                desembolsosAgregados.forEach(d => {
+                    let fechaMostrar = d.fecha;
+                    try {
+                        if (d.fecha) {
+                            const f = new Date(d.fecha);
+                            if (!isNaN(f.getTime())) fechaMostrar = f.toLocaleDateString('es-ES');
+                        }
+                    } catch (e) { /* noop */ }
+
+                    contenido += `<tr>
+                        <td>${d.proyectoNombre || 'Sin nombre'} (${d.proyectoId})</td>
+                        <td>${fechaMostrar || 'Sin fecha'}</td>
+                        <td>${formatCurrency(d.valor)}</td>
+                    </tr>`;
+                });
+                contenido += `</tbody></table></div>`;
+
+                // Total de los válidos
+                const total = desembolsosAgregados.reduce((sum, d) => sum + (parseFloat(d.valor) || 0), 0);
+                contenido += `<div class="alert alert-primary"><strong>Total a agregar:</strong> ${formatCurrency(total)}</div>`;
+            }
+
+            // Si hay proyectos no encontrados, siempre los mostramos para info
+            if (proyectosNoEncontrados && proyectosNoEncontrados.length > 0) {
+                contenido += `<div class="alert alert-danger mt-3">
+                    <h5>Proyectos No Encontrados</h5>
+                    <p>No se encontraron coincidencias para los siguientes c\u00f3digos (se ignorarán):</p>
+                    <ul>`;
+                proyectosNoEncontrados.forEach(codigo => {
+                    contenido += `<li>${codigo}</li>`;
+                });
+                contenido += `</ul></div>`;
+            }
+
+            // Si NO hay desembolsos válidos, mostramos un mensaje explicito y deshabilitamos confirm
+            if (!desembolsosAgregados || desembolsosAgregados.length === 0) {
+                contenido += `<div class="alert alert-warning mt-3">
+                    <strong>No se encontraron desembolsos asociados al/los proyecto(s) seleccionados.</strong>
+                    <br>No se agregará ning\u00fan registro. Revise el archivo y los c\u00f3digos de proyecto.
+                </div>`;
+            }
+
+            // Insertar contenido en el modal
+            const body = document.getElementById('confirmacionDesembolsosBody');
+            body.innerHTML = contenido;
+
+            // Configurar el boton Confirmar
+            const btnConfirmar = document.getElementById('btnConfirmarDesembolsos');
+            // limpiar handlers previos
+            btnConfirmar.onclick = null;
+
+            if (!desembolsosAgregados || desembolsosAgregados.length === 0) {
+                // Deshabilitar confirmar y añadir tooltip aclaratorio
+                btnConfirmar.disabled = true;
+                btnConfirmar.title = "No hay desembolsos válidos para agregar";
+            } else {
+                // Habilitar y enlazar a la funcion de guardado
+                btnConfirmar.disabled = false;
+                btnConfirmar.title = "";
+                btnConfirmar.onclick = function() {
+                    // doble chequeo por seguridad: si por algun motivo el array quedo vacio
+                    if (!desembolsosAgregados || desembolsosAgregados.length === 0) {
+                        mostrarErrorModal("No se encontraron desembolsos asociados al proyecto. No se agregará nada.");
+                        return;
+                    }
+                    guardarDesembolsosDiarios(desembolsosAgregados);
+                };
+            }
+
+            // Mostrar modal (bootstrap)
+            const modalEl = document.getElementById('modalConfirmacionDesembolsosDiarios');
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+
+            // Al cerrar el modal, reseteamos el boton (por si queda deshabilitado)
+            modalEl.addEventListener('hidden.bs.modal', function handler() {
+                try {
+                    btnConfirmar.disabled = false;
+                    btnConfirmar.title = '';
+                    btnConfirmar.onclick = null;
+                } catch (e) {}
+                modalEl.removeEventListener('hidden.bs.modal', handler);
+            });
+        }
+
 
         // Función auxiliar para formatear moneda
         function formatCurrency(value) {
