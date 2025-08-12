@@ -181,15 +181,6 @@
             border-radius: 5px;
             background-color: #f8f9fa;
         }
-
-        .modal-header {
-            padding: 1rem 1.5rem;
-        }
-
-        .modal-title {
-            font-size: 1.25rem;
-            font-weight: 500;
-        }
         .acciones-container {
             position: relative;
             display: flex;
@@ -304,79 +295,110 @@
             overflow-y: auto;
         }
 
-        .modal-xl .modal-dialog {
-            max-width: 90%;
-            width: 90%;
-        }
-
         #btn-export-pdf {
             margin-left: 10px;
         }
 
-        /* Fix definitivo para modal bloqueado */
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: 1060;
-            width: 100%;
-            height: 100%;
-            overflow-x: hidden;
-            overflow-y: auto;
-            outline: 0;
-        }
-
-        .modal-backdrop {
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: 1040;
-            width: 100vw;
-            height: 100vh;
-            background-color: #000;
-            opacity: 0.5;
-        }
-
+        /* ESTILOS CORREGIDOS PARA EL MODAL */
         .modal-content {
-            position: relative;
-            z-index: 1060;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            border: none;
         }
-
-        /* Estilos para la tabla */
-        #lista-desembolsos .badge {
-            font-size: 0.85em;
-            padding: 0.35em 0.65em;
+        
+        .modal-header {
+            background: linear-gradient(135deg, var(--bancolombia-blue), var(--bancolombia-light-blue));
+            color: white;
+            border-radius: 8px 8px 0 0;
+            padding: 15px 20px;
         }
-
-        /* Fix definitivo para modal */
-        #modalDesembolsos.modal {
-            z-index: 1060 !important;
+        
+        .modal-title {
+            font-weight: 600;
+            font-size: 1.3rem;
         }
-
-        #modalDesembolsos .modal-dialog {
-            z-index: 1061 !important;
+        
+        .modal-body {
+            padding: 20px;
         }
-
-        #modalDesembolsos .modal-content {
-            z-index: 1062 !important;
+        
+        .modal-footer {
+            border-top: 1px solid var(--border-light);
+            padding: 15px 20px;
         }
-
-        /* Asegurar que el body no se desplace */
-        body.modal-open {
-            overflow: hidden;
-            padding-right: 0 !important;
+        
+        .values-section {
+            background-color: var(--bancolombia-gray);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--bancolombia-blue);
         }
-
-        /* Estilos para la tabla */
-        #modalDesembolsos .table-dark {
-            background-color: var(--bancolombia-dark-gray);
+        
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
         }
-
-        #modalDesembolsos .badge {
-            font-size: 0.85em;
-            padding: 0.35em 0.65em;
+        
+        .summary-table th {
+            background-color: var(--bancolombia-blue);
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
         }
-
+        
+        .summary-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        
+        .summary-table tr:nth-child(even) {
+            background-color: var(--pure-white);
+        }
+        
+        .value-highlight {
+            font-weight: 600;
+        }
+        
+        .positive-value {
+            color: #28a745;
+        }
+        
+        .negative-value {
+            color: #dc3545;
+        }
+        
+        .coverage-percentage {
+            font-weight: 700;
+            color: #e67e22;
+        }
+        
+        .filters-info {
+            background-color: var(--bancolombia-yellow);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: var(--bancolombia-blue);
+        }
+        
+        .project-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--bancolombia-blue);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--bancolombia-yellow);
+        }
+        
+        #modalDesembolsos .modal-body {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
@@ -516,55 +538,12 @@
                     <div class="card filtro-card">
                         <div class="card-body">
                             <h5 class="card-title text-bancolombia">Desembolsos</h5>
-                            <div class="mb-3">
-                                <label class="form-label">Fecha Desde</label>
-                                <input type="date" class="form-control" name="fecha_desde">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Fecha Hasta</label>
-                                <input type="date" class="form-control" name="fecha_hasta">
-                            </div>
                             <button class="btn btn-bancolombia w-100" id="btn-ver-desembolsos">
                                 <i class="fas fa-search me-2"></i>Ver Desembolsos
                             </button>
                         </div>
                     </div>
-                </div>
-
-               <!-- Modal para Desembolsos -->
-                <div class="modal fade" id="modalDesembolsos" tabindex="-1" aria-labelledby="modalDesembolsosLabel" aria-hidden="true">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header bg-primary text-white">
-                                <h5 class="modal-title" id="modalDesembolsosLabel">Historial de Desembolsos</h5>
-                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                <h6 id="titulo-proyecto" class="mb-3 text-primary"></h6>
-                                <div class="table-responsive">
-                                    <table class="table table-striped">
-                                        <thead class="table-dark">
-                                            <tr>
-                                                <th>Fecha</th>
-                                                <th>Monto</th>
-                                                <th>Concepto</th>
-                                                <th>Estado</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="lista-desembolsos">
-                                            <!-- Datos dinámicos -->
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                
+                </div>             
                 <!-- Botones -->
                 <div class="d-flex justify-content-end mt-4">
                     <button type="reset" class="btn btn-outline-secondary me-3">
@@ -625,155 +604,193 @@
     <!-- Script para manejar la búsqueda -->
 
     <script>
-        document.getElementById('btn-ver-desembolsos').addEventListener('click', function() {
-            // Obtener ID del proyecto ingresado
-            const idProyecto = document.getElementById('id_proyecto').value.trim();
+         // Función para formatear valores monetarios
+         function formatearMoneda(valor) {
+            if (valor === null || valor === undefined) return '$ 0';
+            return '$ ' + valor.toLocaleString('es-CO', {maximumFractionDigits: 0});
+        }
+
+        // Función para formatear fechas
+        function formatearFecha(fechaStr) {
+            if (!fechaStr) return 'No disponible';
             
+            try {
+                const fecha = new Date(fechaStr);
+                return fecha.toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (e) {
+                return 'Fecha inválida';
+            }
+        }
+
+        // Función segura para establecer contenido de elementos
+        function safeSetTextContent(elementId, text) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = text;
+            } else {
+                console.error(`Elemento con ID '${elementId}' no encontrado`);
+            }
+        }
+
+        // Función para obtener el nombre del proyecto desde localStorage
+        function obtenerNombreProyecto(idProyecto) {
+            try {
+                // 1. Buscar en historialDesembolsosDiarios
+                const historialDesembolsosDiarios = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
+                const proyectoDiario = historialDesembolsosDiarios.find(item => 
+                    item.proyectoId == idProyecto && item.proyectoNombre
+                );
+                
+                if (proyectoDiario) {
+                    return proyectoDiario.proyectoNombre;
+                }
+                
+                // 2. Buscar en historialVentas
+                const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+                const proyectoVentas = historialVentas.find(item => 
+                    item.proyectoId == idProyecto && item.proyectoNombre
+                );
+                
+                if (proyectoVentas) {
+                    return proyectoVentas.proyectoNombre;
+                }
+                
+                // 3. Buscar en proyectos
+                const proyectos = JSON.parse(localStorage.getItem('proyectos') || '[]');
+                const proyecto = proyectos.find(item => 
+                    item.id_proyecto == idProyecto && item.nombre_proyecto
+                );
+                
+                if (proyecto) {
+                    return proyecto.nombre_proyecto;
+                }
+                
+                return "Proyecto sin nombre";
+            } catch (e) {
+                console.error('Error al obtener nombre del proyecto:', e);
+                return "Proyecto sin nombre";
+            }
+        }
+
+        // Función para obtener datos del proyecto
+        function obtenerDatosProyecto(idProyecto) {
+            try {
+                // Obtener datos de historialDesembolsos
+                const historialDesembolsos = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]');
+                const desembolsosProyecto = Array.isArray(historialDesembolsos) ? 
+                    historialDesembolsos.filter(item => item.proyectoId == idProyecto) : [];
+                
+                // Obtener el registro más reciente
+                const desembolsosMasRecientes = desembolsosProyecto.length > 0 ?
+                    desembolsosProyecto.sort((a, b) => 
+                        new Date(b.fechaCarga) - new Date(a.fechaCarga))[0] : null;
+                
+                return desembolsosMasRecientes;
+            } catch (e) {
+                console.error('Error al obtener datos del proyecto:', e);
+                return null;
+            }
+        }
+
+        // Inicializar datos al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            // Asignar el evento click al botón
+            const btn = document.getElementById('btn-ver-desembolsos');
+            if (btn) {
+                btn.addEventListener('click', verValores);
+            } else {
+                console.error("Botón 'btn-ver-desembolsos' no encontrado");
+            }
+        });
+
+        // Función principal para mostrar valores
+        function verValores() {
+            // Obtener ID del proyecto ingresado
+            const idProyectoInput = document.getElementById('id_proyecto');
+            
+            // Verificar si el input existe
+            if (!idProyectoInput) {
+                console.error("Elemento 'id_proyecto' no encontrado");
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error interno',
+                    text: 'No se encontró el campo ID del proyecto'
+                });
+                return;
+            }
+
+            const idProyecto = idProyectoInput.value.trim();
+            
+            // Verificar si se ingresó un ID
             if (!idProyecto) {
                 Swal.fire({
                     icon: 'error',
                     title: 'Campo requerido',
-                    text: 'Debe ingresar el ID del proyecto para buscar desembolsos'
+                    text: 'Debe ingresar el ID del proyecto para ver los valores'
                 });
                 return;
             }
 
-            // 1. Buscar el proyecto en localStorage para verificar que existe
-            const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
-            const proyecto = proyectos.find(p => p.id_proyecto === idProyecto);
+            // Obtener nombre del proyecto
+            const nombreProyecto = obtenerNombreProyecto(idProyecto);
             
-            if (!proyecto) {
+            // Obtener datos del proyecto
+            const datos = obtenerDatosProyecto(idProyecto);
+            
+            // Verificar si se encontraron datos
+            if (!datos) {
                 Swal.fire({
                     icon: 'error',
-                    title: 'Proyecto no encontrado',
-                    text: `No existe un proyecto con ID: ${idProyecto}`
+                    title: 'Datos no encontrados',
+                    text: `No se encontraron valores calculados para el proyecto con ID: ${idProyecto}`
                 });
                 return;
             }
 
-            // 2. Obtener desembolsos del proyecto (usando datos de prueba por ahora)
-            const desembolsos = [
-                { 
-                    fecha: "2023-10-15", 
-                    monto: "15,000,000", 
-                    concepto: "Pago fase 1", 
-                    estado: "Aprobado",
-                    proyectoId: idProyecto
-                },
-                { 
-                    fecha: "2023-08-20", 
-                    monto: "10,000,000", 
-                    concepto: "Materiales", 
-                    estado: "Aprobado",
-                    proyectoId: idProyecto
-                },
-                { 
-                    fecha: "2023-05-10", 
-                    monto: "8,000,000", 
-                    concepto: "Honorarios", 
-                    estado: "Rechazado",
-                    proyectoId: idProyecto
-                },
-                { 
-                    fecha: "2023-04-05", 
-                    monto: "12,000,000", 
-                    concepto: "Materiales fase 2", 
-                    estado: "Aprobado",
-                    proyectoId: idProyecto
+            // Obtener valores calculados
+            const valores = datos.campos || {};
+            
+            // Actualizar título del proyecto
+            safeSetTextContent('titulo-proyecto', `${nombreProyecto} (ID: ${idProyecto})`);
+            
+            // Actualizar valores calculados
+            safeSetTextContent('modal-valor-entregado', formatearMoneda(valores.valorEntregado));
+            safeSetTextContent('modal-valor-por-entregar', formatearMoneda(valores.valorPorEntregar));
+            safeSetTextContent('modal-a-desembolsar', formatearMoneda(valores.formulaA));
+            safeSetTextContent('modal-b-desembolsar', formatearMoneda(valores.formulaB));
+            safeSetTextContent('modal-superavit', formatearMoneda(valores.superavit));
+            
+            // Manejar cobertura
+            const cobertura = valores.cobertura || 0;
+            safeSetTextContent('modal-cobertura', cobertura.toFixed(2) + '%');
+            
+            safeSetTextContent('modal-maximo-desembolsar', formatearMoneda(valores.maximoDesembolsar));
+            
+            // Actualizar información adicional
+            safeSetTextContent('modal-fecha-carga', formatearFecha(datos.fechaCarga));
+            safeSetTextContent('modal-usuario', datos.usuario || 'No disponible');
+            
+            const requiereVistoBueno = valores.requiereVistoBueno ? 'Sí' : 'No';
+            safeSetTextContent('modal-requiere-visto-bueno', requiereVistoBueno);
+
+            document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+
+            const modal = bootstrap.Modal.getOrCreateInstance(
+                document.getElementById('modalDesembolsos'),
+                {
+                    backdrop: true,  // Permite cerrar haciendo clic fuera
+                    keyboard: true   // Permite cerrar con ESC
                 }
-            ];
-
-            // 3. Obtener las fechas desde y hasta
-            const fechaDesde = document.querySelector('input[name="fecha_desde"]').value;
-            const fechaHasta = document.querySelector('input[name="fecha_hasta"]').value;
-
-            // 4. Validación de que la fecha "Hasta" no sea menor que la fecha "Desde"
-            if (fechaDesde && fechaHasta && new Date(fechaHasta) < new Date(fechaDesde)) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Fecha inválida',
-                    text: 'La fecha "Hasta" no puede ser menor que la fecha "Desde".'
-                });
-                return; // No continuar con la lógica si las fechas son inválidas
-            }
-
-            // 5. Filtrar los desembolsos según las fechas y el estado
-            let desembolsosFiltrados = desembolsos
-                .filter(d => d.proyectoId === idProyecto && d.estado === "Aprobado");
-
-            // Filtrar por fecha desde si se ha ingresado
-            if (fechaDesde) {
-                desembolsosFiltrados = desembolsosFiltrados.filter(d => new Date(d.fecha) >= new Date(fechaDesde));
-            }
-
-            // Filtrar por fecha hasta si se ha ingresado
-            if (fechaHasta) {
-                desembolsosFiltrados = desembolsosFiltrados.filter(d => new Date(d.fecha) <= new Date(fechaHasta));
-            }
-
-            // Ordenar por fecha de manera descendente
-            desembolsosFiltrados = desembolsosFiltrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-            // 6. Mostrar los datos en el modal
-            const lista = document.getElementById('lista-desembolsos');
-            
-            if (desembolsosFiltrados.length === 0) {
-                lista.innerHTML = `
-                    <tr>
-                        <td colspan="4" class="text-center">No hay desembolsos aprobados para este proyecto, en ese rango de fechas que incluiste.</td>
-                    </tr>
-                `;
-            } else {
-                lista.innerHTML = desembolsosFiltrados.map(desembolso => `
-                    <tr>
-                        <td>${desembolso.fecha}</td>
-                        <td>$${desembolso.monto}</td>
-                        <td>${desembolso.concepto}</td>
-                        <td><span class="badge bg-success">${desembolso.estado}</span></td>
-                    </tr>
-                `).join('');
-            }
-
-            // 7. Establecer título del proyecto
-            document.getElementById('titulo-proyecto').textContent = `Proyecto: ${proyecto.nombre_proyecto || 'Sin nombre'} (ID: ${idProyecto})`;
-
-            // 8. Solución definitiva para el modal
-            const modalEl = document.getElementById('modalDesembolsos');
-            
-            // Destruir cualquier instancia previa
-            const existingModal = bootstrap.Modal.getInstance(modalEl);
-            if (existingModal) {
-                existingModal.dispose();
-            }
-            
-            // Crear nueva instancia con configuración adecuada
-            const modal = new bootstrap.Modal(modalEl, {
-                backdrop: true,  // Permite cerrar haciendo click fuera
-                keyboard: true,  // Permite cerrar con ESC
-                focus: true      // Enfoca el modal al mostrarse
-            });
-            
-            // Mostrar el modal
+            );
             modal.show();
-            
-            // Fix para backdrop (asegura que no bloquee)
-            modalEl.addEventListener('shown.bs.modal', function() {
-                const backdrop = document.querySelector('.modal-backdrop');
-                if (backdrop) {
-                    backdrop.style.zIndex = '1050';
-                    backdrop.style.pointerEvents = 'none';
-                }
-            });
-            
-            // Configurar cierre correctamente
-            const closeButtons = modalEl.querySelectorAll('[data-bs-dismiss="modal"]');
-            closeButtons.forEach(btn => {
-                btn.onclick = function() {
-                    modal.hide();
-                };
-            });
-        });
 
+        }
 
         // Función de formato de fecha mejorada
         function formatFecha(valor) {
@@ -1496,16 +1513,17 @@
             tbody.innerHTML = '';
 
             if (ventasProyecto.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay registros de ventas</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center">No hay registros de ventas</td></tr>';
                 return;
             }
 
-            ventasProyecto.forEach(v => {
-                const campos = v.campos || {};
-                tbody.innerHTML += `
+            ventasProyecto.forEach((d, index) => {
+            const campos = d.campos || {};
+            tbody.innerHTML += `
                     <tr>
-                        <td>${formatFecha(v.fechaCarga)}</td>
-                        <td>${v.usuario || 'N/A'}</td>
+                        <td>${index + 1}</td> <!-- Columna enumeradora -->
+                        <td>${formatFecha(d.fechaCarga)}</td>
+                        <td>${d.usuario || 'N/A'}</td>
                         <td>${getNestedValue(campos, 'FECHA INICIO DE VENTAS.valor') || 'N/A'}</td>
                         <td>${getNestedValue(campos, 'INMUEBLES VENDIDOS (unidades).valor') || 0}</td>
                         <td>${(getNestedValue(campos, '% PORCENTAJE DE VENTAS (unidades).valor') || 0 * 100).toFixed(2)}%</td>
@@ -1517,7 +1535,7 @@
         } catch (error) {
             console.error('Error cargando ventas:', error);
             const tbody = document.querySelector('#tabla-ventas tbody');
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error al cargar ventas</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar ventas</td></tr>';
         }
     }
 
@@ -1535,16 +1553,17 @@
             tbody.innerHTML = '';
 
             if (visitasProyecto.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay registros de visitas</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center">No hay registros de visitas</td></tr>';
                 return;
             }
 
-            visitasProyecto.forEach(v => {
-                const campos = v.campos || {};
-                tbody.innerHTML += `
+            visitasProyecto.forEach((d, index) => {
+            const campos = d.campos || {};
+            tbody.innerHTML += `
                     <tr>
+                        <td>${index + 1}</td> <!-- Columna enumeradora -->
                         <td>${formatFecha(getNestedValue(campos, 'FECHA VISITA.valor'))}</td>
-                        <td>${v.usuario || 'N/A'}</td>
+                        <td>${d.usuario || 'N/A'}</td>
                         <td>${getNestedValue(campos, 'NUMERO VISITA.valor') || 'N/A'}</td>
                         <td>${getNestedValue(campos, 'AVANCE OBRA.valor') || 'N/A'}</td>
                         <td>${(getNestedValue(campos, 'AVANCE ESPERADO PORCENTAJE.valor') || 0).toFixed(2)}%</td>
@@ -1556,26 +1575,27 @@
         } catch (error) {
             console.error('Error cargando visitas:', error);
             const tbody = document.querySelector('#tabla-visitas tbody');
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error al cargar los datos de visitas</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar los datos de visitas</td></tr>';
         }
     }
 
-    function cargarHistorialDesembolsos(idProyecto) {
+    function cargarHistorialDesembolsosDiarios(idProyecto) {
         try {
-            const historial = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]');
+            const historial = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
             const desembolsosProyecto = historial.filter(d => d.proyectoId === idProyecto);
             const tbody = document.querySelector('#tabla-desembolsos tbody');
             tbody.innerHTML = '';
 
             if (desembolsosProyecto.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay registros de desembolsos</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center">No hay registros de desembolsos</td></tr>';
                 return;
             }
 
-            desembolsosProyecto.forEach(d => {
-                const campos = d.campos || {};
-                tbody.innerHTML += `
+            desembolsosProyecto.forEach((d, index) => {
+            const campos = d.campos || {};
+            tbody.innerHTML += `
                     <tr>
+                        <td>${index + 1}</td> <!-- Columna enumeradora -->
                         <td>${formatFecha(d.fechaCarga)}</td>
                         <td>${d.usuario || 'N/A'}</td>
                         <td>${formatCurrency(campos.valorEntregado || 0)}</td>
@@ -1589,7 +1609,7 @@
         } catch (error) {
             console.error('Error cargando desembolsos:', error);
             const tbody = document.querySelector('#tabla-desembolsos tbody');
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error al cargar desembolsos</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar desembolsos</td></tr>';
         }
     }
 
@@ -1610,11 +1630,11 @@
             // Verificar si todos los historiales están vacíos
             const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
             const historialVisitas = JSON.parse(localStorage.getItem('historialVisitas') || '[]');
-            const historialDesembolsos = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]');
+            const historialDesembolsosDiarios = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
             
             const tieneVentas = historialVentas.some(v => v.proyectoId === idProyecto);
             const tieneVisitas = historialVisitas.some(v => v.proyectoId === idProyecto);
-            const tieneDesembolsos = historialDesembolsos.some(d => d.proyectoId === idProyecto);
+            const tieneDesembolsos = historialDesembolsosDiarios.some(d => d.proyectoId === idProyecto);
             
             if (!tieneVentas && !tieneVisitas && !tieneDesembolsos) {
                 Swal.fire({
@@ -1634,7 +1654,7 @@
                     document.querySelector('[data-tipo="visitas"]').classList.add('active');
                     document.getElementById('contenido-visitas').style.display = 'block';
                 } else if (tieneDesembolsos) {
-                    cargarHistorialDesembolsos(idProyecto);
+                    cargarHistorialDesembolsosDiarios(idProyecto);
                     document.querySelector('[data-tipo="desembolsos"]').classList.add('active');
                     document.getElementById('contenido-desembolsos').style.display = 'block';
                 }
@@ -1677,7 +1697,7 @@
                         cargarHistorialVisitas(proyectoId);
                         break;
                     case 'desembolsos':
-                        cargarHistorialDesembolsos(proyectoId);
+                        cargarHistorialDesembolsosDiarios(proyectoId);
                         break;
                 }
             });
@@ -2051,7 +2071,7 @@
         // Función para generar contenido de desembolsos en PDF (síncrona ahora)
         function generarContenidoDesembolsosPDF(proyecto) {
             try {
-                const historial = JSON.parse(localStorage.getItem('historialDesembolsos')) || [];
+                const historial = JSON.parse(localStorage.getItem('historialDesembolsosDiarios')) || [];
                 const desembolsosProyecto = historial.filter(d => d.proyectoId === proyecto.id_proyecto);
                 
                 // Verificar si hay datos
@@ -2316,6 +2336,94 @@
         </div>
         </div>
     </div>
+    <!-- Modal para Valores Calculados -->
+    <div class="modal fade" id="modalDesembolsos" tabindex="-1" aria-labelledby="modalDesembolsosLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Valores Calculados del Proyecto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Título con nombre del proyecto e ID -->
+                    <div class="project-title">
+                        <i class="fas fa-building me-2"></i>
+                        <span id="titulo-proyecto">Proyecto sin nombre</span>
+                    </div>
+                    
+                    <!-- Sección de valores calculados -->
+                    <div class="values-section">
+                        <h5 class="mb-3"><i class="fas fa-calculator me-2"></i>Valores Calculados</h5>
+                        <table class="summary-table">
+                            <thead>
+                                <tr>
+                                    <th>Concepto</th>
+                                    <th>Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>VALOR ENTREGADO</td>
+                                    <td id="modal-valor-entregado" class="value-highlight">$ 0</td>
+                                </tr>
+                                <tr>
+                                    <td>VALOR POR ENTREGAR</td>
+                                    <td id="modal-valor-por-entregar" class="value-highlight negative-value">$ 0</td>
+                                </tr>
+                                <tr>
+                                    <td>A DESEMBOLSAR CONSTRUCTOR (% SOLICITADO)</td>
+                                    <td id="modal-a-desembolsar" class="value-highlight">$ 0</td>
+                                </tr>
+                                <tr>
+                                    <td>B DESEMBOLSAR CONSTRUCTOR (MÁXIMO %)</td>
+                                    <td id="modal-b-desembolsar" class="value-highlight">$ 0</td>
+                                </tr>
+                                <tr>
+                                    <td>SUPERÁVIT (C)</td>
+                                    <td id="modal-superavit" class="value-highlight positive-value">$ 0</td>
+                                </tr>
+                                <tr>
+                                    <td>COBERTURA</td>
+                                    <td id="modal-cobertura" class="coverage-percentage">0.00%</td>
+                                </tr>
+                                <tr>
+                                    <td>MÁXIMO A DESEMBOLSAR (POLÍTICA)</td>
+                                    <td id="modal-maximo-desembolsar" class="value-highlight">$ 0</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Información adicional -->
+                    <div class="filters-info">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <span class="info-label">Última Actualización:</span>
+                                    <span id="modal-fecha-carga">No disponible</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <span class="info-label">Usuario:</span>
+                                    <span id="modal-usuario">No disponible</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <span class="info-label">Requiere Visto Bueno:</span>
+                                    <span id="modal-requiere-visto-bueno">No</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
    <!-- Modal para Gestiones -->
     <div class="modal fade" id="gestionModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
@@ -2478,6 +2586,7 @@
                             <table class="table table-striped" id="tabla-ventas">
                                 <thead class="table-dark">
                                     <tr>
+                                        <th>N°</th>
                                         <th>Fecha Carga</th>
                                         <th>Usuario</th>
                                         <th>Inicio Ventas</th>
@@ -2497,6 +2606,7 @@
                             <table class="table table-striped" id="tabla-visitas">
                                 <thead class="table-dark">
                                     <tr>
+                                        <th>N°</th>
                                         <th>Fecha Visita</th>
                                         <th>Usuario</th>
                                         <th>N° Visita</th>
@@ -2516,6 +2626,7 @@
                             <table class="table table-striped" id="tabla-desembolsos">
                                 <thead class="table-dark">
                                     <tr>
+                                        <th>N°</th>
                                         <th>Fecha</th>
                                         <th>Usuario</th>
                                         <th>Valor Entregado</th>
