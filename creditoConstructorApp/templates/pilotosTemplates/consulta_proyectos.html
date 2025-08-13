@@ -454,7 +454,7 @@
                                 <h5 class="card-title text-bancolombia">Datos Generales</h5>
                                 <div class="mb-3">
                                     <label class="form-label">ID Proyecto</label>
-                                    <input type="text" class="form-control" name="id" id="id_proyecto">
+                                    <input type="text" class="form-control" name="id_proyecto" id="id_proyecto">
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Nombre Proyecto</label>
@@ -560,6 +560,14 @@
         <div class="consultar-container">
             <h2 class="section-title"><i class="fas fa-table me-2"></i>Resultados</h2>
             <div class="d-flex justify-content-end mt-4">
+                <div class="d-flex justify-content-end mt-4 align-items-center gap-2">
+                    <label for="page-size-select" class="mb-0 me-2">Mostrar</label>
+                    <select id="page-size-select" class="form-select form-select-sm" style="width: auto;">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
                 <button type="button" class="btn btn-success" id="btn-exportar">
                     <i class="fas fa-file-export me-2"></i>Exportar a Excel
                 </button>
@@ -1269,9 +1277,10 @@
         document.getElementById('form-consulta').addEventListener('submit', function(e) {
             e.preventDefault();
             const filtros = {
-                proyecto: this.elements.proyecto.value.trim(),
-                titular: this.elements.titular.value.trim(),
-                nit: this.elements.nit.value.trim()
+                id_proyecto: (this.elements['id_proyecto']?.value || '').trim(),
+                proyecto: (this.elements['proyecto']?.value || '').trim(),
+                titular: (this.elements['titular']?.value || '').trim(),
+                nit: (this.elements['nit']?.value || '').trim()
             };
             cargarProyectos(filtros);
         });
@@ -2258,6 +2267,223 @@
                     }
                 });
             }
+        });
+        let paginaActual = 1;
+        let tamanoPagina = 10;
+        let proyectosFiltrados = [];
+
+        function cargarProyectos(filtros = {}) {
+            const userRole = obtenerRolUsuario();
+            let proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+
+            // Ordenar
+            proyectos.sort((a, b) => (b.fecha_creacion || 0) - (a.fecha_creacion || 0));
+
+            // Filtrar
+            proyectos = proyectos.filter(p => {
+                let ok = true;
+
+                // Nuevo filtro por ID Proyecto
+                if (filtros.id_proyecto) {
+                    const busq = filtros.id_proyecto.toLowerCase();
+                    ok = ok && (p.id_proyecto || '').toString().toLowerCase().includes(busq);
+                }
+
+                if (filtros.proyecto) {
+                    const busq = filtros.proyecto.toLowerCase();
+                    ok = ok && (
+                        (p.id_proyecto || '').toString().toLowerCase().includes(busq) ||
+                        (p.nombre_proyecto || '').toLowerCase().includes(busq)
+                    );
+                }
+                if (filtros.titular) {
+                    const busq = filtros.titular.toLowerCase();
+                    ok = ok && (p.titular_credito || '').toLowerCase().includes(busq);
+                }
+                if (filtros.nit) {
+                    const busq = filtros.nit.toLowerCase();
+                    ok = ok && (
+                        (p.nit_titular || '').toLowerCase().includes(busq) ||
+                        (p.nit_grupo_riesgo || '').toLowerCase().includes(busq)
+                    );
+                }
+
+                return ok;
+            });
+
+            proyectosFiltrados = proyectos; // Guardar filtrados para paginación
+            paginaActual = 1; // Reiniciar página al aplicar filtros
+            renderPagina(userRole);
+            renderPaginacion();
+        }
+
+
+        function renderPagina(userRole) {
+            const tbody = document.getElementById('resultados-body');
+            tbody.innerHTML = '';
+
+            const inicio = (paginaActual - 1) * tamanoPagina;
+            const fin = inicio + tamanoPagina;
+            const pagina = proyectosFiltrados.slice(inicio, fin);
+
+            pagina.forEach(p => {
+                const datos = {
+                    nombre_proyecto: p.nombre_proyecto || 'Proyecto sin nombre',
+                    titular: p.titular_credito || 'Sin titular',
+                    nit: p.nit_titular || p.nit_grupo_riesgo || 'Sin NIT',
+                    arquitecto: p.arquitecto || p.gerente || 'Sin arquitecto',
+                    avance: Math.min(Math.max(p.avance || 0, 0), 100),
+                    perito: p.perito || '—',
+                    estado: p.estado || 'Activo'
+                };
+                const puedeEditar = ['admin', 'arquitecto'].includes(userRole);
+                const badge = datos.estado === 'Desistido'
+                    ? '<span class="badge bg-danger">Desistido</span>'
+                    : '<span class="badge bg-success">Activo</span>';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${datos.nombre_proyecto} ${badge}</td>
+                        <td>${datos.titular}</td>
+                        <td>${datos.nit}</td>
+                        <td>${datos.arquitecto}</td>
+                        <td>
+                            <div class="progress">
+                                <div class="progress-bar" style="width:${datos.avance}%">
+                                    ${datos.avance}%
+                                </div>
+                            </div>
+                        </td>
+                        <td>${datos.perito}</td>
+                        <td>
+                            <div class="acciones-container">
+                                <button class="btn btn-accion btn-accion-primary"
+                                        onclick="verProyecto('${p.id_proyecto}')"
+                                        data-bs-toggle="tooltip" title="Ver detalles">
+                                    <i class="fas fa-eye"></i> Ver
+                                </button>
+                                ${puedeEditar ? `
+                                <button class="btn btn-accion btn-accion-secondary"
+                                        onclick="editarProyecto('${p.id_proyecto}')"
+                                        data-bs-toggle="tooltip" title="Editar proyecto">
+                                    <i class="fas fa-edit"></i> Editar Grupo
+                                </button>
+                                <div class="dropdown">
+                                    <button class="btn btn-accion btn-accion-secondary"
+                                            data-bs-toggle="dropdown" title="Más acciones">
+                                        <i class="fas fa-ellipsis-h"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end animate__fadeIn">
+                                        <li>
+                                            <button class="dropdown-item"
+                                                    onclick="mostrarModalGestion('titular','${p.id_proyecto}')">
+                                                <i class="fas fa-user-edit me-2 text-primary"></i>
+                                                Cambio Titular
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item"
+                                                    onclick="mostrarModalGestion('nombre','${p.id_proyecto}')">
+                                                <i class="fas fa-signature me-2 text-info"></i>
+                                                Cambio Nombre
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item"
+                                                    onclick="mostrarModalGestion('unidades','${p.id_proyecto}')">
+                                                <i class="fas fa-cubes me-2 text-warning"></i>
+                                                Gestión Unidades
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item"
+                                                    onclick="mostrarModalGestion('desistimiento','${p.id_proyecto}')">
+                                                <i class="fas fa-ban me-2 text-danger"></i>
+                                                Desistimiento
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item"
+                                                    onclick="mostrarModalGestion('monto','${p.id_proyecto}')">
+                                                <i class="fas fa-coins me-2 text-success"></i>
+                                                Ampliación de Monto
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item"
+                                                    onclick="mostrarModalGestion('vigencia','${p.id_proyecto}')">
+                                                <i class="fas fa-calendar-day me-2 text-info"></i>
+                                                Ampliación de Vigencia
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item"
+                                                    onclick="mostrarModalGestion('plazo','${p.id_proyecto}')">
+                                                <i class="fas fa-clock me-2 text-warning"></i>
+                                                Ampliación de Plazo
+                                            </button>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <button class="dropdown-item text-danger"
+                                                    onclick="eliminarProyecto('${p.id_proyecto}')">
+                                                <i class="fas fa-trash-alt me-2"></i>
+                                                Eliminar Proyecto
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            if (pagina.length === 0) {
+                tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center">— Sin resultados —</td>
+                </tr>
+                `;
+            }
+        }
+
+        function renderPaginacion() {
+            const totalPaginas = Math.ceil(proyectosFiltrados.length / tamanoPagina);
+            const pagContainer = document.querySelector('.pagination');
+            pagContainer.innerHTML = '';
+
+            const btnPrev = document.createElement('li');
+            btnPrev.className = `page-item ${paginaActual === 1 ? 'disabled' : ''}`;
+            btnPrev.innerHTML = `<a class="page-link" href="#">Anterior</a>`;
+            btnPrev.onclick = e => { e.preventDefault(); if (paginaActual > 1) { paginaActual--; renderPagina(obtenerRolUsuario()); renderPaginacion(); } };
+            pagContainer.appendChild(btnPrev);
+
+            for (let i = 1; i <= totalPaginas; i++) {
+                const btn = document.createElement('li');
+                btn.className = `page-item ${paginaActual === i ? 'active' : ''}`;
+                btn.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+                btn.onclick = e => { e.preventDefault(); paginaActual = i; renderPagina(obtenerRolUsuario()); renderPaginacion(); };
+                pagContainer.appendChild(btn);
+            }
+
+            const btnNext = document.createElement('li');
+            btnNext.className = `page-item ${paginaActual === totalPaginas ? 'disabled' : ''}`;
+            btnNext.innerHTML = `<a class="page-link" href="#">Siguiente</a>`;
+            btnNext.onclick = e => { e.preventDefault(); if (paginaActual < totalPaginas) { paginaActual++; renderPagina(obtenerRolUsuario()); renderPaginacion(); } };
+            pagContainer.appendChild(btnNext);
+        }
+
+        document.getElementById('page-size-select').addEventListener('change', function() {
+            tamanoPagina = parseInt(this.value, 10);
+            paginaActual = 1;
+            renderPagina(obtenerRolUsuario());
+            renderPaginacion();
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            cargarProyectos({});
         });
     </script>
     <!-- Modal Detalles -->

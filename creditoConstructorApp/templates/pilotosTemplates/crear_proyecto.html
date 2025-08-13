@@ -1138,6 +1138,13 @@
                         </button>
                     </div>
                     {% endif %}
+                    {% if session.usuario.rol in ['admin'] %}
+                    <div>
+                        <button type="button" class="btn btn-outline-primary" id="btn-subir-base">
+                            <i class="fas fa-cloud-upload-alt me-2"></i>Subir a Base Principal
+                        </button>
+                    </div>
+                    {% endif %}
                     <div>
                         <button type="reset" class="btn btn-outline-secondary me-3">
                             <i class="fas fa-eraser me-2"></i>Limpiar
@@ -1145,6 +1152,39 @@
                         <button type="submit" class="btn btn-bancolombia">
                             <i class="fas fa-save me-2"></i>Guardar Proyecto
                         </button>
+                    </div>
+                </div>
+
+                <!-- Modal para subir base principal -->
+                <div class="modal fade" id="subirBaseModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Subir Base Principal</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-info">
+                                    <strong>Instrucciones:</strong><br>
+                                    1. Seleccione el archivo Excel con todos los registros del piloto<br>
+                                    2. El sistema verificará y evitará duplicados<br>
+                                    3. Los datos se integrarán con la base principal
+                                </div>
+                                
+                                <input type="file" id="baseFile" class="form-control" accept=".xlsx,.xlsm">
+                                
+                                <div class="mt-3">
+                                    <label class="form-check-label">
+                                        <input type="checkbox" id="chk-backup" class="form-check-input" checked>
+                                        Crear copia de seguridad antes de subir
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-primary" id="btn-confirm-subir">Subir Datos</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -3318,6 +3358,114 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
     // Event listeners para ambos campos relacionados
     document.querySelector('[name="fecha_aprobacion"]').addEventListener('change', calcularFechaAlerta);
     document.querySelector('[name="vigencia_en_meses"]').addEventListener('input', calcularFechaAlerta);
+
+    // Manejar clic en el nuevo botón
+    document.getElementById('btn-subir-base').addEventListener('click', function() {
+        new bootstrap.Modal(document.getElementById('subirBaseModal')).show();
+    });
+
+    // Confirmar subida de base principal
+    document.getElementById('btn-confirm-subir').addEventListener('click', function() {
+        const fileInput = document.getElementById('baseFile');
+        const file = fileInput.files[0];
+        const crearBackup = document.getElementById('chk-backup').checked;
+        
+        if (!file) {
+            Swal.fire('Error', 'Seleccione un archivo Excel para subir', 'error');
+            return;
+        }
+        
+        Swal.fire({
+            title: 'Subiendo datos...',
+            html: 'Procesando archivo y actualizando base principal',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        const formData = new FormData();
+        formData.append('archivo', file);
+        formData.append('backup', crearBackup);
+        
+        fetch('/subir_base_principal', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.text())
+        .then(text => {
+            try {
+                const safeText = text.replace(/:\s*NaN\s*(,|})/g, ':null$1');
+                const data = JSON.parse(safeText);
+
+                if (data.success) {
+                    const camposNecesarios = [
+                        "id_proyecto", "fecha_creacion", "tipo_producto", "rango_proyecto",
+                        "grupoPrincipal", "subgrupo_1", "subgrupo_2", "subgrupo_3",
+                        "nit_grupo_riesgo", "nit_titular", "titular_credito", "nombre_proyecto",
+                        "tipo_inmuebles", "segmento", "ciudad", "tipo_fiducia", "fiduciaria",
+                        "gerente", "arquitecto", "auxiliar", "perito",
+                        "monto_solicitado_1_desembolso", "monto_solicitado_cpi",
+                        "monto_solicitado_lote", "total_valor_aprobado", "calificacion_it",
+                        "costos_financiables", "valor_lote", "valor_total_proyecto",
+                        "meses_programacion", "total_inmuebles"
+                    ];
+
+                    // Filtrar y normalizar los proyectos recibidos
+                    const proyectosReducidos = (data.proyectos || []).map(p => {
+                        const nuevo = {};
+                        camposNecesarios.forEach(campo => {
+                            nuevo[campo] = p[campo] !== undefined ? p[campo] : null;
+                        });
+                        nuevo.id_proyecto = (nuevo.id_proyecto || '').toString().trim();
+                        return nuevo;
+                    }).filter(p => p.id_proyecto); // descartamos registros sin id_proyecto
+
+                    // Obtener existentes del localStorage y deduplicar por id_proyecto
+                    const actualesRaw = localStorage.getItem('proyectos');
+                    let actuales = [];
+                    try {
+                        actuales = actualesRaw ? JSON.parse(actualesRaw) : [];
+                    } catch (e) {
+                        actuales = [];
+                    }
+
+                    const mapa = {};
+                    // Primero cargamos los actuales (conservamos)
+                    actuales.forEach(p => {
+                        const id = (p.id_proyecto || '').toString().trim();
+                        if (id) mapa[id] = p;
+                    });
+                    // Luego aplicamos los nuevos (reemplazan si existe)
+                    proyectosReducidos.forEach(p => {
+                        mapa[p.id_proyecto] = p;
+                    });
+
+                    // Resultado final
+                    const final = Object.values(mapa);
+
+                    // Guardar en localStorage
+                    localStorage.setItem('proyectos', JSON.stringify(final));
+
+                    Swal.fire({
+                        title: 'Exito!',
+                        html: `Base principal actualizada:<br>
+                            <b>${data.nuevos}</b> nuevos proyectos agregados<br>
+                            <b>${data.actualizados}</b> proyectos actualizados`,
+                        icon: 'success',
+                        confirmButtonText: 'Aceptar'
+                    });
+                } else {
+                    Swal.fire('Error', data.message || 'Error al subir la base principal', 'error');
+                }
+            } catch (e) {
+                console.error('Error parsing JSON:', e);
+                Swal.fire('Error', 'Error procesando la respuesta del servidor', 'error');
+            }
+        });
+
+
+    });
 
     </script>
     <!-- Footer Estándar Bancolombia -->
