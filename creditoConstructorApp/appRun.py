@@ -11,6 +11,7 @@ import shutil
 from openpyxl.utils.dataframe import dataframe_to_rows
 import subprocess
 import sys
+import json
 
 
 app = Flask(__name__)
@@ -31,6 +32,8 @@ USUARIOS_TEMPORALES = {
         'roles': ['arquitecto']  
     }
 }
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOCAL_STORAGE_PATH = os.path.join(BASE_DIR, 'proyectos_data.json')  # Ruta del archivo JSON
 
 # Configuración para Cupo Sombrilla
 CUPO_SOMBRILLA_FOLDER = os.path.join(os.getcwd(), 'cupo_sombrilla_files')
@@ -341,10 +344,14 @@ if not os.path.exists(EXPORTAR_RUTA):
 
 @app.route('/exportar_excel', methods=['POST'])
 def exportar_excel():
+    import traceback
+    import json
+    from datetime import datetime
+
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'success': False, 'message': 'Datos inválidos'}), 400
+            return jsonify({'success': False, 'message': 'Datos invalidos'}), 400
 
         proyectos = data.get('proyectos', [])
         if not proyectos:
@@ -354,57 +361,471 @@ def exportar_excel():
         campos_obligatorios = ['id_proyecto', 'nombre_proyecto', 'fecha_creacion']
         for proyecto in proyectos:
             if not all(key in proyecto for key in campos_obligatorios):
-                return jsonify({'success': False, 'message': f'Falta campo obligatorio en proyecto {proyecto.get("id_proyecto")}'}), 400
-
+                return jsonify({'success': False, 'message': f'Falta campo obligatorio en proyecto {proyecto.get("id_proyecto", "")}'}), 400
             if 'condiciones_aprobacion' in proyecto and isinstance(proyecto['condiciones_aprobacion'], str):
                 proyecto['condiciones_aprobacion'] = proyecto['condiciones_aprobacion'].split('; ')
 
-        df = pd.DataFrame(proyectos).fillna('')
+        # DataFrame desde payload
+        df_nuevo = pd.DataFrame(proyectos).fillna('')
 
+        # Asegurar carpeta de exportes
         if not os.path.exists(EXPORTAR_RUTA):
             os.makedirs(EXPORTAR_RUTA)
 
-        output = BytesIO()
-        
-        # SOLUCIÓN ACTUALIZADA - Compatible con versiones antiguas
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False, sheet_name='Proyectos')
-            workbook = writer.book
-            worksheet = writer.sheets['Proyectos']
-            
-            # 1. Protección de hoja (compatible con todas versiones)
-            worksheet.protect('Riesgos2025*', {
-                'objects':               False,
-                'scenarios':             False,
-                'format_cells':          False,
-                'insert_columns':        False,
-                'insert_rows':           False,
-                'delete_columns':        False,
-                'delete_rows':           False
-            })
-            
-            # 2. Protección de libro (solo para versiones recientes)
+        base_path = os.path.join(EXPORTAR_RUTA, 'Base_principal_proyectos.xlsx')
+
+        # ===== Combinar con base existente (mismo comportamiento que subir_base_principal) =====
+        if os.path.exists(base_path):
             try:
-                # Intenta usar la protección moderna
-                workbook.protect(password='Riesgos2025*', structure=True)
-            except AttributeError:
-                # Fallback para versiones antiguas
-                print("Advertencia: La protección de libro no está disponible en esta versión de XlsxWriter")
-            
-            # 3. Ajustar columnas
-            for idx, col in enumerate(df.columns):
-                max_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
-                worksheet.set_column(idx, idx, max_len)
+                df_existente = pd.read_excel(base_path, sheet_name='Proyectos', dtype={'id_proyecto': str})
+                df_existente['id_proyecto'] = df_existente['id_proyecto'].astype(str).str.strip()
+                df_combinado = pd.concat([df_existente, df_nuevo], ignore_index=True, sort=False)
+            except Exception as e:
+                print(f"Error leyendo base existente: {e}")
+                df_combinado = df_nuevo.copy()
+        else:
+            df_combinado = df_nuevo.copy()
 
-        server_path = os.path.join(EXPORTAR_RUTA, 'Base_principal_proyectos.xlsx')
-        with open(server_path, 'wb') as f:
-            f.write(output.getvalue())
+        # Normalizar id_proyecto y eliminar filas vacias de id
+        if 'id_proyecto' in df_combinado.columns:
+            df_combinado['id_proyecto'] = df_combinado['id_proyecto'].astype(str).str.strip()
+            df_combinado = df_combinado[df_combinado['id_proyecto'].astype(str).str.strip() != '']
 
-        return jsonify({'success': True, 'message': 'Archivo exportado correctamente'}), 200
+        # Mantener orden de columnas de la base si existe (añadir nuevas al final)
+        if os.path.exists(base_path):
+            try:
+                df_base_cols = pd.read_excel(base_path, sheet_name='Proyectos', nrows=0)
+                columnas_orden = list(df_base_cols.columns) + [c for c in df_combinado.columns if c not in df_base_cols.columns]
+                df_combinado = df_combinado.reindex(columns=columnas_orden)
+            except Exception:
+                pass
+
+        # Eliminar duplicados por id_proyecto dejando el ultimo (nuevos reemplazan)
+        if 'id_proyecto' in df_combinado.columns:
+            df_combinado = df_combinado.drop_duplicates(subset=['id_proyecto'], keep='last')
+
+        # ===== Guardar Base_principal_proyectos.xlsx (igual que subir_base_principal) =====
+        try:
+            with pd.ExcelWriter(base_path, engine='openpyxl') as writer:
+                df_combinado.to_excel(writer, index=False, sheet_name='Proyectos')
+                worksheet = writer.sheets['Proyectos']
+                try:
+                    worksheet.protection.sheet = True
+                    worksheet.protection.set_password('Riesgos2025*')
+                    worksheet.protection.autoFilter = True
+                    worksheet.protection.sort = True
+                    worksheet.protection.insertRows = False
+                    worksheet.protection.deleteRows = False
+                except Exception as e:
+                    print(f"No fue posible aplicar proteccion a la base: {e}")
+
+                # Ajustar anchos de columna (limitar a 80)
+                for column in worksheet.columns:
+                    max_length = 0
+                    column_letter = column[0].column_letter
+                    for cell in column:
+                        try:
+                            val = '' if cell.value is None else str(cell.value)
+                            if len(val) > max_length:
+                                max_length = len(val)
+                        except Exception:
+                            pass
+                    worksheet.column_dimensions[column_letter].width = min(max_length + 2, 80)
+
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'Error guardando Base_principal_proyectos.xlsx: {str(e)}'}), 500
+
+        # ===== Actualizar LOCAL_STORAGE_PATH (mismo enfoque que en subir_base_principal) =====
+        nuevos_cont = 0
+        actualizados_cont = 0
+        proyectos_guardar = []
+        try:
+            proyectos_existentes = []
+            if os.path.exists(LOCAL_STORAGE_PATH):
+                with open(LOCAL_STORAGE_PATH, 'r', encoding='utf-8') as f:
+                    try:
+                        proyectos_existentes = json.load(f)
+                    except json.JSONDecodeError:
+                        proyectos_existentes = []
+
+            # Normalizar lista nueva desde df_nuevo (solo registros con id_proyecto no vacio)
+            proyectos_nuevos_lista = []
+            for proyecto in df_nuevo.to_dict(orient='records'):
+                p = dict(proyecto)
+                p['id_proyecto'] = str(p.get('id_proyecto', '')).strip()
+                if p['id_proyecto'] != '':
+                    proyectos_nuevos_lista.append(p)
+
+            existentes_por_id = {}
+            for p in proyectos_existentes:
+                pid = str(p.get('id_proyecto', '')).strip()
+                if pid:
+                    existentes_por_id[pid] = p
+
+            nuevos_por_id = {}
+            for p in proyectos_nuevos_lista:
+                pid = p.get('id_proyecto', '')
+                nuevos_por_id[pid] = p
+
+            nuevos_cont = sum(1 for pid in nuevos_por_id if pid not in existentes_por_id)
+            actualizados_cont = sum(1 for pid in nuevos_por_id if pid in existentes_por_id)
+
+            # Merge: los nuevos sobreescriben a los existentes
+            existentes_por_id.update(nuevos_por_id)
+            proyectos_guardar = list(existentes_por_id.values())
+
+            with open(LOCAL_STORAGE_PATH, 'w', encoding='utf-8') as f:
+                json.dump(proyectos_guardar, f, ensure_ascii=False, indent=2)
+
+        except Exception as e:
+            print(f"Error actualizando localStorage: {str(e)}")
+            traceback.print_exc()
+            # No abortamos la operacion completa: solo notificamos el problema
+
+        # ===== Preparar conteos tipo 'subir_base_principal' =====
+        try:
+            if 'df_existente' in locals():
+                ids_existentes_previos_excel = set(str(x).strip() for x in df_existente['id_proyecto'].dropna().astype(str))
+                ids_nuevos_excel = set(str(x).strip() for x in df_nuevo['id_proyecto'].dropna().astype(str))
+                nuevos_excel = len(ids_nuevos_excel - ids_existentes_previos_excel)
+                actualizados_excel = len(ids_nuevos_excel & ids_existentes_previos_excel)
+            else:
+                nuevos_excel = len(df_nuevo['id_proyecto'].dropna().astype(str).str.strip().unique())
+                actualizados_excel = 0
+        except Exception:
+            nuevos_excel = 0
+            actualizados_excel = 0
+
+        response = {
+            'success': True,
+            'message': 'Base principal actualizada',
+            'nuevos': nuevos_cont,
+            'actualizados': actualizados_cont,
+            'nuevos_excel': nuevos_excel,
+            'actualizados_excel': actualizados_excel,
+            'archivo_base': os.path.basename(base_path),
+            'proyectos': proyectos_guardar
+        }
+        return jsonify(response), 200
 
     except Exception as e:
         print(f"Error en exportar_excel: {str(e)}\n{traceback.format_exc()}")
         return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
+
+    
+@app.route('/subir_base_principal', methods=['POST'])
+def subir_base_principal():
+    import traceback
+
+    try:
+        # ===== Lista completa de columnas requeridas (sin cambios de nombres) =====
+        COLUMNAS_COMPLETAS = [
+            "id_proyecto", "fecha_creacion", "tipo_producto", "rango_proyecto", "grupoPrincipal",
+            "subgrupo_1", "subgrupo_2", "subgrupo_3", "nit_grupo_riesgo", "nit_titular",
+            "titular_credito", "nombre_proyecto", "tipo_inmuebles", "segmento", "ciudad",
+            "tipo_fiducia", "fiduciaria", "gerente", "arquitecto", "auxiliar", "perito",
+            "monto_solicitado_1_desembolso", "monto_solicitado_cpi", "monto_solicitado_lote",
+            "total_valor_aprobado", "calificacion_it", "costos_financiables", "valor_lote",
+            "valor_total_proyecto", "meses_programacion", "total_inmuebles", "meses_para_venta",
+            "tipo_credito", "departamento", "caso_pcp_bizagi", "visitas_a_cobrar",
+            "cobrar_estudio_tecnico", "fecha_aprobacion", "alerta_fecha_aprobacion",
+            "vigencia_en_meses", "instancia_aprobacion", "condiciones_aprobacion",
+            "porcentaje_solicitado_financiables", "validacion_licencia", "fecha_radicacion",
+            "poliza_decenal", "caso_bizagi_juridico", "control_cruzado", "fecha_confirmacion",
+            "fecha_primera_visita", "id_garantia", "meses_avanzados", "plazo_ajustado",
+            "fecha_ultimo_informe_de_ventas", "fecha_inicio_de_ventas", "total_esperado_ventas",
+            "inmuebles_vendidos_(unidades)", "valor_inmuebles_vendidos", 
+            "%_porcentaje_de_ventas_(unidades)", "%_porcentaje_de_ventas_(valor)",
+            "valor_por_vender", "valor_canjes", "cartera_recaudada", "cartera_por_recaudar",
+            "promedio_mensual", "promedio_trimestral", "validacion_fecha_infventas", "regional",
+            "numero_visita", "fecha_visita", "valor_anticipos", "valor_anticipos_almacen",
+            "programacion_inicial", "mes_inicio_obra", "avance_obra_meses",
+            "avance_esperado_porcentaje", "avance_obra", "inversion_del_proyecto",
+            "tipo_inmueble", "numero_de_inmuebles", "valor_garantia", "promedio_spi_trimestre",
+            "spi_al_corte", "alerta_en_programación", "estado_ejecución_obra", "cpi_al_corte",
+            "imprevistos_usados_a_la_fecha", "alerta_imprevistos_usados_a_la_fecha",
+            "alerta_imprevistos_usados_vs_programación", "alerta_ejecutado_vs_invertido",
+            "resumen_alerta_del_proyecto", "estado_ejecución_obra_mensual", "consumido_a_la_fecha",
+            "imprevistos_y_reajustes_usados", "indirectos_invertidos_a_la_fecha",
+            "indirectos_invertidos_en_%", "honorarios_invertidos_a_la_fecha",
+            "honorarios_invertidos_en_%", "alerta_consumo_indirectos_vs_programacion",
+            "alerta_consumo_honorarios_vs_programacion", "alerta_indirectos_vs_presupuesto",
+            "alerta_honorarios_vs_presupuesto", "avance_obra_vs_avance_ci_honorarios_(cd)",
+            "avance_obra_vs_avance_ci_honorarios_(ci+h)", "programacion_actual",
+            "mes_terminacion_actual", "valla", "valor_entregado", "valor_por_entregar",
+            "formula_a", "formula_b", "superavit", "cobertura", "maximo_desembolsar",
+            "requiere_visto_bueno", "responsable_carga_desembolso", "fecha_carga_desembolso",
+            "responsable_carga_venta", "responsable_carga_visita", "fecha_carga_venta",
+            "fecha_carga_visita", "desembolsos_diarios", "valor_entregado_total",
+            # Nuevas columnas
+            "fecha_ultima_visita", "validacion_estado_ventas", "validacion_fecha_visita",
+            "valor_desembolsar_preoperativo", "valor_desembolsar_constructor",
+            "maximo_desembolsar_constructor", "maximo_desembolsar_superavit",
+            "condiciones_especiales", "fecha_observacion_control", "valor_ampliacion",
+            "observacion_control"
+        ]
+
+        # ===== Mapeo desde nombres del Excel hacia nombres internos (no normalizar luego) =====
+        MAPEO_COLUMNAS = {
+            "ID PROYECTO": "id_proyecto",
+            "TIPO CRED": "tipo_producto",
+            "NUEVO TIPO DE PRODUCTO": "rango_proyecto",
+            "NIT": "nit_titular",
+            "TITULAR CREDITO": "titular_credito",
+            "PROYECTO": "nombre_proyecto",
+            "GERENTE": "gerente",
+            "APROBADO 1° DESEMBOLSO": "monto_solicitado_1_desembolso",
+            "APROBADO CPI": "monto_solicitado_cpi",
+            "APROBADO LOTE": "monto_solicitado_lote",
+            "VALOR APROBADO": "total_valor_aprobado",
+            "COSTOS FINANCIABLES": "costos_financiables",
+            "FECHA APROBACION (DD-MM-YY)": "fecha_aprobacion",
+            "OBSERVACION (SE DEBE TENER EN CUENTA PARA PRIMER DESEMBOLSO)": "condiciones_aprobacion",
+            "VISITAS A COBRAR": "visitas_a_cobrar",
+            "COBRAR ESTUDIO TECNICO Y AVALUO": "cobrar_estudio_tecnico",
+            "VALOR LOTE": "valor_lote",
+            "VALOR GARANTIA": "valor_garantia",
+            "VALOR TOTAL PROYECTO": "valor_total_proyecto",
+            "FECHA VISITA AVANCE DE OBRA (DD-MM-YY)": "fecha_visita",
+            "MESES PROGRAMACION DE OBRA": "meses_programacion",
+            "MESES AVANZADOS DE OBRA": "meses_avanzados",
+            "MESES PARA VENTA": "meses_para_venta",
+            "PLAZO (ajustado según fecha visita)": "plazo_ajustado",
+            "VALIDACION LICENCIA DE CONSTRUCCION": "validacion_licencia",
+            "FECHA RADICACION LICENCIA ANTE CURADURIA": "fecha_radicacion",
+            "REQUIERE POLIZA DECENAL (SI/NO)": "poliza_decenal",
+            "FECHA ULTIMO INFORME DE VENTAS (DD-MM-YY)": "fecha_ultimo_informe_de_ventas",
+            "TOTAL INMUEBLES": "total_inmuebles",
+            "INMUEBLES VENDIDOS": "inmuebles_vendidos_(unidades)",
+            "% PORCENTAJE DE VENTAS": "%_porcentaje_de_ventas_(unidades)",
+            "VALIDACION ESTADO DE VENTAS": "validacion_estado_ventas",
+            "FECHA ULTIMA VISITA AVANCE DE OBRA (DD-MM-YY)": "fecha_ultima_visita",
+            "% ULTIMO AVANCE DE OBRA": "avance_obra",
+            "VALOR INVERTIDO SEGÚN % AVANCE DE OBRA": "inversion_del_proyecto",
+            "VALIDACION FECHA VISITA DE OBRA": "validacion_fecha_visita",
+            "PERITO VISITAS": "perito",
+            "VALOR ENTREGADO (Preoperativo y Constructor)": "valor_entregado",
+            "VALOR X ENTREGAR": "valor_por_entregar",
+            "DESEMBOLSO AUTORIZADO CON REGIMEN DE EXCEPCION (VR EN PESOS $)": "desembolsos_diarios",
+            "VALOR A DESEMBOLSAR PREOPERATIVO": "valor_desembolsar_preoperativo",
+            "VALOR A DESEMBOLSAR CREDITO LOTE": "monto_solicitado_lote",
+            "VALOR MAXIMO A DESEMBOLSAR CONSTRUCTOR SEGUN % SOLICITADO": "maximo_desembolsar_constructor",
+            "VALOR A DESEMBOLSAR CONSTRUCTOR SEGÚN % MAXIMO": "valor_desembolsar_constructor",
+            "VALOR MÁXIMO A DESEMBOLSAR SEGÚN POLITICA DE SUPERÁVIT": "maximo_desembolsar_superavit",
+            "VISTO BUENO": "requiere_visto_bueno",
+            "RECOMENDACIÓN DESEMBOLSO SEGÚN POLÍTICA PARA DE SUPERÁVIT (COMENTARIO PARA AGREGAR EN BIZAGI) APLICA PARA PROYECTOS APROBADOS DESDE 23/05/2022": "superavit",
+            "COBERTURA": "cobertura",
+            "SUPERÁVIT": "superavit",
+            "PCP BIZAGI": "caso_pcp_bizagi",
+            "CONDICIONES ESPECIALES PARA DESEMBOLSAR, VALIDACION VISITAS, OTROS": "condiciones_especiales",
+            "AQUITECTO GCC": "arquitecto",
+            "AUXILIAR GCC": "auxiliar",
+            "CIUDAD PROYECTO": "ciudad",
+            "ID - NIT GRUPO DE RIESGO (GERENCIADOR)": "nit_grupo_riesgo",
+            "GRUPO DE RIESGO - (GERENCIADOR CARPETA DE CLIENTES PYMES NACIONAL)": "grupoPrincipal",
+            "ID GARANTIA (INICIAL Y/O DEFINITIVO)": "id_garantia",
+            "INFORMACIÓN INICIAL Y/O DEFINITIVA HIPOTECA": "control_cruzado",
+            "CASO BIZAGI JURÍDICO DE CONFIRMACIÓN": "caso_bizagi_juridico",
+            "FECHA DE CONFIRMACIÓN ARCHIVO O BIZAGI": "fecha_confirmacion",
+            "ESCRIBIR palabra LOTE PARA ESE TIPO DE CREDITO": "tipo_credito",
+            "VALOR DESISTIDO": "valor_canjes",
+            "VALOR AMPLIACION": "valor_ampliacion",
+            "VALOR RECAUDADO": "cartera_recaudada",
+            "VALOR POR RECAUDAR": "cartera_por_recaudar",
+            "VALOR POR INVERTIR": "valor_por_entregar",
+            "VALOR X VENDER": "valor_por_vender",
+            "ANTICIPOS Y ALMACEN": "valor_anticipos_almacen",
+            "ANÁLISIS INVERSIÓN": "inversion_del_proyecto",
+            "FECHA INICIAL TERMINACIÓN": "fecha_inicio_de_ventas",
+            "FECHA ACTUAL TERMINACIÓN": "fecha_ultimo_informe_de_ventas",
+            "OBSERVACION CONTROL": "observacion_control",
+            "FECHA OBSERVACION CONTROL": "fecha_observacion_control",
+            "VIGENCIA APROBACIÓN (EN MESES)": "vigencia_en_meses"
+        }
+        if 'archivo' not in request.files:
+            return jsonify({'success': False, 'message': 'No se encontro archivo'}), 400
+
+        archivo = request.files['archivo']
+        if archivo.filename == '':
+            return jsonify({'success': False, 'message': 'Nombre de archivo invalido'}), 400
+
+        # ===== Backup =====
+        crear_backup = request.form.get('backup', 'true') == 'true'
+        base_path = os.path.join(EXPORTAR_RUTA, 'Base_principal_proyectos.xlsx')
+
+        if crear_backup and os.path.exists(base_path):
+            fecha = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_path = os.path.join(EXPORTAR_RUTA, f'Backup_{fecha}.xlsx')
+            shutil.copyfile(base_path, backup_path)
+
+        # ===== Leer Excel subido =====
+        try:
+            xls = pd.ExcelFile(archivo)
+            if 'Hoja1' not in xls.sheet_names:
+                return jsonify({'success': False, 'message': 'El archivo no contiene una hoja llamada "Hoja1"'}), 400
+
+            archivo.seek(0)
+            df_nuevo = pd.read_excel(archivo, sheet_name='Hoja1', header=1, dtype={'ID PROYECTO': str})
+
+            if 'ID PROYECTO' not in df_nuevo.columns:
+                return jsonify({'success': False, 'message': 'El archivo no contiene la columna "ID PROYECTO"'}), 400
+
+            df_nuevo = df_nuevo.rename(columns=MAPEO_COLUMNAS)
+
+            if 'id_proyecto' in df_nuevo.columns:
+                df_nuevo['id_proyecto'] = df_nuevo['id_proyecto'].astype(str).str.strip()
+                df_nuevo['id_proyecto'] = df_nuevo['id_proyecto'].replace('nan', '', regex=False)
+
+            df_nuevo = df_nuevo[df_nuevo['id_proyecto'].astype(str).str.strip() != '']
+
+            columnas_disponibles = [col for col in COLUMNAS_COMPLETAS if col in df_nuevo.columns]
+            df_nuevo = df_nuevo[columnas_disponibles]
+
+            columnas_fecha = [
+                'fecha_creacion', 'fecha_aprobacion', 'fecha_radicacion',
+                'fecha_confirmacion', 'fecha_visita', 'fecha_ultimo_informe_de_ventas',
+                'fecha_inicio_de_ventas', 'fecha_primera_visita', 'fecha_ultima_visita',
+                'fecha_observacion_control'
+            ]
+            for col in columnas_fecha:
+                if col in df_nuevo.columns:
+                    valores_originales = df_nuevo[col].copy()
+                    try:
+                        tmp = pd.to_datetime(df_nuevo[col], errors='coerce', dayfirst=True)
+                        mascara_valida = tmp.notna()
+                        df_nuevo[col] = valores_originales.astype(str)
+                        df_nuevo.loc[mascara_valida, col] = tmp.loc[mascara_valida].dt.strftime('%d/%m/%Y')
+                    except Exception:
+                        df_nuevo[col] = valores_originales
+
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'Error procesando archivo: {str(e)}'}), 400
+
+        # ===== Combinar con base existente (y deduplicar por id_proyecto) =====
+        if os.path.exists(base_path):
+            try:
+                df_existente = pd.read_excel(base_path, sheet_name='Proyectos', dtype={'id_proyecto': str})
+                df_existente['id_proyecto'] = df_existente['id_proyecto'].astype(str).str.strip()
+                df_combinado = pd.concat([df_existente, df_nuevo], ignore_index=True)
+            except Exception as e:
+                print(f"Error combinando datos: {str(e)}")
+                df_combinado = df_nuevo
+        else:
+            df_combinado = df_nuevo
+
+        # Asegurarse que todas las columnas existan
+        for col in COLUMNAS_COMPLETAS:
+            if col not in df_combinado.columns:
+                df_combinado[col] = None
+
+        df_combinado = df_combinado[COLUMNAS_COMPLETAS]
+
+        # Eliminar duplicados por id_proyecto dejando el ultimo (los nuevos reemplazan)
+        if 'id_proyecto' in df_combinado.columns:
+            df_combinado = df_combinado.drop_duplicates(subset=['id_proyecto'], keep='last')
+
+        # ===== Guardar Excel =====
+        try:
+            with pd.ExcelWriter(base_path, engine='openpyxl') as writer:
+                df_combinado.to_excel(writer, index=False, sheet_name='Proyectos')
+                worksheet = writer.sheets['Proyectos']
+                try:
+                    worksheet.protection.sheet = True
+                    worksheet.protection.set_password('Riesgos2025*')
+                    worksheet.protection.autoFilter = True
+                    worksheet.protection.sort = True
+                    worksheet.protection.insertRows = False
+                    worksheet.protection.deleteRows = False
+                except Exception as e:
+                    print(f"No fue posible aplicar proteccion: {e}")
+
+                for column in worksheet.columns:
+                    max_length = 0
+                    column_letter = column[0].column_letter
+                    for cell in column:
+                        try:
+                            val = '' if cell.value is None else str(cell.value)
+                            if len(val) > max_length:
+                                max_length = len(val)
+                        except Exception:
+                            pass
+                    worksheet.column_dimensions[column_letter].width = min(max_length + 2, 80)
+
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'Error guardando archivo: {str(e)}'}), 500
+
+        # ===== Actualizar LOCAL_STORAGE_PATH sin duplicados =====
+        try:
+            proyectos_existentes = []
+            if os.path.exists(LOCAL_STORAGE_PATH):
+                with open(LOCAL_STORAGE_PATH, 'r', encoding='utf-8') as f:
+                    try:
+                        proyectos_existentes = json.load(f)
+                    except json.JSONDecodeError:
+                        proyectos_existentes = []
+
+            # Normalizar lista nueva desde df_nuevo (solo registros con id_proyecto no vacio)
+            proyectos_nuevos_lista = []
+            for proyecto in df_nuevo.to_dict(orient='records'):
+                p = dict(proyecto)
+                p['id_proyecto'] = str(p.get('id_proyecto', '')).strip()
+                if p['id_proyecto'] != '':
+                    proyectos_nuevos_lista.append(p)
+
+            # Construir diccionarios por id para deduplicar: los nuevos reemplazan a los existentes
+            existentes_por_id = {}
+            for p in proyectos_existentes:
+                pid = str(p.get('id_proyecto', '')).strip()
+                if pid:
+                    existentes_por_id[pid] = p
+
+            nuevos_por_id = {}
+            for p in proyectos_nuevos_lista:
+                pid = p.get('id_proyecto', '')
+                nuevos_por_id[pid] = p
+
+            # Conteos
+            nuevos_cont = sum(1 for pid in nuevos_por_id if pid not in existentes_por_id)
+            actualizados_cont = sum(1 for pid in nuevos_por_id if pid in existentes_por_id)
+
+            # Merge: los nuevos sobreescriben a los existentes
+            existentes_por_id.update(nuevos_por_id)
+
+            # Lista final para guardar en local storage (solo ids no vacios)
+            proyectos_guardar = list(existentes_por_id.values())
+
+            with open(LOCAL_STORAGE_PATH, 'w', encoding='utf-8') as f:
+                json.dump(proyectos_guardar, f, ensure_ascii=False, indent=2)
+
+        except Exception as e:
+            print(f"Error actualizando localStorage: {str(e)}")
+            traceback.print_exc()
+            # No abortamos la operacion completa: solo notificamos el problema
+
+        # ===== Preparar respuesta =====
+        if 'df_existente' in locals():
+            ids_existentes_previos_excel = set(str(x).strip() for x in df_existente['id_proyecto'].dropna().astype(str))
+            ids_nuevos_excel = set(str(x).strip() for x in df_nuevo['id_proyecto'].dropna().astype(str))
+            nuevos_excel = len(ids_nuevos_excel - ids_existentes_previos_excel)
+            actualizados_excel = len(ids_nuevos_excel & ids_existentes_previos_excel)
+        else:
+            nuevos_excel = len(df_nuevo['id_proyecto'].dropna().astype(str).str.strip().unique())
+            actualizados_excel = 0
+
+        return jsonify({
+            'success': True,
+            'message': 'Base principal actualizada',
+            'nuevos': nuevos_cont,
+            'actualizados': actualizados_cont,
+            'nuevos_excel': nuevos_excel,
+            'actualizados_excel': actualizados_excel,
+            'proyectos': proyectos_guardar  # lista deduplicada lista para localStorage
+        })
+
+    except Exception as e:
+        print(f"Error en subir_base_principal: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
+
 
 @app.route('/importar_excel', methods=['POST'])
 def importar_excel():
