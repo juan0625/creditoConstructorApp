@@ -544,6 +544,61 @@
                     <i class="fas fa-file-excel me-2"></i>Actualizar Desembolsos Diarios
                 </button>
 
+                <!-- Nuevo botón para Comentarios de Arquitecto (solo visible para arquitectos) -->
+                {% if session.usuario.rol == 'arquitecto' %}
+                    <div class="d-flex justify-content-end mt-3 mb-4" id="comentarioContainer" style="display: none;">
+                        <button class="btn btn-comentario" onclick="mostrarModalComentario()">
+                            <i class="fas fa-comment me-2"></i>Agregar Observación Control
+                        </button>
+                    </div>
+                {% endif %}
+
+                
+                <!-- Listado de Comentarios -->
+                <div class="seguimiento-container" id="comentariosSection" style="display: none;">
+                    <h4><i class="fas fa-comments me-2"></i>Comentarios de Control Mensual</h4>
+                    <div id="listado-comentarios">
+                        <!-- Los comentarios se cargarán dinámicamente aquí -->
+                    </div>
+                </div>
+
+                <!-- Modal para agregar comentario -->
+                <div class="modal fade modal-comentario" id="modalComentario">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title"><i class="fas fa-comment me-2"></i>Agregar Comentario de Control</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form id="form-comentario" onsubmit="return false;">
+                                <div class="modal-body">
+                                    <input type="hidden" id="comentario-proyecto-id"> <!-- ID del proyecto -->
+                                    
+                                    <div class="mb-3">
+                                        <label>Proyecto</label>
+                                        <input type="text" class="form-control" id="comentario-proyecto" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label>Fecha</label>
+                                        <input type="text" class="form-control" id="comentario-fecha" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label>Comentario</label>
+                                        <textarea class="form-control" rows="5" id="comentario-texto" required></textarea>
+                                        <div class="invalid-feedback">Por favor ingrese un comentario</div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="button" class="btn btn-primary" id="btnGuardarComentario" onclick="guardarComentario();">
+                                        Guardar Comentario
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Formularios de carga -->
                 <div class="seguimiento-container formulario-seguimiento" id="formCargaVentas" style="display: none;">
                     <h4><i class="fas fa-cash-register me-2"></i>Cargar Informe de Ventas</h4>
@@ -1306,6 +1361,7 @@
         function cargarSeguimientos() {
             const proyectoId = String(document.getElementById('selectorProyecto').value); // <- Asegurar string
             renderSeguimientos();
+            pintarComentarios(proyectoId);
         }
 
         // Función para eliminar con modal
@@ -1460,6 +1516,7 @@
         function mostrarFormCargaVentas() {
             ocultarFormCargaVisitas();
             ocultarFormCargaDesembolsos();
+            ocultarFormCargaDesembolsosDiarios();
             document.getElementById('formCargaVentas').style.display = 'block';
         }
 
@@ -1472,6 +1529,7 @@
         function mostrarFormCargaVisitas() {
             ocultarFormCargaVentas(); // Asegura que el otro formulario esté cerrado
             ocultarFormCargaDesembolsos();
+            ocultarFormCargaDesembolsosDiarios();
             document.getElementById('formCargaVisitas').style.display = 'block';
         }
 
@@ -1482,6 +1540,7 @@
         function mostrarFormCargaDesembolsos() {
             ocultarFormCargaVentas();
             ocultarFormCargaVisitas();
+            ocultarFormCargaDesembolsosDiarios();
             document.getElementById('formCargaDesembolsos').style.display = 'block';
         }
 
@@ -2079,60 +2138,61 @@
                     fechaDesembolso = formatearFechaConHora(fechaDesembolso);
                 }
 
-                // 4) Desembolsos diarios: tomar historial global + p.desembolsosDiarios, pero deduplicar POR REGISTRO EXACTO (ISO completo) para evitar double-counting
-                const diariosGlobal = Array.isArray(historialDesembolsosDiarios) ? historialDesembolsosDiarios : [];
-                const diariosProyectoInSitu = Array.isArray(p.desembolsosDiarios) ? p.desembolsosDiarios : [];
+                // 4) Desembolsos diarios
+                const diariosProyectoInSitu = p.desembolsosDiarios && Array.isArray(p.desembolsosDiarios) 
+                    ? p.desembolsosDiarios 
+                    : [];
 
-                // combinar
-                const combinados = diariosGlobal.concat(diariosProyectoInSitu).filter(Boolean);
+                const diariosGlobal = Array.isArray(historialDesembolsosDiarios) 
+                    ? historialDesembolsosDiarios 
+                    : [];
 
-                // dedupe por clave precisa: proyectoId | valor (numero) | fechaISO (full)
+                // Combinar y deduplicar
+                const combinados = [...diariosGlobal, ...diariosProyectoInSitu].filter(Boolean);
                 const seenKeys = new Set();
                 const unicos = [];
+
                 combinados.forEach(d => {
                     const pid = _normalizeId(String(d.proyectoId || ''));
                     const val = String(_cleanNumber(d.valor || 0));
-                    // usar fecha ISO completa si posible (incluye hora) para permitir multiples el mismo dia
-                    let fechaISO = '';
-                    try {
-                        fechaISO = d.fecha ? (new Date(d.fecha)).toISOString() : '';
-                    } catch (e) {
-                        fechaISO = String(d.fecha || '');
-                    }
+                    const fechaISO = d.fecha ? new Date(d.fecha).toISOString() : '';
                     const key = `${pid}|${val}|${fechaISO}`;
+                    
                     if (!seenKeys.has(key)) {
                         seenKeys.add(key);
                         unicos.push({
                             proyectoId: d.proyectoId,
-                            proyectoNombre: d.proyectoNombre || d.nombreProyecto || '',
                             valor: _cleanNumber(d.valor),
                             fecha: d.fecha
                         });
                     }
                 });
 
-                // filtrar solo los del proyecto actual
-                const desembolsosDiariosProyecto = unicos.filter(d => _normalizeId(String(d.proyectoId)) === _normalizeId(String(p.id_proyecto)));
+                // Filtrar solo los del proyecto actual
+                const desembolsosDiariosProyecto = unicos.filter(d => 
+                    _normalizeId(String(d.proyectoId)) === _normalizeId(String(p.id_proyecto))
+                );
 
-                // sumar
-                const totalDesembolsadoDiario = desembolsosDiariosProyecto.reduce((s, r) => s + _cleanNumber(r.valor), 0);
-
-                // detalle
+                // En la función generarExcel, modifica la creación de detalleCompletoTexto:
                 const detalleDesembolsos = desembolsosDiariosProyecto.map(d => {
-                    const vf = _cleanNumber(d.valor).toLocaleString('es-CO', { maximumFractionDigits: 0 });
-                    const ff = d.fecha ? _formatFechaDD(d.fecha) : 'Fecha no disponible';
-                    return `${vf} (${ff})`;
+                    const valorFormateado = _cleanNumber(d.valor).toLocaleString('es-CO', {
+                        style: 'currency',
+                        currency: 'COP',
+                        minimumFractionDigits: 0
+                    });
+                    
+                    const fechaFormateada = d.fecha ? _formatFechaDD(d.fecha) : 'Sin fecha';
+                    return `${valorFormateado} (${fechaFormateada})`;
                 });
 
                 const detalleCompletoTexto = desembolsosDiariosProyecto.length > 0
-                    ? `Suma: ${totalDesembolsadoDiario.toLocaleString('es-CO', {minimumFractionDigits:0})} : ${detalleDesembolsos.join(' + ')}`
+                    ? detalleDesembolsos.join(' + ')
                     : 'Sin desembolsos diarios';
 
-                // 5) Total final
-                const valorEntregadoTotal = (_cleanNumber(valorEntregadoNormal) || 0) + (totalDesembolsadoDiario || 0);
+                // 5) Total final - usar el valor ya calculado en el proyecto
+                const valorEntregadoTotal = p.valor_entregado_total || 0;
 
-                // // LOG para debug (opcional)
-                // console.log(`Resumen desembolsos para ${p.nombre_proyecto || p.id_proyecto} => Normal: ${valorEntregadoNormal}, Diario: ${totalDesembolsadoDiario}, Total: ${valorEntregadoTotal}`);
+                const observacionControl = p.observacion_control || '';
 
 
                 return {
@@ -2153,7 +2213,8 @@
                     fecha_radicacion: formatearFechaDDMMAAAA(p.fecha_radicacion),
                     fecha_confirmacion: formatearFechaDDMMAAAA(p.fecha_confirmacion),
                     fecha_primera_visita: formatearFechaDDMMAAAA(p.fecha_primera_visita),
-                    fecha_carga_desembolso: fechaDesembolso
+                    fecha_carga_desembolso: fechaDesembolso,
+                    observacion_control: p.observacion_control || 'Sin observaciones' 
                 };
             });
 
@@ -2217,7 +2278,8 @@
                 'responsable_carga_desembolso',
                 'fecha_carga_desembolso',
                 'desembolsos_diarios',
-                'valor_entregado_total'      
+                'valor_entregado_total',
+                'observacion_control'      
             ];
 
             // Identificar campos numéricos para visitas
@@ -3454,99 +3516,129 @@
         // FUNCIÓN PARA GUARDAR DESEMBOLSOS EN EL SISTEMA (CORREGIDA)
         // ==================================================================
 
-        // REEMPLAZAR la funcion guardarDesembolsosDiarios existente por esta
         function guardarDesembolsosDiarios(desembolsosAgregados) {
             const responsable = "{{ session.usuario.nombre }}" || 'Usuario';
 
             try {
-                const proyectosData = localStorage.getItem('proyectos');
-                const proyectos = proyectosData ? JSON.parse(proyectosData) : [];
+                const proyectos = JSON.parse(localStorage.getItem('proyectos') || '[]');
 
-                // cargar historial existente de forma segura
-                let historialDesembolsosDiarios = [];
+                let historialDiarios = [];
                 try {
-                    historialDesembolsosDiarios = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
-                    if (!Array.isArray(historialDesembolsosDiarios)) historialDesembolsosDiarios = [];
-                } catch (e) {
-                    console.error('parse historialDesembolsosDiarios fallo, se inicializa array vacio', e);
-                    historialDesembolsosDiarios = [];
+                    historialDiarios = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
+                    if (!Array.isArray(historialDiarios)) historialDiarios = [];
+                } catch {
+                    historialDiarios = [];
                 }
+
+                let resumen = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]');
+                if (!Array.isArray(resumen)) resumen = [];
 
                 desembolsosAgregados.forEach(d => {
                     const proyectoId = String(d.proyectoId || '').trim();
                     const proyectoNombre = d.proyectoNombre || '';
                     const valor = cleanNumber(d.valor);
-                    const fechaISO = (d.fecha && !isNaN(new Date(d.fecha).getTime())) ? new Date(d.fecha).toISOString() : new Date().toISOString();
+                    const fechaISO = (d.fecha && !isNaN(new Date(d.fecha).getTime()))
+                        ? new Date(d.fecha).toISOString()
+                        : new Date().toISOString();
 
-                    const registro = {
-                        proyectoId: proyectoId,
-                        proyectoNombre: proyectoNombre,
-                        valor: valor,
+                    const nuevoRegistro = {
+                        proyectoId,
+                        proyectoNombre,
+                        valor,
                         fecha: fechaISO,
                         usuario: responsable,
                         fechaCarga: new Date().toISOString()
                     };
 
-                    // ... dentro del forEach de desembolsosAgregados, antes de push(registro)
-                    const claveRegistro = `${normalizeId(proyectoId)}|${cleanNumber(valor)}|${fechaISO.slice(0,10)}`;
-                    const existeEnHist = historialDesembolsosDiarios.some(h => {
-                        const claveH = `${normalizeId(String(h.proyectoId||''))}|${cleanNumber(h.valor||0)}|${(h.fecha?new Date(h.fecha).toISOString().slice(0,10):'')}`;
-                        return claveH === claveRegistro;
+                    // Evitar duplicados
+                    const clave = `${normalizeId(proyectoId)}|${valor}|${fechaISO.slice(0,10)}`;
+                    const existe = historialDiarios.some(h => {
+                        const fh = h.fecha ? new Date(h.fecha).toISOString().slice(0,10) : '';
+                        return `${normalizeId(h.proyectoId)}|${cleanNumber(h.valor)}|${fh}` === clave;
                     });
-                    if (!existeEnHist) {
-                        historialDesembolsosDiarios.push(registro);
+                    if (existe) return;
+
+                    historialDiarios.push(nuevoRegistro);
+
+                    // Calcular suma acumulada del proyecto
+                    const sumaTotal = historialDiarios
+                        .filter(h => normalizeId(h.proyectoId) === normalizeId(proyectoId))
+                        .reduce((acc, h) => acc + cleanNumber(h.valor), 0);
+
+                    // Actualizar valor_entregado_total en todos los registros de ese proyecto
+                    historialDiarios = historialDiarios.map(h => {
+                        if (normalizeId(h.proyectoId) === normalizeId(proyectoId)) {
+                            return { ...h, valor_entregado_total: sumaTotal };
+                        }
+                        return h;
+                    });
+
+                    // Actualizar resumen historialDesembolsos (valor_entregado)
+                    let encontrado = false;
+                    resumen = resumen.map(r => {
+                        if (normalizeId(r.proyectoId) === normalizeId(proyectoId)) {
+                            encontrado = true;
+                            return { ...r, valor_entregado: sumaTotal };
+                        }
+                        return r;
+                    });
+
+                    if (!encontrado) {
+                        resumen.push({
+                            proyectoId,
+                            proyectoNombre,
+                            valor_entregado: sumaTotal
+                        });
                     }
 
-
-                    // 1) Siempre guardar en historial global (asi no se pierde)
-                    historialDesembolsosDiarios.push(registro);
-
-                    // 2) Si existe el proyecto, también guardar dentro del proyecto (busqueda normalizada)
+                    // Actualizar valores en objeto proyecto
                     const proyecto = proyectos.find(p => normalizeId(String(p.id_proyecto)) === normalizeId(proyectoId));
                     if (proyecto) {
-                        if (!Array.isArray(proyecto.desembolsosDiarios)) proyecto.desembolsosDiarios = [];
-                        const existeEnProyecto = proyecto.desembolsosDiarios.some(h => {
-                            return normalizeId(String(h.proyectoId||'')) === normalizeId(proyectoId)
-                                && cleanNumber(h.valor||0) === cleanNumber(valor)
-                                && (h.fecha ? new Date(h.fecha).toISOString().slice(0,10) : '') === fechaISO.slice(0,10);
+                        // Añadir esta sección para actualizar desembolsosDiarios
+                        if (!Array.isArray(proyecto.desembolsosDiarios)) {
+                            proyecto.desembolsosDiarios = [];
+                        }
+                        
+                        // Agregar el nuevo desembolso al array
+                        proyecto.desembolsosDiarios.push({
+                            proyectoId: proyectoId,
+                            valor: valor,
+                            fecha: fechaISO,
+                            usuario: responsable,
+                            fechaCarga: new Date().toISOString()
                         });
-                        if (!existeEnProyecto) proyecto.desembolsosDiarios.push(registro);
-                    }else {
-                        // opcional: log para debug si proyecto no encontrado
-                        console.warn('guardarDesembolsosDiarios: no se encontro proyecto para id=', proyectoId);
+                        
+                        // Actualizar totales
+                        proyecto.valor_entregado = sumaTotal;
+                        proyecto.valor_entregado_total = sumaTotal;
                     }
                 });
 
-                // Persistir cambios
-                try {
-                    localStorage.setItem('historialDesembolsosDiarios', JSON.stringify(historialDesembolsosDiarios));
-                    localStorage.setItem('proyectos', JSON.stringify(proyectos));
-                } catch (e) {
-                    console.error('Error al guardar en localStorage:', e);
-                    throw new Error('Error al guardar los datos en el almacenamiento local');
-                }
+                // Guardar actualizaciones
+                localStorage.setItem('historialDesembolsosDiarios', JSON.stringify(historialDiarios));
+                localStorage.setItem('historialDesembolsos', JSON.stringify(resumen));
+                localStorage.setItem('proyectos', JSON.stringify(proyectos));
 
-                // Cerrar modal si esta abierto
-                try { 
-                    const modalInst = bootstrap.Modal.getInstance(document.getElementById('modalConfirmacionDesembolsosDiarios'));
-                    modalInst && modalInst.hide();
-                } catch(e){ /* noop */ }
+                // Cerrar modal si existe
+                try {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmacionDesembolsosDiarios'));
+                    modal?.hide();
+                } catch {}
 
                 Swal.fire({
                     title: 'Desembolsos agregados',
-                    text: `Se han agregado ${desembolsosAgregados.length} desembolsos al sistema`,
+                    text: `Se agregaron ${desembolsosAgregados.length} desembolsos`,
                     icon: 'success',
                     confirmButtonText: 'Aceptar'
                 });
 
-                // Forzar recarga si existe la funcion que refresca la vista
                 if (typeof cargarSeguimientos === 'function') cargarSeguimientos();
-            } catch (error) {
-                console.error('Error en guardarDesembolsosDiarios:', error);
-                mostrarErrorModal(`Error al guardar los desembolsos: ${error.message}`);
+
+            } catch (err) {
+                console.error('Error en guardarDesembolsosDiarios:', err);
+                mostrarErrorModal(`Error al guardar los desembolsos: ${err.message}`);
             }
         }
-
 
         // ==================================================================
         // FUNCIÓN PARA PROCESAR DESEMBOLSOS DIARIOS (OPTIMIZADA)
@@ -3774,6 +3866,159 @@
                 minimumFractionDigits: 0
             }).format(value);
         }
+
+        function mostrarModalComentario() {
+            const proyectoSeleccionado = document.getElementById('selectorProyecto');
+            const proyectoId = String(proyectoSeleccionado.value || '');
+            const proyectoNombre = proyectoSeleccionado.options[proyectoSeleccionado.selectedIndex]?.textContent || '';
+
+            if (!proyectoId) {
+                if (typeof Swal !== 'undefined') Swal.fire('Atención','Seleccione un proyecto primero','warning');
+                else alert('Seleccione un proyecto primero');
+                return;
+            }
+
+            const modalEl = document.getElementById('modalComentario');
+            modalEl.dataset.proyectoId = proyectoId;
+
+            document.getElementById('comentario-proyecto').value = proyectoNombre;
+            document.getElementById('comentario-fecha').value = new Date().toLocaleDateString('es-CO');
+            document.getElementById('comentario-proyecto-id').value = proyectoId;
+            document.getElementById('comentario-texto').value = '';
+
+            new bootstrap.Modal(modalEl).show();
+            }
+
+            function guardarComentario() {
+                const comentarioTexto = document.getElementById("comentario-texto").value.trim();
+                const modalEl = document.getElementById("modalComentario");
+                const proyectoId = String(modalEl.dataset.proyectoId);
+                const usuario = document.getElementById("responsable-input")?.value || "Usuario";
+
+                if (!comentarioTexto) {
+                    document.getElementById("comentario-texto").classList.add("is-invalid");
+                    return;
+                }
+                document.getElementById("comentario-texto").classList.remove("is-invalid");
+
+                // 1) Guardar en historialComentarios
+                let historial = JSON.parse(localStorage.getItem("historialComentarios") || "[]");
+                historial.push({
+                    idProyecto: proyectoId,
+                    comentario: comentarioTexto,
+                    fecha: new Date().toISOString(),
+                    usuario
+                });
+                localStorage.setItem("historialComentarios", JSON.stringify(historial));
+
+                // 2) Construir observacion_control con saltos de linea
+                const comentariosProyecto = historial
+                    .filter(c => String(c.idProyecto) === proyectoId)
+                    .sort((a,b) => new Date(a.fecha) - new Date(b.fecha))
+                    .map(c => {
+                        const fechaFmt = new Date(c.fecha).toLocaleString('es-CO', {
+                            day: '2-digit', month: '2-digit', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit'
+                        });
+                        return `${c.usuario}: ${c.comentario} (${fechaFmt})`;
+                    })
+                    .join('\n'); // salto de linea en vez de |
+
+                // 3) Actualizar en proyectos
+                let proyectos = JSON.parse(localStorage.getItem("proyectos") || "[]");
+                proyectos = proyectos.map(p =>
+                    String(p.id_proyecto) === proyectoId
+                        ? { ...p, observacion_control: comentariosProyecto }
+                        : p
+                );
+                localStorage.setItem("proyectos", JSON.stringify(proyectos));
+
+                // 4) Refrescar listado
+                pintarComentarios(proyectoId);
+
+                // 5) Enviar al backend para generar Excel
+                const usuarioActual = localStorage.getItem("usuarioActual") || "Desconocido";
+                generarExcel(proyectos, usuarioActual, null);
+
+                // 6) Cerrar modal
+                bootstrap.Modal.getInstance(modalEl).hide();
+
+                // 7) Mensaje de éxito
+                Swal.fire("Éxito", "Comentario guardado y enviado a Excel", "success");
+            }
+
+
+
+            function actualizarObservacionControl(proyectoId) {
+            const proyectos = JSON.parse(localStorage.getItem('proyectos') || '[]');
+            const historial = JSON.parse(localStorage.getItem('historialComentarios') || '[]');
+
+            const comentariosProyecto = historial
+                .filter(c => String(c.idProyecto) === String(proyectoId))
+                .sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
+
+            const observacionControl = comentariosProyecto.map(c => {
+                const f = new Date(c.fecha).toLocaleString('es-CO', {
+                day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'
+                });
+                return `[${f}] ${c.usuario}: ${c.comentario}`;
+            }).join('\n');
+
+            const proyectosAct = proyectos.map(p => 
+                String(p.id_proyecto) === String(proyectoId)
+                ? { ...p, observacion_control: observacionControl || 'Sin observaciones' }
+                : p
+            );
+
+            localStorage.setItem('proyectos', JSON.stringify(proyectosAct));
+            }
+
+            function pintarComentarios(proyectoId) {
+                const cont = document.getElementById('listado-comentarios');
+                const sec = document.getElementById('comentariosSection');
+                const btnC = document.getElementById('comentarioContainer');
+
+                const historial = JSON.parse(localStorage.getItem('historialComentarios') || '[]');
+                const datos = historial
+                    .filter(c => String(c.idProyecto) === String(proyectoId))
+                    .sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+
+                if (btnC) btnC.style.display = proyectoId ? 'block' : 'none';
+                if (sec) sec.style.display = proyectoId ? 'block' : 'none';
+
+                let htmlComentarios = '';
+
+                if (datos.length) {
+                    htmlComentarios = datos.map(c => {
+                        const f = new Date(c.fecha).toLocaleString('es-CO', {
+                            day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'
+                        });
+                        return `
+                            <div class="card mb-2">
+                                <div class="card-body p-3">
+                                    <div class="small text-muted">${f} — ${c.usuario}</div>
+                                    <div>${c.comentario}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    htmlComentarios = `<div class="alert alert-info">Sin comentarios para este proyecto.</div>`;
+                }
+
+                cont.innerHTML = `
+                    <div class="d-flex justify-content-end mb-2">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="cerrarComentarios()">Cerrar comentarios</button>
+                    </div>
+                    ${htmlComentarios}
+                `;
+            }
+
+            // Función para cerrar la sección de comentarios
+            function cerrarComentarios() {
+                const sec = document.getElementById('comentariosSection');
+                if (sec) sec.style.display = 'none';
+            }
     </script>   
 </body>
 </html>
