@@ -1,5 +1,5 @@
 import openpyxl 
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file, send_from_directory, make_response
 from openpyxl import Workbook, load_workbook
 from datetime import datetime
 import os
@@ -12,6 +12,7 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 import subprocess
 import sys
 import json
+from openpyxl.styles import Alignment
 
 
 app = Flask(__name__)
@@ -344,12 +345,8 @@ if not os.path.exists(EXPORTAR_RUTA):
 
 @app.route('/exportar_excel', methods=['POST'])
 def exportar_excel():
-    import traceback
-    import json
-    from datetime import datetime
-
     try:
-        data = request.get_json()
+        data = request.get_json(force=True)  # Usar force=True para asegurar la lectura
         if not data:
             return jsonify({'success': False, 'message': 'Datos invalidos'}), 400
 
@@ -357,13 +354,31 @@ def exportar_excel():
         if not proyectos:
             return jsonify({'success': False, 'message': 'No hay proyectos para exportar'}), 400
 
-        # Validar campos obligatorios
+        # Validar campos obligatorios y preparar datos
         campos_obligatorios = ['id_proyecto', 'nombre_proyecto', 'fecha_creacion']
         for proyecto in proyectos:
+            # Validar campos obligatorios
             if not all(key in proyecto for key in campos_obligatorios):
                 return jsonify({'success': False, 'message': f'Falta campo obligatorio en proyecto {proyecto.get("id_proyecto", "")}'}), 400
-            if 'condiciones_aprobacion' in proyecto and isinstance(proyecto['condiciones_aprobacion'], str):
-                proyecto['condiciones_aprobacion'] = proyecto['condiciones_aprobacion'].split('; ')
+            
+            # Manejar condiciones_aprobacion
+            if 'condiciones_aprobacion' in proyecto:
+                if isinstance(proyecto['condiciones_aprobacion'], str):
+                    proyecto['condiciones_aprobacion'] = proyecto['condiciones_aprobacion'].split('; ')
+                elif not isinstance(proyecto['condiciones_aprobacion'], list):
+                    proyecto['condiciones_aprobacion'] = []
+            
+            # Manejar observacion_control (comentarios)
+            if 'observacion_control' in proyecto and proyecto['observacion_control']:
+                # Reemplazar saltos de línea por " | "
+                proyecto['observacion_control'] = proyecto['observacion_control'].replace('\n', ' | ')
+            
+            # Asegurar que desembolsos_diarios sea string
+            if 'desembolsos_diarios' in proyecto:
+                if not isinstance(proyecto['desembolsos_diarios'], str):
+                    proyecto['desembolsos_diarios'] = str(proyecto['desembolsos_diarios'])
+            else:
+                proyecto['desembolsos_diarios'] = 'Sin desembolsos diarios'
 
         # DataFrame desde payload
         df_nuevo = pd.DataFrame(proyectos).fillna('')
@@ -374,11 +389,18 @@ def exportar_excel():
 
         base_path = os.path.join(EXPORTAR_RUTA, 'Base_principal_proyectos.xlsx')
 
-        # ===== Combinar con base existente (mismo comportamiento que subir_base_principal) =====
+        # ===== Combinar con base existente =====
         if os.path.exists(base_path):
             try:
                 df_existente = pd.read_excel(base_path, sheet_name='Proyectos', dtype={'id_proyecto': str})
                 df_existente['id_proyecto'] = df_existente['id_proyecto'].astype(str).str.strip()
+                
+                # Conservar observaciones existentes para proyectos no modificados
+                for _, row in df_existente.iterrows():
+                    pid = str(row['id_proyecto']).strip()
+                    if pid and pid not in df_nuevo['id_proyecto'].astype(str).str.strip().values:
+                        proyectos.append(row.to_dict())
+                
                 df_combinado = pd.concat([df_existente, df_nuevo], ignore_index=True, sort=False)
             except Exception as e:
                 print(f"Error leyendo base existente: {e}")
@@ -386,28 +408,33 @@ def exportar_excel():
         else:
             df_combinado = df_nuevo.copy()
 
-        # Normalizar id_proyecto y eliminar filas vacias de id
-        if 'id_proyecto' in df_combinado.columns:
-            df_combinado['id_proyecto'] = df_combinado['id_proyecto'].astype(str).str.strip()
-            df_combinado = df_combinado[df_combinado['id_proyecto'].astype(str).str.strip() != '']
+        # Procesamiento adicional del DataFrame
+        df_combinado['id_proyecto'] = df_combinado['id_proyecto'].astype(str).str.strip()
+        df_combinado = df_combinado[df_combinado['id_proyecto'] != '']
+        
+        # Eliminar duplicados manteniendo los más recientes
+        df_combinado = df_combinado.drop_duplicates(subset=['id_proyecto'], keep='last')
 
-        # Mantener orden de columnas de la base si existe (añadir nuevas al final)
-        if os.path.exists(base_path):
-            try:
-                df_base_cols = pd.read_excel(base_path, sheet_name='Proyectos', nrows=0)
-                columnas_orden = list(df_base_cols.columns) + [c for c in df_combinado.columns if c not in df_base_cols.columns]
-                df_combinado = df_combinado.reindex(columns=columnas_orden)
-            except Exception:
-                pass
+        # === Forzar inclusión de columnas esperadas, incluso si están vacías ===
+        columnas_esperadas = [
+            'id_proyecto',
+            'nombre_proyecto',
+            'fecha_creacion',
+            'condiciones_aprobacion',
+            'observacion_control',
+            'desembolsos_diarios'
+        ]
 
-        # Eliminar duplicados por id_proyecto dejando el ultimo (nuevos reemplazan)
-        if 'id_proyecto' in df_combinado.columns:
-            df_combinado = df_combinado.drop_duplicates(subset=['id_proyecto'], keep='last')
+        for col in columnas_esperadas:
+            if col not in df_combinado.columns:
+                df_combinado[col] = 'Sin datos' if col == 'observacion_control' else ''
 
-        # ===== Guardar Base_principal_proyectos.xlsx (igual que subir_base_principal) =====
+        # ===== Guardar Excel =====
         try:
             with pd.ExcelWriter(base_path, engine='openpyxl') as writer:
                 df_combinado.to_excel(writer, index=False, sheet_name='Proyectos')
+                
+                # Configurar protección
                 worksheet = writer.sheets['Proyectos']
                 try:
                     worksheet.protection.sheet = True
@@ -417,24 +444,22 @@ def exportar_excel():
                     worksheet.protection.insertRows = False
                     worksheet.protection.deleteRows = False
                 except Exception as e:
-                    print(f"No fue posible aplicar proteccion a la base: {e}")
+                    print(f"No fue posible aplicar proteccion: {e}")
 
-                # Ajustar anchos de columna (limitar a 80)
                 for column in worksheet.columns:
-                    max_length = 0
-                    column_letter = column[0].column_letter
-                    for cell in column:
-                        try:
-                            val = '' if cell.value is None else str(cell.value)
-                            if len(val) > max_length:
-                                max_length = len(val)
-                        except Exception:
-                            pass
-                    worksheet.column_dimensions[column_letter].width = min(max_length + 2, 80)
+                    max_length = max(
+                        worksheet.cell(row=row, column=column[0].column).value
+                        and len(str(worksheet.cell(row=row, column=column[0].column).value))
+                        or 0
+                        for row in range(1, worksheet.max_row + 1)
+                    )
+                    worksheet.column_dimensions[column[0].column_letter].width = min(max_length + 2, 150)
+
 
         except Exception as e:
-            return jsonify({'success': False, 'message': f'Error guardando Base_principal_proyectos.xlsx: {str(e)}'}), 500
+            return jsonify({'success': False, 'message': f'Error guardando Excel: {str(e)}'}), 500
 
+        # ===== Actualizar localStorage =====
         # ===== Actualizar LOCAL_STORAGE_PATH (mismo enfoque que en subir_base_principal) =====
         nuevos_cont = 0
         actualizados_cont = 0
