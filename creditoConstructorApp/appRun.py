@@ -13,6 +13,8 @@ import subprocess
 import sys
 import json
 from openpyxl.styles import Alignment
+import numpy as np
+from collections import Counter
 
 
 app = Flask(__name__)
@@ -343,205 +345,108 @@ EXPORTAR_RUTA = "C:\\CreditosConstructor"
 if not os.path.exists(EXPORTAR_RUTA):
     os.makedirs(EXPORTAR_RUTA, exist_ok=True)
 
-@app.route('/exportar_excel', methods=['POST'])
-def exportar_excel():
-    try:
-        data = request.get_json(force=True)  # Usar force=True para asegurar la lectura
-        if not data:
-            return jsonify({'success': False, 'message': 'Datos invalidos'}), 400
+# ---------------- UTILIDADES ----------------
 
-        proyectos = data.get('proyectos', [])
-        if not proyectos:
-            return jsonify({'success': False, 'message': 'No hay proyectos para exportar'}), 400
+def consolidate_duplicate_columns(df):
+    """
+    Detecta columnas duplicadas en df y las consolida en una sola columna por nombre,
+    tomando por fila el ultimo valor no nulo/no vacio entre las columnas duplicadas.
+    Devuelve un DataFrame con nombres de columna unicos, manteniendo el orden original.
+    """
+    if df is None:
+        return pd.DataFrame()
+    if df.empty:
+        return df.copy()
 
-        # Validar campos obligatorios y preparar datos
-        campos_obligatorios = ['id_proyecto', 'nombre_proyecto', 'fecha_creacion']
-        for proyecto in proyectos:
-            # Validar campos obligatorios
-            if not all(key in proyecto for key in campos_obligatorios):
-                return jsonify({'success': False, 'message': f'Falta campo obligatorio en proyecto {proyecto.get("id_proyecto", "")}'}), 400
-            
-            # Manejar condiciones_aprobacion
-            if 'condiciones_aprobacion' in proyecto:
-                if isinstance(proyecto['condiciones_aprobacion'], str):
-                    proyecto['condiciones_aprobacion'] = proyecto['condiciones_aprobacion'].split('; ')
-                elif not isinstance(proyecto['condiciones_aprobacion'], list):
-                    proyecto['condiciones_aprobacion'] = []
-            
-            # Manejar observacion_control (comentarios)
-            if 'observacion_control' in proyecto and proyecto['observacion_control']:
-                # Reemplazar saltos de línea por " | "
-                proyecto['observacion_control'] = proyecto['observacion_control'].replace('\n', ' | ')
-            
-            # Asegurar que desembolsos_diarios sea string
-            if 'desembolsos_diarios' in proyecto:
-                if not isinstance(proyecto['desembolsos_diarios'], str):
-                    proyecto['desembolsos_diarios'] = str(proyecto['desembolsos_diarios'])
-            else:
-                proyecto['desembolsos_diarios'] = 'Sin desembolsos diarios'
+    cols = list(df.columns)
+    counts = Counter(cols)
+    dup_names = [name for name, cnt in counts.items() if cnt > 1]
+    if not dup_names:
+        return df.copy()
 
-        # DataFrame desde payload
-        df_nuevo = pd.DataFrame(proyectos).fillna('')
+    consolidated = {}
+    for name in dup_names:
+        positions = [i for i, c in enumerate(cols) if c == name]
+        sub = df.iloc[:, positions]
 
-        # Asegurar carpeta de exportes
-        if not os.path.exists(EXPORTAR_RUTA):
-            os.makedirs(EXPORTAR_RUTA)
+        def last_notnull(row):
+            for v in reversed(row.values):
+                if pd.notna(v):
+                    if not (isinstance(v, str) and str(v).strip() == ''):
+                        return v
+            return np.nan
 
-        base_path = os.path.join(EXPORTAR_RUTA, 'Base_principal_proyectos.xlsx')
+        serie = sub.apply(last_notnull, axis=1)
+        consolidated[name] = serie
 
-        # ===== Combinar con base existente =====
-        if os.path.exists(base_path):
-            try:
-                df_existente = pd.read_excel(base_path, sheet_name='Proyectos', dtype={'id_proyecto': str})
-                df_existente['id_proyecto'] = df_existente['id_proyecto'].astype(str).str.strip()
-                
-                # Conservar observaciones existentes para proyectos no modificados
-                for _, row in df_existente.iterrows():
-                    pid = str(row['id_proyecto']).strip()
-                    if pid and pid not in df_nuevo['id_proyecto'].astype(str).str.strip().values:
-                        proyectos.append(row.to_dict())
-                
-                df_combinado = pd.concat([df_existente, df_nuevo], ignore_index=True, sort=False)
-            except Exception as e:
-                print(f"Error leyendo base existente: {e}")
-                df_combinado = df_nuevo.copy()
+    new_df = pd.DataFrame(index=df.index)
+    seen = set()
+    for i, c in enumerate(cols):
+        if c in dup_names:
+            if c in seen:
+                continue
+            new_df[c] = consolidated[c].values
+            seen.add(c)
         else:
-            df_combinado = df_nuevo.copy()
+            new_df[c] = df.iloc[:, i].values
 
-        # Procesamiento adicional del DataFrame
-        df_combinado['id_proyecto'] = df_combinado['id_proyecto'].astype(str).str.strip()
-        df_combinado = df_combinado[df_combinado['id_proyecto'] != '']
-        
-        # Eliminar duplicados manteniendo los más recientes
-        df_combinado = df_combinado.drop_duplicates(subset=['id_proyecto'], keep='last')
+    return new_df
 
-        # === Forzar inclusión de columnas esperadas, incluso si están vacías ===
-        columnas_esperadas = [
-            'id_proyecto',
-            'nombre_proyecto',
-            'fecha_creacion',
-            'condiciones_aprobacion',
-            'observacion_control',
-            'desembolsos_diarios'
-        ]
-
-        for col in columnas_esperadas:
-            if col not in df_combinado.columns:
-                df_combinado[col] = 'Sin datos' if col == 'observacion_control' else ''
-
-        # ===== Guardar Excel =====
+def sanitize_dataframe_for_excel(df, date_format='%d/%m/%Y'):
+    """
+    Convierte columnas datetime / pandas.Timestamp a strings usando date_format.
+    Reemplaza NaT/NaN por cadena vacia ''.
+    Retorna copia.
+    """
+    if df is None:
+        return pd.DataFrame()
+    df2 = df.copy()
+    for col in df2.columns:
         try:
-            with pd.ExcelWriter(base_path, engine='openpyxl') as writer:
-                df_combinado.to_excel(writer, index=False, sheet_name='Proyectos')
-                
-                # Configurar protección
-                worksheet = writer.sheets['Proyectos']
-                try:
-                    worksheet.protection.sheet = True
-                    worksheet.protection.set_password('Riesgos2025*')
-                    worksheet.protection.autoFilter = True
-                    worksheet.protection.sort = True
-                    worksheet.protection.insertRows = False
-                    worksheet.protection.deleteRows = False
-                except Exception as e:
-                    print(f"No fue posible aplicar proteccion: {e}")
-
-                for column in worksheet.columns:
-                    max_length = max(
-                        worksheet.cell(row=row, column=column[0].column).value
-                        and len(str(worksheet.cell(row=row, column=column[0].column).value))
-                        or 0
-                        for row in range(1, worksheet.max_row + 1)
-                    )
-                    worksheet.column_dimensions[column[0].column_letter].width = min(max_length + 2, 150)
-
-
-        except Exception as e:
-            return jsonify({'success': False, 'message': f'Error guardando Excel: {str(e)}'}), 500
-
-        # ===== Actualizar localStorage =====
-        # ===== Actualizar LOCAL_STORAGE_PATH (mismo enfoque que en subir_base_principal) =====
-        nuevos_cont = 0
-        actualizados_cont = 0
-        proyectos_guardar = []
-        try:
-            proyectos_existentes = []
-            if os.path.exists(LOCAL_STORAGE_PATH):
-                with open(LOCAL_STORAGE_PATH, 'r', encoding='utf-8') as f:
-                    try:
-                        proyectos_existentes = json.load(f)
-                    except json.JSONDecodeError:
-                        proyectos_existentes = []
-
-            # Normalizar lista nueva desde df_nuevo (solo registros con id_proyecto no vacio)
-            proyectos_nuevos_lista = []
-            for proyecto in df_nuevo.to_dict(orient='records'):
-                p = dict(proyecto)
-                p['id_proyecto'] = str(p.get('id_proyecto', '')).strip()
-                if p['id_proyecto'] != '':
-                    proyectos_nuevos_lista.append(p)
-
-            existentes_por_id = {}
-            for p in proyectos_existentes:
-                pid = str(p.get('id_proyecto', '')).strip()
-                if pid:
-                    existentes_por_id[pid] = p
-
-            nuevos_por_id = {}
-            for p in proyectos_nuevos_lista:
-                pid = p.get('id_proyecto', '')
-                nuevos_por_id[pid] = p
-
-            nuevos_cont = sum(1 for pid in nuevos_por_id if pid not in existentes_por_id)
-            actualizados_cont = sum(1 for pid in nuevos_por_id if pid in existentes_por_id)
-
-            # Merge: los nuevos sobreescriben a los existentes
-            existentes_por_id.update(nuevos_por_id)
-            proyectos_guardar = list(existentes_por_id.values())
-
-            with open(LOCAL_STORAGE_PATH, 'w', encoding='utf-8') as f:
-                json.dump(proyectos_guardar, f, ensure_ascii=False, indent=2)
-
-        except Exception as e:
-            print(f"Error actualizando localStorage: {str(e)}")
-            traceback.print_exc()
-            # No abortamos la operacion completa: solo notificamos el problema
-
-        # ===== Preparar conteos tipo 'subir_base_principal' =====
-        try:
-            if 'df_existente' in locals():
-                ids_existentes_previos_excel = set(str(x).strip() for x in df_existente['id_proyecto'].dropna().astype(str))
-                ids_nuevos_excel = set(str(x).strip() for x in df_nuevo['id_proyecto'].dropna().astype(str))
-                nuevos_excel = len(ids_nuevos_excel - ids_existentes_previos_excel)
-                actualizados_excel = len(ids_nuevos_excel & ids_existentes_previos_excel)
+            if pd.api.types.is_datetime64_any_dtype(df2[col]):
+                df2[col] = df2[col].dt.strftime(date_format).where(df2[col].notna(), '')
             else:
-                nuevos_excel = len(df_nuevo['id_proyecto'].dropna().astype(str).str.strip().unique())
-                actualizados_excel = 0
+                # convertir valores sueltos tipo Timestamp o datetime a string; NaN -> ''
+                def conv_val(x):
+                    if isinstance(x, (pd.Timestamp, datetime)):
+                        try:
+                            return x.strftime(date_format)
+                        except Exception:
+                            return ''
+                    if pd.isna(x):
+                        return ''
+                    return x
+                df2[col] = df2[col].apply(conv_val)
         except Exception:
-            nuevos_excel = 0
-            actualizados_excel = 0
+            # si falla, dejar la columna tal cual
+            pass
+    return df2
 
-        response = {
-            'success': True,
-            'message': 'Base principal actualizada',
-            'nuevos': nuevos_cont,
-            'actualizados': actualizados_cont,
-            'nuevos_excel': nuevos_excel,
-            'actualizados_excel': actualizados_excel,
-            'archivo_base': os.path.basename(base_path),
-            'proyectos': proyectos_guardar
-        }
-        return jsonify(response), 200
+def df_to_serializable_records(df, date_format='%Y-%m-%dT%H:%M:%S'):
+    """
+    Convierte df.to_dict(orient='records') pero transforma pandas.Timestamp/datetime a ISO-string
+    y transforma NaN/NaT a None para un json.dump seguro.
+    """
+    if df is None:
+        return []
+    records = df.to_dict(orient='records')
+    def conv(x):
+        if isinstance(x, (pd.Timestamp, datetime)):
+            try:
+                return x.strftime(date_format)
+            except Exception:
+                return None
+        if pd.isna(x):
+            return None
+        return x
+    safe = []
+    for r in records:
+        safe.append({k: conv(v) for k, v in r.items()})
+    return safe
 
-    except Exception as e:
-        print(f"Error en exportar_excel: {str(e)}\n{traceback.format_exc()}")
-        return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
-
-    
+# ---------------- FUNCION: subir_base_principal ----------------
 @app.route('/subir_base_principal', methods=['POST'])
 def subir_base_principal():
-    import traceback
-
     try:
         # ===== Lista completa de columnas requeridas (sin cambios de nombres) =====
         COLUMNAS_COMPLETAS = [
@@ -559,7 +464,7 @@ def subir_base_principal():
             "poliza_decenal", "caso_bizagi_juridico", "control_cruzado", "fecha_confirmacion",
             "fecha_primera_visita", "id_garantia", "meses_avanzados", "plazo_ajustado",
             "fecha_ultimo_informe_de_ventas", "fecha_inicio_de_ventas", "total_esperado_ventas",
-            "inmuebles_vendidos_(unidades)", "valor_inmuebles_vendidos", 
+            "inmuebles_vendidos_(unidades)", "valor_inmuebles_vendidos",
             "%_porcentaje_de_ventas_(unidades)", "%_porcentaje_de_ventas_(valor)",
             "valor_por_vender", "valor_canjes", "cartera_recaudada", "cartera_por_recaudar",
             "promedio_mensual", "promedio_trimestral", "validacion_fecha_infventas", "regional",
@@ -587,10 +492,10 @@ def subir_base_principal():
             "valor_desembolsar_preoperativo", "valor_desembolsar_constructor",
             "maximo_desembolsar_constructor", "maximo_desembolsar_superavit",
             "condiciones_especiales", "fecha_observacion_control", "valor_ampliacion",
-            "observacion_control"
+            "observacion_control", 'condiciones_constructor', 'porcentaje_preoperativo','tipo_porcentaje_preoperativo',
+            'porcentaje_constructor', 'tipo_porcentaje_constructor', 'porcentaje_recaudo_constructor'
         ]
 
-        # ===== Mapeo desde nombres del Excel hacia nombres internos (no normalizar luego) =====
         MAPEO_COLUMNAS = {
             "ID PROYECTO": "id_proyecto",
             "TIPO CRED": "tipo_producto",
@@ -667,6 +572,8 @@ def subir_base_principal():
             "FECHA OBSERVACION CONTROL": "fecha_observacion_control",
             "VIGENCIA APROBACIÓN (EN MESES)": "vigencia_en_meses"
         }
+
+        # ===== Validaciones iniciales =====
         if 'archivo' not in request.files:
             return jsonify({'success': False, 'message': 'No se encontro archivo'}), 400
 
@@ -683,19 +590,37 @@ def subir_base_principal():
             backup_path = os.path.join(EXPORTAR_RUTA, f'Backup_{fecha}.xlsx')
             shutil.copyfile(base_path, backup_path)
 
-        # ===== Leer Excel subido =====
+        # ===== LEER LOCAL_STORAGE_PATH =====
+        df_local = pd.DataFrame()
+        try:
+            if os.path.exists(LOCAL_STORAGE_PATH):
+                with open(LOCAL_STORAGE_PATH, 'r', encoding='utf-8') as f:
+                    try:
+                        proyectos_local = json.load(f)
+                        if isinstance(proyectos_local, list) and proyectos_local:
+                            df_local = pd.DataFrame(proyectos_local).fillna('')
+                            if 'id_proyecto' in df_local.columns:
+                                df_local['id_proyecto'] = df_local['id_proyecto'].astype(str).str.strip()
+                            df_local = consolidate_duplicate_columns(df_local)
+                    except json.JSONDecodeError:
+                        df_local = pd.DataFrame()
+        except Exception as e:
+            print(f"Error leyendo LOCAL_STORAGE_PATH: {e}")
+            df_local = pd.DataFrame()
+
+        # ===== Leer Excel subido (conservar columnas extras) =====
         try:
             xls = pd.ExcelFile(archivo)
             if 'Hoja1' not in xls.sheet_names:
-                return jsonify({'success': False, 'message': 'El archivo no contiene una hoja llamada "Hoja1"'}), 400
+                return jsonify({'success': False, 'message': 'El archivo no contiene una hoja llamada \"Hoja1\"'}), 400
 
             archivo.seek(0)
             df_nuevo = pd.read_excel(archivo, sheet_name='Hoja1', header=1, dtype={'ID PROYECTO': str})
-
             if 'ID PROYECTO' not in df_nuevo.columns:
-                return jsonify({'success': False, 'message': 'El archivo no contiene la columna "ID PROYECTO"'}), 400
+                return jsonify({'success': False, 'message': 'El archivo no contiene la columna \"ID PROYECTO\"'}), 400
 
             df_nuevo = df_nuevo.rename(columns=MAPEO_COLUMNAS)
+            df_nuevo = consolidate_duplicate_columns(df_nuevo)
 
             if 'id_proyecto' in df_nuevo.columns:
                 df_nuevo['id_proyecto'] = df_nuevo['id_proyecto'].astype(str).str.strip()
@@ -703,9 +628,7 @@ def subir_base_principal():
 
             df_nuevo = df_nuevo[df_nuevo['id_proyecto'].astype(str).str.strip() != '']
 
-            columnas_disponibles = [col for col in COLUMNAS_COMPLETAS if col in df_nuevo.columns]
-            df_nuevo = df_nuevo[columnas_disponibles]
-
+            # formateo fechas conocidas si existen (string output)
             columnas_fecha = [
                 'fecha_creacion', 'fecha_aprobacion', 'fecha_radicacion',
                 'fecha_confirmacion', 'fecha_visita', 'fecha_ultimo_informe_de_ventas',
@@ -726,33 +649,78 @@ def subir_base_principal():
         except Exception as e:
             return jsonify({'success': False, 'message': f'Error procesando archivo: {str(e)}'}), 400
 
-        # ===== Combinar con base existente (y deduplicar por id_proyecto) =====
+        # ===== Combinar: existente + local + nuevo =====
         if os.path.exists(base_path):
             try:
                 df_existente = pd.read_excel(base_path, sheet_name='Proyectos', dtype={'id_proyecto': str})
-                df_existente['id_proyecto'] = df_existente['id_proyecto'].astype(str).str.strip()
-                df_combinado = pd.concat([df_existente, df_nuevo], ignore_index=True)
+                df_existente = df_existente.fillna('')
+                if 'id_proyecto' in df_existente.columns:
+                    df_existente['id_proyecto'] = df_existente['id_proyecto'].astype(str).str.strip()
+                else:
+                    df_existente['id_proyecto'] = ''
+                df_existente = consolidate_duplicate_columns(df_existente)
+
+                frames = [df_existente]
+                if not df_local.empty:
+                    frames.append(df_local)
+                if not df_nuevo.empty:
+                    frames.append(df_nuevo)
+                df_concat = pd.concat(frames, ignore_index=True, sort=False).fillna('')
             except Exception as e:
                 print(f"Error combinando datos: {str(e)}")
-                df_combinado = df_nuevo
+                if not df_local.empty:
+                    df_concat = pd.concat([df_local, df_nuevo], ignore_index=True, sort=False).fillna('')
+                else:
+                    df_concat = df_nuevo.copy()
         else:
-            df_combinado = df_nuevo
+            if not df_local.empty:
+                df_concat = pd.concat([df_local, df_nuevo], ignore_index=True, sort=False).fillna('')
+            else:
+                df_concat = df_nuevo.copy()
 
-        # Asegurarse que todas las columnas existan
+        # Consolidar duplicados que pudieron surgir en la concatenacion
+        df_concat = consolidate_duplicate_columns(df_concat)
+        df_concat = df_concat.astype(object)  # evita FutureWarning en replace
+
+        # ===== Por id_proyecto tomar el ultimo valor NO VACIO por columna =====
+        df_work = df_concat.replace(r'^\s*$', np.nan, regex=True)
+        df_work = df_work.replace('nan', np.nan)
+
+        if 'id_proyecto' in df_work.columns:
+            def last_notnull(series):
+                s = series.dropna()
+                return s.iloc[-1] if not s.empty else np.nan
+
+            group_key = df_work['id_proyecto'].astype(str).str.strip()
+            df_grouped = df_work.groupby(group_key, dropna=False).agg(last_notnull)
+
+            # previene el error de reset_index() si existe columna 'id_proyecto'
+            if 'id_proyecto' in df_grouped.columns:
+                df_grouped = df_grouped.drop(columns=['id_proyecto'])
+            df_grouped.index.name = 'id_proyecto'
+            df_combinado = df_grouped.reset_index()
+        else:
+            df_combinado = df_concat.copy()
+
+        # asegurar columnas esperadas (sin eliminar extras)
         for col in COLUMNAS_COMPLETAS:
             if col not in df_combinado.columns:
                 df_combinado[col] = None
 
-        df_combinado = df_combinado[COLUMNAS_COMPLETAS]
+        cols_extra = [c for c in df_combinado.columns if c not in COLUMNAS_COMPLETAS]
+        orden_final = COLUMNAS_COMPLETAS + cols_extra
+        df_combinado = df_combinado[orden_final]
 
-        # Eliminar duplicados por id_proyecto dejando el ultimo (los nuevos reemplazan)
+        # limpiar id_proyecto y filas vacias
         if 'id_proyecto' in df_combinado.columns:
-            df_combinado = df_combinado.drop_duplicates(subset=['id_proyecto'], keep='last')
+            df_combinado['id_proyecto'] = df_combinado['id_proyecto'].astype(str).str.strip()
+            df_combinado = df_combinado[df_combinado['id_proyecto'] != '']
 
-        # ===== Guardar Excel =====
+        # ===== Guardar Excel (sanitizando fechas) =====
         try:
+            df_for_excel = sanitize_dataframe_for_excel(df_combinado, date_format='%d/%m/%Y')
             with pd.ExcelWriter(base_path, engine='openpyxl') as writer:
-                df_combinado.to_excel(writer, index=False, sheet_name='Proyectos')
+                df_for_excel.to_excel(writer, index=False, sheet_name='Proyectos')
                 worksheet = writer.sheets['Proyectos']
                 try:
                     worksheet.protection.sheet = True
@@ -774,13 +742,282 @@ def subir_base_principal():
                                 max_length = len(val)
                         except Exception:
                             pass
-                    worksheet.column_dimensions[column_letter].width = min(max_length + 2, 80)
-
+                    worksheet.column_dimensions[column_letter].width = min(max_length + 2, 150)
+                try:
+                    worksheet.freeze_panes = "A2"
+                except Exception:
+                    pass
         except Exception as e:
             return jsonify({'success': False, 'message': f'Error guardando archivo: {str(e)}'}), 500
 
-        # ===== Actualizar LOCAL_STORAGE_PATH sin duplicados =====
+        # ===== Actualizar LOCAL_STORAGE_PATH con lista completa resultante (serializable) =====
+        proyectos_guardar = []
+        nuevos_cont = 0
+        actualizados_cont = 0
         try:
+            df_combinado = consolidate_duplicate_columns(df_combinado)
+            proyectos_guardar = df_to_serializable_records(df_combinado, date_format='%Y-%m-%dT%H:%M:%S')
+            # asegurar id_proyecto strings
+            for p in proyectos_guardar:
+                p['id_proyecto'] = '' if p.get('id_proyecto') is None else str(p.get('id_proyecto')).strip()
+            with open(LOCAL_STORAGE_PATH, 'w', encoding='utf-8') as f:
+                json.dump(proyectos_guardar, f, ensure_ascii=False, indent=2)
+
+            # conteos nuevos/actualizados segun df_existente y df_nuevo
+            try:
+                if 'df_existente' in locals():
+                    ids_existentes_previos_excel = set(str(x).strip() for x in df_existente['id_proyecto'].dropna().astype(str))
+                    ids_nuevos_excel = set(str(x).strip() for x in df_nuevo['id_proyecto'].dropna().astype(str)) if not df_nuevo.empty else set()
+                    nuevos_cont = len(ids_nuevos_excel - ids_existentes_previos_excel)
+                    actualizados_cont = len(ids_nuevos_excel & ids_existentes_previos_excel)
+                else:
+                    nuevos_cont = len(df_nuevo['id_proyecto'].dropna().astype(str).str.strip().unique()) if not df_nuevo.empty else 0
+                    actualizados_cont = 0
+            except Exception:
+                nuevos_cont = 0
+                actualizados_cont = 0
+
+        except Exception as e:
+            print(f"Error actualizando localStorage: {str(e)}")
+            traceback.print_exc()
+
+        return jsonify({
+            'success': True,
+            'message': 'Base principal actualizada (no pierde datos previos)',
+            'nuevos': nuevos_cont,
+            'actualizados': actualizados_cont,
+            'proyectos': proyectos_guardar
+        })
+    except Exception as e:
+        print(f"Error en subir_base_principal: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
+
+# ---------------- FUNCION: exportar_excel ----------------
+@app.route('/exportar_excel', methods=['POST'])
+def exportar_excel():
+    try:
+        data = request.get_json(force=True)
+        if not data:
+            return jsonify({'success': False, 'message': 'Datos invalidos'}), 400
+
+        proyectos = data.get('proyectos', [])
+        if not proyectos:
+            return jsonify({'success': False, 'message': 'No hay proyectos para exportar'}), 400
+
+        # Normalizar payload y campos
+        campos_obligatorios = ['id_proyecto', 'nombre_proyecto', 'fecha_creacion']
+        for proyecto in proyectos:
+            if not all(key in proyecto for key in campos_obligatorios):
+                return jsonify({'success': False, 'message': f'Falta campo obligatorio en proyecto {proyecto.get("id_proyecto", "")}'}), 400
+
+            if 'condiciones_aprobacion' in proyecto:
+                if isinstance(proyecto['condiciones_aprobacion'], str):
+                    proyecto['condiciones_aprobacion'] = proyecto['condiciones_aprobacion'].split('; ')
+                elif not isinstance(proyecto['condiciones_aprobacion'], list):
+                    proyecto['condiciones_aprobacion'] = []
+
+            if 'condiciones_constructor' in proyecto:
+                if isinstance(proyecto['condiciones_constructor'], str):
+                    proyecto['condiciones_constructor'] = proyecto['condiciones_constructor'].split('; ')
+                elif not isinstance(proyecto['condiciones_constructor'], list):
+                    proyecto['condiciones_constructor'] = []
+
+            if 'observacion_control' in proyecto and proyecto['observacion_control']:
+                proyecto['observacion_control'] = proyecto['observacion_control'].replace('\n', ' | ')
+
+            if 'desembolsos_diarios' in proyecto:
+                if not isinstance(proyecto['desembolsos_diarios'], str):
+                    proyecto['desembolsos_diarios'] = str(proyecto['desembolsos_diarios'])
+            else:
+                proyecto['desembolsos_diarios'] = 'Sin desembolsos diarios'
+
+        df_nuevo = pd.DataFrame(proyectos).fillna('')
+
+        try:
+                    historiales = data.get('historiales', {})
+                    if isinstance(historiales, dict):
+                        for hist_key, hist_list in historiales.items():
+                            if not isinstance(hist_list, list) or not hist_list:
+                                continue
+                            dfh = pd.DataFrame(hist_list).fillna('')
+                            if 'id_proyecto' not in dfh.columns:
+                                # si no hay id_proyecto no podemos mapear: saltar
+                                continue
+
+                            # Normalizar id_proyecto en dfh
+                            dfh['id_proyecto'] = dfh['id_proyecto'].astype(str).str.strip()
+
+                            # Para cada id_proyecto tomar la ultima fila util (segun orden enviado)
+                            for pid, grupo in dfh.groupby('id_proyecto', dropna=False):
+                                if pd.isna(pid) or str(pid).strip() == '':
+                                    continue
+                                # reemplazar cadenas vacias por NaN para facilitar last-not-null
+                                grupo_clean = grupo.replace(r'^\s*$', np.nan, regex=True)
+                                # si queda todo NaN saltar
+                                if grupo_clean.dropna(axis=1, how='all').empty:
+                                    continue
+                                ultima = grupo_clean.dropna(axis=1, how='all').iloc[-1]
+
+                                # Asignar solo a columnas ya existentes en df_nuevo
+                                mask = df_nuevo['id_proyecto'].astype(str).str.strip() == str(pid).strip()
+                                if not mask.any():
+                                    continue
+                                for col in ultima.index:
+                                    if col == 'id_proyecto':
+                                        continue
+                                    if col in df_nuevo.columns:
+                                        val = ultima[col]
+                                        # mantener el comportamiento original: guardar tal cual
+                                        df_nuevo.loc[mask, col] = val
+        except Exception as e:
+                    # proteger flujo principal: si algo falla con historiales, no romper exportacion
+                    print(f"Advertencia: no se pudo integrar historiales: {e}")
+
+        # leer localstorage
+        df_local = pd.DataFrame()
+        try:
+            if os.path.exists(LOCAL_STORAGE_PATH):
+                with open(LOCAL_STORAGE_PATH, 'r', encoding='utf-8') as f:
+                    try:
+                        proyectos_local = json.load(f)
+                        if isinstance(proyectos_local, list) and proyectos_local:
+                            df_local = pd.DataFrame(proyectos_local).fillna('')
+                            if 'id_proyecto' in df_local.columns:
+                                df_local['id_proyecto'] = df_local['id_proyecto'].astype(str).str.strip()
+                            df_local = consolidate_duplicate_columns(df_local)
+                    except json.JSONDecodeError:
+                        df_local = pd.DataFrame()
+        except Exception as e:
+            print(f"Error leyendo LOCAL_STORAGE_PATH: {e}")
+            df_local = pd.DataFrame()
+
+        if not os.path.exists(EXPORTAR_RUTA):
+            os.makedirs(EXPORTAR_RUTA)
+
+        base_path = os.path.join(EXPORTAR_RUTA, 'Base_principal_proyectos.xlsx')
+
+        # leer existente si hay
+        if os.path.exists(base_path):
+            try:
+                df_existente = pd.read_excel(base_path, sheet_name='Proyectos', dtype={'id_proyecto': str})
+                df_existente = df_existente.fillna('')
+                if 'id_proyecto' in df_existente.columns:
+                    df_existente['id_proyecto'] = df_existente['id_proyecto'].astype(str).str.strip()
+                else:
+                    df_existente['id_proyecto'] = ''
+                df_existente = consolidate_duplicate_columns(df_existente)
+
+                frames = [df_existente]
+                if not df_local.empty:
+                    frames.append(df_local)
+                if not df_nuevo.empty:
+                    frames.append(df_nuevo)
+                df_concat = pd.concat(frames, ignore_index=True, sort=False).fillna('')
+            except Exception as e:
+                print(f"Error leyendo/combinando base existente: {e}")
+                if not df_local.empty and not df_nuevo.empty:
+                    df_concat = pd.concat([df_local, df_nuevo], ignore_index=True, sort=False).fillna('')
+                elif not df_local.empty:
+                    df_concat = df_local.copy()
+                else:
+                    df_concat = df_nuevo.copy()
+        else:
+            if not df_local.empty and not df_nuevo.empty:
+                df_concat = pd.concat([df_local, df_nuevo], ignore_index=True, sort=False).fillna('')
+            elif not df_local.empty:
+                df_concat = df_local.copy()
+            else:
+                df_concat = df_nuevo.copy()
+
+        # consolidar duplicados y evitar FutureWarning
+        df_concat = consolidate_duplicate_columns(df_concat)
+        df_concat = df_concat.astype(object)
+        df_work = df_concat.replace(r'^\s*$', np.nan, regex=True)
+        df_work = df_work.replace('nan', np.nan)
+
+        if 'id_proyecto' in df_work.columns:
+            def last_notnull(s):
+                s2 = s.dropna()
+                return s2.iloc[-1] if not s2.empty else np.nan
+            group_key = df_work['id_proyecto'].astype(str).str.strip()
+            df_grouped = df_work.groupby(group_key, dropna=False).agg(last_notnull)
+
+            if 'id_proyecto' in df_grouped.columns:
+                df_grouped = df_grouped.drop(columns=['id_proyecto'])
+            df_grouped.index.name = 'id_proyecto'
+            df_combinado = df_grouped.reset_index()
+        else:
+            df_combinado = df_concat.copy()
+
+        # columnas esperadas (minimas)
+        columnas_esperadas = [
+            'id_proyecto',
+            'nombre_proyecto',
+            'fecha_creacion',
+            'condiciones_aprobacion',
+            'condiciones_constructor',
+            'observacion_control',
+            'desembolsos_diarios'
+        ]
+        for col in columnas_esperadas:
+            if col not in df_combinado.columns:
+                df_combinado[col] = '' if col != 'observacion_control' else 'Sin datos'
+
+        cols_extra = [c for c in df_combinado.columns if c not in columnas_esperadas]
+        orden_final = columnas_esperadas + cols_extra
+        df_combinado = df_combinado[orden_final]
+
+        if 'id_proyecto' in df_combinado.columns:
+            df_combinado['id_proyecto'] = df_combinado['id_proyecto'].astype(str).str.strip()
+            df_combinado = df_combinado[df_combinado['id_proyecto'] != '']
+
+        # consolidar final antes de to_dict
+        df_combinado = consolidate_duplicate_columns(df_combinado)
+
+        # guardar excel final (sanitizando fechas)
+        try:
+            df_for_excel = sanitize_dataframe_for_excel(df_combinado, date_format='%d/%m/%Y')
+            with pd.ExcelWriter(base_path, engine='openpyxl') as writer:
+                df_for_excel.to_excel(writer, index=False, sheet_name='Proyectos')
+                worksheet = writer.sheets['Proyectos']
+                try:
+                    worksheet.protection.sheet = True
+                    worksheet.protection.set_password('Riesgos2025*')
+                    worksheet.protection.autoFilter = True
+                    worksheet.protection.sort = True
+                    worksheet.protection.insertRows = False
+                    worksheet.protection.deleteRows = False
+                except Exception as e:
+                    print(f"No fue posible aplicar proteccion: {e}")
+
+                for column in worksheet.columns:
+                    try:
+                        max_length = max(
+                            worksheet.cell(row=row, column=column[0].column).value
+                            and len(str(worksheet.cell(row=row, column=column[0].column).value))
+                            or 0
+                            for row in range(1, worksheet.max_row + 1)
+                        )
+                        worksheet.column_dimensions[column[0].column_letter].width = min(max_length + 2, 150)
+                    except Exception:
+                        pass
+                try:
+                    worksheet.freeze_panes = "A2"
+                except Exception:
+                    pass
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'Error guardando Excel: {str(e)}'}), 500
+
+        # actualizar localstorage (serializable)
+        proyectos_guardar = []
+        nuevos_cont = 0
+        actualizados_cont = 0
+        try:
+            df_combinado = consolidate_duplicate_columns(df_combinado)
+            proyectos_guardar = df_to_serializable_records(df_combinado, date_format='%Y-%m-%dT%H:%M:%S')
+            for p in proyectos_guardar:
+                p['id_proyecto'] = '' if p.get('id_proyecto') is None else str(p.get('id_proyecto')).strip()
+
             proyectos_existentes = []
             if os.path.exists(LOCAL_STORAGE_PATH):
                 with open(LOCAL_STORAGE_PATH, 'r', encoding='utf-8') as f:
@@ -789,67 +1026,48 @@ def subir_base_principal():
                     except json.JSONDecodeError:
                         proyectos_existentes = []
 
-            # Normalizar lista nueva desde df_nuevo (solo registros con id_proyecto no vacio)
-            proyectos_nuevos_lista = []
-            for proyecto in df_nuevo.to_dict(orient='records'):
-                p = dict(proyecto)
-                p['id_proyecto'] = str(p.get('id_proyecto', '')).strip()
-                if p['id_proyecto'] != '':
-                    proyectos_nuevos_lista.append(p)
+            existentes_por_id = { str(p.get('id_proyecto','')).strip(): p for p in proyectos_existentes if str(p.get('id_proyecto','')).strip() }
+            nuevos_por_id = { str(p.get('id_proyecto','')).strip(): p for p in df_nuevo.to_dict(orient='records') if str(p.get('id_proyecto','')).strip() }
 
-            # Construir diccionarios por id para deduplicar: los nuevos reemplazan a los existentes
-            existentes_por_id = {}
-            for p in proyectos_existentes:
-                pid = str(p.get('id_proyecto', '')).strip()
-                if pid:
-                    existentes_por_id[pid] = p
-
-            nuevos_por_id = {}
-            for p in proyectos_nuevos_lista:
-                pid = p.get('id_proyecto', '')
-                nuevos_por_id[pid] = p
-
-            # Conteos
             nuevos_cont = sum(1 for pid in nuevos_por_id if pid not in existentes_por_id)
             actualizados_cont = sum(1 for pid in nuevos_por_id if pid in existentes_por_id)
 
-            # Merge: los nuevos sobreescriben a los existentes
-            existentes_por_id.update(nuevos_por_id)
-
-            # Lista final para guardar en local storage (solo ids no vacios)
-            proyectos_guardar = list(existentes_por_id.values())
-
             with open(LOCAL_STORAGE_PATH, 'w', encoding='utf-8') as f:
                 json.dump(proyectos_guardar, f, ensure_ascii=False, indent=2)
-
         except Exception as e:
             print(f"Error actualizando localStorage: {str(e)}")
             traceback.print_exc()
-            # No abortamos la operacion completa: solo notificamos el problema
 
-        # ===== Preparar respuesta =====
-        if 'df_existente' in locals():
-            ids_existentes_previos_excel = set(str(x).strip() for x in df_existente['id_proyecto'].dropna().astype(str))
-            ids_nuevos_excel = set(str(x).strip() for x in df_nuevo['id_proyecto'].dropna().astype(str))
-            nuevos_excel = len(ids_nuevos_excel - ids_existentes_previos_excel)
-            actualizados_excel = len(ids_nuevos_excel & ids_existentes_previos_excel)
-        else:
-            nuevos_excel = len(df_nuevo['id_proyecto'].dropna().astype(str).str.strip().unique())
+        # conteos vs excel previo
+        try:
+            if 'df_existente' in locals():
+                ids_existentes_previos_excel = set(str(x).strip() for x in df_existente['id_proyecto'].dropna().astype(str))
+                ids_nuevos_excel = set(str(x).strip() for x in df_nuevo['id_proyecto'].dropna().astype(str)) if not df_nuevo.empty else set()
+                nuevos_excel = len(ids_nuevos_excel - ids_existentes_previos_excel)
+                actualizados_excel = len(ids_nuevos_excel & ids_existentes_previos_excel)
+            else:
+                nuevos_excel = len(df_nuevo['id_proyecto'].dropna().astype(str).str.strip().unique()) if not df_nuevo.empty else 0
+                actualizados_excel = 0
+        except Exception:
+            nuevos_excel = 0
             actualizados_excel = 0
 
-        return jsonify({
+        response = {
             'success': True,
-            'message': 'Base principal actualizada',
+            'message': 'Base principal exportada y actualizada (preserva valores previos no vacios)',
             'nuevos': nuevos_cont,
             'actualizados': actualizados_cont,
             'nuevos_excel': nuevos_excel,
             'actualizados_excel': actualizados_excel,
-            'proyectos': proyectos_guardar  # lista deduplicada lista para localStorage
-        })
+            'archivo_base': os.path.basename(base_path),
+            'proyectos': proyectos_guardar
+        }
+        return jsonify(response), 200
 
     except Exception as e:
-        print(f"Error en subir_base_principal: {str(e)}\n{traceback.format_exc()}")
+        print(f"Error en exportar_excel: {str(e)}\n{traceback.format_exc()}")
         return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
+
 
 
 @app.route('/importar_excel', methods=['POST'])
