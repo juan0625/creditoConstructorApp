@@ -1034,22 +1034,15 @@
                 
                 <div class="form-section auxiliar-section" id="form-seccion4">
                     <h2 class="section-title"><i class="fas fa-file-contract me-2"></i>Aprobación de Crédito</h2>
-                    
-                    <div class="row">
-                        <!-- <div class="col-md-4 mb-3">
-                            <label class="form-label">CASO PCP BIZAGI</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" name="caso_pcp_bizagi" placeholder="Texto">
-                            </div>
-                        </div> -->
-                        
+                
+                    <!-- <div class="row">
                         <div class="col-md-4 mb-3">
                             <label class="form-label">VISITAS A COBRAR</label>
                             <div class="input-group">
                                 <input type="number" class="form-control" name="visitas_a_cobrar">
                             </div>
                         </div>
-                        
+                
                         <div class="col-md-4 mb-3">
                             <label class="form-label">COBRAR ESTUDIO TÉCNICO</label>
                             <select class="form-select" name="cobrar_estudio_tecnico">
@@ -1058,19 +1051,19 @@
                                 <option value="no">No</option>
                             </select>
                         </div>
-                    </div>
-
+                    </div> -->
+                
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label class="form-label">FECHA DE APROBACIÓN</label>
                             <input type="date" class="form-control" name="fecha_aprobacion">
                         </div>
-                        
+                
                         <div class="col-md-4 mb-3">
                             <label class="form-label">ALERTA FECHA APROBACIÓN</label>
                             <input type="date" class="form-control bg-warning" name="alerta_fecha" readonly>
                         </div>
-                        
+                
                         <div class="col-md-4 mb-3">
                             <label class="form-label">VIGENCIA EN MESES</label>
                             <div class="input-group">
@@ -1078,7 +1071,7 @@
                             </div>
                         </div>
                     </div>
-
+                
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">INSTANCIA DE APROBACIÓN</label>
@@ -1089,14 +1082,32 @@
                                 <option value="directorio">Directorio</option>
                             </select>
                         </div>
-                        
+                
                         <div class="col-md-6 mb-3">
                             <label class="form-label">PORCENTAJE SOLICITADO/FINANCIABLES</label>
                             <input type="number" class="form-control" step="0.01" name="porcentaje_solicitado_financiables"
                                 placeholder="Cálculo automático" readonly>
                         </div>
                     </div>
-
+                
+                    <!-- ================== VALIDACIÓN DESEMBOLSO PREOPERATIVO ================== -->
+                    <h2 class="section-title"><i class="fas fa-check-circle me-2"></i>Condición Desembolso Preoperativo</h2>
+                
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label required-field">Porcentaje ventas para desembolso preoperativo</label>
+                            <input type="number" class="form-control" name="porcentaje_preoperativo" min="0" max="100" step="1" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Tipo de porcentaje</label>
+                            <select class="form-select" name="tipo_porcentaje_preoperativo">
+                                <option value="">Seleccione...</option>
+                                <option value="unidades">Unidades</option>
+                                <option value="valor">Valor</option>
+                            </select>
+                        </div>
+                    </div>
+                
                     <div class="row">
                         <div class="col-md-12 mb-3">
                             <label class="form-label">CONDICIONES DE APROBACIÓN</label>
@@ -1107,27 +1118,68 @@
                                         <i class="fas fa-plus"></i>
                                     </button>
                                 </div>
-                                <div id="lista-condiciones">
-                                    <!-- Las condiciones se añaden aquí con checkboxes y botones -->
-                                </div>
+                                <div id="lista-condiciones"></div>
                             </div>
                         </div>
                     </div>
-                    <div class="row mt-3">
-                        <div class="col-md-12">
-                            <button 
-                                type="button"
-                                id="btn-siguiente-paso"
-                                class="btn btn-bancolombia"
-                                data-url="{{ url_for('validacion_condiciones') }}"
-                                disabled
-                                onclick="redirectTo(this)">
-                                Validación Desembolso Preoperativo
-                            </button>
+                
+                    <br><br>
+                
+                    <!-- ================== VALIDACIÓN DESEMBOLSO CONSTRUCTOR ================== -->
+                    <h2 class="section-title"><i class="fas fa-hard-hat me-2"></i>Condición Desembolso Constructor</h2>
+                
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label required-field">Porcentaje ventas para desembolso constructor</label>
+                            <input type="number" class="form-control" name="porcentaje_constructor" min="0" max="100" step="1" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Tipo de porcentaje</label>
+                            <select class="form-select" name="tipo_porcentaje_constructor">
+                                <option value="">Seleccione...</option>
+                                <option value="unidades">Unidades</option>
+                                <option value="valor">Valor</option>
+                            </select>
                         </div>
                     </div>
-                </div> 
+                
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label required-field">Porcentaje recaudo para desembolso constructor (Valor)</label>
+                            <input type="number" class="form-control" name="porcentaje_recaudo_constructor" min="0" max="100" step="1" required>
+                        </div>
+                    </div>
+                
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">CONDICIONES DE APROBACIÓN (Constructor)</label>
+                            <div class="border p-3" id="condiciones-constructor-container">
+                                <div class="d-flex align-items-center mb-2">
+                                    <input type="text" class="form-control me-2" placeholder="Nueva condición" id="input-condicion-constructor">
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="agregarCondicionConstructor()">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div id="lista-condiciones-constructor"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <button 
+                            type="button"
+                            id="btn-siguiente-paso"
+                            class="btn btn-bancolombia"
+                            data-url="{{ url_for('validacion_condiciones') }}"
+                            disabled
+                            onclick="redirectTo(this)">
+                            Validación Desembolso Preoperativo y Constuctor
+                        </button>
+                    </div>
+                </div>    
                 {# {% endif %} #}
+                
                 
                 <!-- Botones -->
                 <div class="d-flex justify-content-between mt-4">
@@ -2024,6 +2076,43 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
             container.appendChild(div);
         });
     }
+    function cargarCondicionesConstructor(condicionesArray) {
+        const container = document.getElementById('lista-condiciones-constructor');
+        container.innerHTML = '';
+
+        condicionesArray.forEach(cond => {
+            // Convertir strings antiguos a objetos
+            if (typeof cond === 'string') {
+                const [texto, estado] = cond.split(' - OK');
+                cond = {
+                    texto: texto.trim(),
+                    aprobado: estado !== undefined,
+                    fecha: estado?.match(/\((.*)\)/)?.[1] || ''
+                };
+            }
+
+            const div = document.createElement('div');
+            div.className = 'form-check mb-2';
+            div.innerHTML = `
+                <input type="checkbox" 
+                    class="form-check-input"
+                    ${cond.aprobado ? 'checked' : ''}
+                    ${cond.fecha ? `data-fecha="${cond.fecha}"` : ''}>
+                <label class="form-check-label">${cond.texto}</label>
+            `;
+
+            // Agregar evento al checkbox cargado
+            div.querySelector('input').addEventListener('change', function() {
+                if(this.checked) {
+                    this.setAttribute('data-fecha', getFechaBogotaSinZona());
+                } else {
+                    this.removeAttribute('data-fecha');
+                }
+            });
+
+            container.appendChild(div);
+        });
+    }
     
     // ————————————————————————————————————————————————
     // Helpers y constantes compartidas
@@ -2075,8 +2164,10 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
             // Nuevos campos de aprobaciones GOSO
             'tipo_credito', 'departamento', 'caso_pcp_bizagi', 'visitas_a_cobrar',
             'cobrar_estudio_tecnico', 'fecha_aprobacion', 'alerta_fecha_aprobacion',
-            'vigencia_en_meses', 'instancia_aprobacion', 'condiciones_aprobacion',
-            'porcentaje_solicitado_financiables'
+            'vigencia_en_meses', 'instancia_aprobacion', 'condiciones_aprobacion', 'condiciones_constructor',
+            'porcentaje_solicitado_financiables', 'porcentaje_solicitado_financiables', 'porcentaje_preoperativo',
+            'tipo_porcentaje_preoperativo', 'porcentaje_constructor', 
+            'tipo_porcentaje_constructor', 'porcentaje_recaudo_constructor'
         ];
 
         const numericFields = [
@@ -2091,6 +2182,17 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
             let proyecto = {};
             KEYS.forEach(key => {
                 if (key === 'condiciones_aprobacion') {
+                    // Convertir a texto separado por comas
+                    proyecto[key] = Array.isArray(p[key]) 
+                        ? p[key].join(', ') 
+                        : p[key] || 'Sin condiciones';
+                } else {
+                    proyecto[key] = numericFields.includes(key) 
+                        ? cleanNumber(p[key]) 
+                        : p[key] || '';
+                }
+
+                if (key === 'condiciones_constructor') {
                     // Convertir a texto separado por comas
                     proyecto[key] = Array.isArray(p[key]) 
                         ? p[key].join(', ') 
@@ -2212,6 +2314,23 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
                         }
                     }
                 });
+            }
+
+                if (proyecto.condiciones_constructor) {
+                cargarCondicionesConstructor(proyecto.condiciones_constructor);
+                
+                const checkboxes = document.querySelectorAll('#lista-condiciones-constructor input[type="checkbox"]');
+                checkboxes.forEach(checkbox => {
+                    if (checkbox.checked) {
+                        // Bloquear y mantener fecha existente
+                        checkbox.disabled = true;
+                        
+                        // Si no tiene fecha, asignar la actual (para migraciones o datos antiguos)
+                        if (!checkbox.dataset.fecha) {
+                            checkbox.setAttribute('data-fecha', getFechaBogotaSinZona());
+                        }
+                    }
+                });
 
                 // Validar estado del botón según rol
                 if (session.usuario.rol === 'arquitecto') {
@@ -2287,7 +2406,12 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
                 'subgrupo_3': proyecto.subgrupo_3,
                 'porcentaje_1': proyecto.porcentaje_1,
                 'porcentaje_2': proyecto.porcentaje_2,
-                'porcentaje_3': proyecto.porcentaje_3
+                'porcentaje_3': proyecto.porcentaje_3,
+                'porcentaje_preoperativo': proyecto.porcentaje_preoperativo,
+                'tipo_porcentaje_preoperativo': proyecto.tipo_porcentaje_preoperativo,
+                'porcentaje_constructor': proyecto.porcentaje_constructor,
+                'tipo_porcentaje_constructor': proyecto.tipo_porcentaje_constructor,
+                'porcentaje_recaudo_constructor': proyecto.porcentaje_recaudo_constructor
             };
 
             // Cargar campos normales
@@ -2432,7 +2556,19 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
                 return checkbox.checked ? `${texto} - OK - ${fechaBogota}` : `${texto} - ${fechaBogota}`;
             }),
             porcentaje_solicitado_financiables: calcularPorcentajeFinanciables(),
-            alerta_fecha_aprobacion: new Date().getFechaBogotaSinZona()
+            alerta_fecha_aprobacion: new Date().getFechaBogotaSinZona(),
+             // ===== Nuevos campos de Preoperativo =====
+            'porcentaje_preoperativo': getVal('[name="porcentaje_preoperativo"]', 'number'),
+            'tipo_porcentaje_preoperativo': getVal('[name="tipo_porcentaje_preoperativo"]'),
+            'porcentaje_constructor': getVal('[name="porcentaje_constructor"]', 'number'),
+            'tipo_porcentaje_constructor': getVal('[name="tipo_porcentaje_constructor"]'),
+            'porcentaje_recaudo_constructor': getVal('[name="porcentaje_recaudo_constructor"]', 'number'),
+            condiciones_constructor: Array.from(this.querySelectorAll('#lista-condiciones-constructor .form-check')).map(div => {
+                const checkbox = div.querySelector('input');
+                const texto = div.querySelector('label').textContent.trim(); // Texto real del label
+                return checkbox.checked ? `${texto} - OK - ${fechaBogota}` : `${texto} - ${fechaBogota}`;
+            }),
+
         };
 
         proyectos[proyectoIndex] = proyectoActualizado;
@@ -2580,7 +2716,13 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
             vigencia_en_meses: getVal('[name="vigencia_en_meses"]', 'number'),
             instancia_aprobacion: getVal('[name="instancia_aprobacion"]'),
             condiciones_aprobacion: obtenerCondicionesAprobacion(),
+            condiciones_constructor: obtenerCondicionesAprobacionConstructor(),
             porcentaje_solicitado_financiables: calcularPorcentajeFinanciables(),
+            'porcentaje_preoperativo': getVal('[name="porcentaje_preoperativo"]', 'number'),
+            'tipo_porcentaje_preoperativo': getVal('[name="tipo_porcentaje_preoperativo"]'),
+            'porcentaje_constructor': getVal('[name="porcentaje_constructor"]', 'number'),
+            'tipo_porcentaje_constructor': getVal('[name="tipo_porcentaje_constructor"]'),
+            'porcentaje_recaudo_constructor': getVal('[name="porcentaje_recaudo_constructor"]', 'number'),
             
             // Sección 5: Legal/Técnico
             validacion_licencia_construccion: getVal('[name="validacion_licencia"]'),
@@ -2609,6 +2751,7 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
                 fecha_creacion: fechaCreacionOriginal, // Conservar fecha original
                 alerta_fecha_aprobacion: getFechaBogotaSinZona(), // Actualizar fecha de modificación
                 condiciones_aprobacion: proyecto.condiciones_aprobacion || all[existingIndex].condiciones_aprobacion,
+                condiciones_constructor: proyecto.condiciones_constructor || all[existingIndex].condiciones_constructor,
                 porcentaje_solicitado_financiables: proyecto.porcentaje_solicitado_financiables || all[existingIndex].porcentaje_solicitado_financiables
             };
             
@@ -2850,7 +2993,18 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
                         cell: null, 
                         type: 'number', 
                         default: 0 
-                    }
+                    },
+                    porcentaje_ventas_preoperativo: { hoja: null, cell: null, type: 'number', default: 0 },
+                    tipo_porcentaje_preoperativo: { hoja: null, cell: null, type: 'string', default: '' },
+                    porcentaje_constructor: { hoja: null, cell: null, type: 'number', default: 0 },
+                    tipo_porcentaje_constructor: { hoja: null, cell: null, type: 'string', default: '' },
+                    condiciones_constructor: { 
+                        hoja: null, 
+                        cell: null, 
+                        type: 'array', 
+                        default: [] 
+                    },
+                    porcentaje_recaudo_constructor: { hoja: null, cell: null, type: 'number', default: 0 },
                     
                 };
 
@@ -3044,6 +3198,20 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
         });
     }
 
+    // Funcion para obtener condiciones de aprobacion de constructor
+    function obtenerCondicionesAprobacionConstructor() {
+        return Array.from(document.querySelectorAll('#lista-condiciones-constructor .form-check')).map(div => {
+            const checkbox = div.querySelector('input[type="checkbox"]');
+            const texto = div.querySelector('label').textContent.trim();
+            const fecha = checkbox.getAttribute('data-fecha') || '';
+            
+            return checkbox.checked 
+                ? `${texto} - OK (${fecha})`
+                : texto; // Solo texto si no esta aprobado
+        });
+    }
+
+
     // 3. Modificar evento change en checkboxes para guardar fecha única
     document.querySelectorAll('#lista-condiciones input[type="checkbox"]').forEach(checkbox => {
         checkbox.addEventListener('change', function() {
@@ -3057,11 +3225,56 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
         });
     });
 
+    // Reemplaza/Mejora la función existente
     function actualizarBotonSiguiente() {
+        const btn = document.getElementById('btn-siguiente-paso');
+        if (!btn) return;
+
+        // 1) Validación actual por checkboxes (condiciones generales)
         const checkboxes = document.querySelectorAll('#lista-condiciones input[type="checkbox"]');
-        const algunCheckeado = Array.from(checkboxes).some(cb => cb.checked);
-        document.getElementById('btn-siguiente-paso').disabled = !algunCheckeado;
+        const algunaAprobada = Array.from(checkboxes).some(cb => cb.checked);
+
+        // 2) Validación condiciones constructor (según rol o lógica existente)
+        const checkboxesCons = document.querySelectorAll('#lista-condiciones-constructor input[type="checkbox"]');
+        let constructorOk = true;
+        if (checkboxesCons.length > 0) {
+            if (session.usuario.rol === 'arquitecto') {
+                constructorOk = Array.from(checkboxesCons).every(cb => cb.checked);
+            } else {
+                constructorOk = Array.from(checkboxesCons).some(cb => cb.checked);
+            }
+        }
+
+        // 3) Validación contra informe de ventas (nuevas condiciones)
+        const resultadoInforme = validarDesembolsoInterno();
+
+        // Consolidar razones (si hay)
+        const razones = [];
+        if (!algunaAprobada) razones.push('No hay ninguna condición general aprobada (lista de aprobaciones vacía).');
+        if (!constructorOk) razones.push('Condiciones de constructor no cumplen la regla según rol (ver sección de condiciones constructor).');
+        if (!resultadoInforme.ok) razones.push(...resultadoInforme.razones);
+
+        // Habilitar solo si no hay razones pendientes
+        const habilitar = razones.length === 0;
+        btn.disabled = !habilitar;
+
+        // Mostrar/ocultar mensaje explicativo
+        mostrarRazonBotonDisabled(razones);
     }
+
+    // Ejecutar la verificación cuando cambien inputs relevantes
+    document.addEventListener('input', actualizarBotonSiguiente);
+    document.addEventListener('change', actualizarBotonSiguiente);
+
+    // Re-evaluar después de cargar proyecto/importar
+    document.getElementById('btn-confirm-import')?.addEventListener('click', () => {
+        // pequeña demora para que el import complete y guarde en localStorage
+        setTimeout(actualizarBotonSiguiente, 500);
+    });
+    document.getElementById('seleccionar-proyecto')?.addEventListener('change', actualizarBotonSiguiente);
+
+    // Ejecutar la primera vez
+    setTimeout(actualizarBotonSiguiente, 300);
 
     // Actualizar event listeners para campos relacionados
     document.querySelectorAll('[name="total_aprobado"], [name="costos_financiables"]').forEach(input => {
@@ -3335,6 +3548,132 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
     });
     }
 
+    // ======================= CONDICIONES CONSTRUCTOR =======================
+    function agregarCondicionConstructor(texto = '', esEdicion = false, fecha = '') {
+        const input = document.getElementById('input-condicion-constructor');
+        const lista = document.getElementById('lista-condiciones-constructor');
+        const condicionTexto = esEdicion ? texto : input.value.trim();
+
+        if (condicionTexto) {
+            const div = document.createElement('div');
+            div.className = 'form-check d-flex align-items-center mb-2';
+
+            // Checkbox
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'form-check-input me-2';
+
+            // Manejar estado y fechas
+            if (esEdicion && fecha) {
+                checkbox.checked = true;
+                checkbox.disabled = true;
+                checkbox.setAttribute('data-fecha-aprobacion', fecha);
+            }
+
+            // Evento para cambios en el checkbox
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    const fechaActual = getFechaBogotaSinZona();
+                    this.setAttribute('data-fecha-aprobacion', fechaActual);
+                    this.disabled = true;
+                }
+                actualizarEstadoBotonConstructor();
+            });
+
+            // Label
+            const label = document.createElement('label');
+            label.className = 'form-check-label flex-grow-1 me-2';
+            label.textContent = condicionTexto;
+
+            // Botones de acción
+            const accionesDiv = document.createElement('div');
+            accionesDiv.className = 'btn-group';
+
+            // Botón Editar
+            const btnEditar = document.createElement('button');
+            btnEditar.type = 'button';
+            btnEditar.className = 'btn btn-sm btn-outline-warning me-1';
+            btnEditar.innerHTML = '<i class="fas fa-edit"></i>';
+            btnEditar.onclick = () => editarCondicionConstructor(div);
+
+            // Botón Eliminar
+            const btnEliminar = document.createElement('button');
+            btnEliminar.type = 'button';
+            btnEliminar.className = 'btn btn-sm btn-outline-danger';
+            btnEliminar.innerHTML = '<i class="fas fa-trash"></i>';
+            btnEliminar.onclick = () => eliminarCondicionConstructor(div);
+
+            // Ensamblar elementos
+            accionesDiv.appendChild(btnEditar);
+            accionesDiv.appendChild(btnEliminar);
+
+            div.appendChild(checkbox);
+            div.appendChild(label);
+            div.appendChild(accionesDiv);
+
+            if (!esEdicion) {
+                lista.appendChild(div);
+                input.value = '';
+            } else {
+                lista.replaceChild(div, lista.children[indexEdicionConstructor]);
+            }
+
+            actualizarEstadoBotonConstructor();
+        }
+    }
+
+    function actualizarEstadoBotonConstructor() {
+        const checkboxes = document.querySelectorAll('#lista-condiciones-constructor input[type="checkbox"]');
+        const aprobadas = Array.from(checkboxes).some(cb => cb.checked);
+        // Si también quieres deshabilitar otro botón para constructor, cámbialo aquí
+    }
+
+    let condicionEditandoConstructor = null;
+
+    function editarCondicionConstructor(elementoDiv) {
+        const label = elementoDiv.querySelector('label');
+        const textoActual = label.textContent;
+
+        const inputEdit = document.createElement('input');
+        inputEdit.type = 'text';
+        inputEdit.className = 'form-control me-2';
+        inputEdit.value = textoActual;
+
+        const btnGuardar = document.createElement('button');
+        btnGuardar.type = 'button';
+        btnGuardar.className = 'btn btn-sm btn-success';
+        btnGuardar.innerHTML = '<i class="fas fa-save"></i>';
+
+        elementoDiv.querySelector('.btn-group').remove();
+        label.replaceWith(inputEdit);
+        elementoDiv.appendChild(btnGuardar);
+
+        btnGuardar.onclick = () => {
+            const nuevoTexto = inputEdit.value.trim();
+            if (nuevoTexto) {
+                label.textContent = nuevoTexto;
+                inputEdit.replaceWith(label);
+                btnGuardar.remove();
+                elementoDiv.appendChild(elementoDiv.querySelector('.btn-group'));
+            }
+        };
+    }
+
+    function eliminarCondicionConstructor(elementoDiv) {
+        Swal.fire({
+            title: 'Error',
+            text: '¿Estás seguro de eliminar esta condición?',
+            icon: 'error',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                elementoDiv.remove();
+            }
+        });
+    }
+
     // Función para calcular fecha de alerta
     function calcularFechaAlerta() {
         const fechaAprobacion = document.querySelector('[name="fecha_aprobacion"]').value;
@@ -3466,7 +3805,14 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
 
 
     });
-
+    
+    // Helper: obtener el proyecto actualmente seleccionado (desde selector o localStorage)
+    function getProyectoSeleccionado() {
+        const id = localStorage.getItem('idProyectoSeleccionado') || document.getElementById('seleccionar-proyecto')?.value;
+        if (!id) return null;
+        const proyectos = JSON.parse(localStorage.getItem('proyectos') || '[]');
+        return proyectos.find(p => String(p.id_proyecto) === String(id)) || null;
+    }
     </script>
     <!-- Footer Estándar Bancolombia -->
     <div class="footer">
