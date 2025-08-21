@@ -422,6 +422,30 @@
             max-width: 300px;
             text-align: left;
         }
+        
+        .btn-preoperativo {
+            background-color: #17a2b8;
+            border-color: #17a2b8;
+            color: white;
+        }
+        
+        .btn-constructor {
+            background-color: #28a745;
+            border-color: #28a745;
+            color: white;
+        }
+        
+        .btn-preoperativo:hover:not(:disabled) {
+            background-color: #138496;
+            border-color: #117a8b;
+            color: white;
+        }
+        
+        .btn-constructor:hover:not(:disabled) {
+            background-color: #218838;
+            border-color: #1e7e34;
+            color: white;
+        }
     </style>
     <link rel="shortcut icon" href="{{ url_for('static', filename='LogoBancolombia.ico') }}">
 </head>
@@ -548,8 +572,11 @@
                     <i class="fas fa-calendar-check me-2"></i>Cargar Visitas
                 </button>
                 
-                <button class="btn btn-seguimiento" id="btnDesembolsos" onclick="mostrarFormCargaDesembolsos()" disabled>
-                        <i class="fas fa-money-bill-wave me-2"></i>Cargar Desembolsos
+                <button class="btn btn-seguimiento" id="btnDesembolsoPreoperativo" onclick="mostrarFormCargaDesembolsoPreoperativo()" style="margin-left: 10px;" disabled>
+                    <i class="fas fa-money-bill-wave me-2"></i>Cargar Desembolso Preoperativo
+                </button>
+                <button class="btn btn-seguimiento" id="btnDesembolsoConstructor" onclick="mostrarFormCargaDesembolsoConstructor()" style="margin-left: 10px;" disabled>
+                    <i class="fas fa-money-bill-wave me-2"></i>Cargar Desembolso Constructor
                 </button>
                 
                 <!-- Botón nuevo para Desembolsos Diarios -->
@@ -889,7 +916,10 @@
         let seguimientos = JSON.parse(localStorage.getItem('seguimientos')) || [];
         let editandoIndex = -1;
         let ventasCargadas = false;
-        let tooltipInstance = null;
+        let preoperativoHabilitado = false;
+        let constructorHabilitado = false;
+        let tooltipPreoperativo = null;
+        let tooltipConstructor = null;
         // Mapeo completo de campos para ambos formatos
         const mapeoCamposVisitas = {
             // Campos comunes (compartidos entre ambos formatos)
@@ -1847,7 +1877,8 @@
             localStorage.setItem('historialVentas', JSON.stringify(historial));
             
             // Validar condiciones después de guardar ventas
-            const resultadoValidacion = validarCondicionesDesembolso(nuevaVenta);
+            const resultadoPreoperativo = validarCondicionesDesembolsoPreoperativo(nuevaVenta);
+            const resultadoConstructor = validarCondicionesDesembolsoConstructor(nuevaVenta);
             
             // Mostrar mensaje de éxito
             if (typeof Swal !== 'undefined') {
@@ -1857,19 +1888,39 @@
                     icon: 'success',
                     confirmButtonText: 'Aceptar'
                 }).then(() => {
-                    // Mostrar mensaje adicional sobre el estado de las condiciones
-                    if (!resultadoValidacion.cumplidas && resultadoValidacion.mensajes.length > 0) {
+                    // Mostrar mensajes adicionales sobre el estado de las condiciones
+                    let mensajesAdicionales = [];
+                    
+                    if (!resultadoPreoperativo.cumplidas && resultadoPreoperativo.mensajes.length > 0) {
+                        mensajesAdicionales.push('Preoperativo: ' + resultadoPreoperativo.mensajes.join('; '));
+                    }
+                    
+                    if (!resultadoConstructor.cumplidas && resultadoConstructor.mensajes.length > 0) {
+                        mensajesAdicionales.push('Constructor: ' + resultadoConstructor.mensajes.join('; '));
+                    }
+                    
+                    if (mensajesAdicionales.length > 0) {
                         Swal.fire({
                             title: 'Condiciones no cumplidas',
                             html: 'El informe de ventas no cumple con todas las condiciones para habilitar desembolsos:<br><br>' + 
-                                resultadoValidacion.mensajes.join('<br>'),
+                                mensajesAdicionales.join('<br><br>'),
                             icon: 'warning',
                             confirmButtonText: 'Entendido'
                         });
-                    } else if (resultadoValidacion.cumplidas) {
+                    } else if (resultadoPreoperativo.cumplidas || resultadoConstructor.cumplidas) {
+                        let mensajesExito = [];
+                        
+                        if (resultadoPreoperativo.cumplidas) {
+                            mensajesExito.push('Desembolso preoperativo habilitado');
+                        }
+                        
+                        if (resultadoConstructor.cumplidas) {
+                            mensajesExito.push('Desembolso constructor habilitado');
+                        }
+                        
                         Swal.fire({
                             title: '¡Condiciones cumplidas!',
-                            text: 'El botón de desembolsos ha sido habilitado',
+                            text: mensajesExito.join(' y '),
                             icon: 'success',
                             confirmButtonText: 'Continuar'
                         });
@@ -1897,6 +1948,57 @@
             
             // Validar habilitación de desembolsos después de guardar
             validarHabilitacionDesembolsos();
+        }
+
+        // Funciones para mostrar/ocultar formularios de desembolsos
+        function mostrarFormCargaDesembolsoPreoperativo() {
+            // Verificar si las ventas han sido cargadas y cumplen condiciones para preoperativo
+            if (!preoperativoHabilitado) {
+                mostrarErrorModal("Debe cargar un informe de ventas válido que cumpla con las condiciones para desembolso preoperativo");
+                return;
+            }
+            
+            // Continuar con la lógica normal
+            ocultarFormCargaVentas();
+            ocultarFormCargaVisitas();
+            ocultarFormCargaDesembolsosDiarios();
+            
+            // Aquí puedes mostrar un formulario específico para desembolso preoperativo
+            // Por ahora, usamos el mismo formulario genérico
+            const formDesembolsos = document.getElementById('formCargaDesembolsos');
+            if (formDesembolsos) {
+                formDesembolsos.style.display = 'block';
+                // Cambiar el título para indicar que es para preoperativo
+                const titulo = formDesembolsos.querySelector('h4');
+                if (titulo) {
+                    titulo.innerHTML = '<i class="fas fa-money-bill-wave me-2"></i>Desembolso Preoperativo';
+                }
+            }
+        }
+
+        function mostrarFormCargaDesembolsoConstructor() {
+            // Verificar si las ventas han sido cargadas y cumplen condiciones para constructor
+            if (!constructorHabilitado) {
+                mostrarErrorModal("Debe cargar un informe de ventas válido que cumpla con las condiciones para desembolso constructor");
+                return;
+            }
+            
+            // Continuar con la lógica normal
+            ocultarFormCargaVentas();
+            ocultarFormCargaVisitas();
+            ocultarFormCargaDesembolsosDiarios();
+            
+            // Aquí puedes mostrar un formulario específico para desembolso constructor
+            // Por ahora, usamos el mismo formulario genérico
+            const formDesembolsos = document.getElementById('formCargaDesembolsos');
+            if (formDesembolsos) {
+                formDesembolsos.style.display = 'block';
+                // Cambiar el título para indicar que es para constructor
+                const titulo = formDesembolsos.querySelector('h4');
+                if (titulo) {
+                    titulo.innerHTML = '<i class="fas fa-money-bill-wave me-2"></i>Desembolso Constructor';
+                }
+            }
         }
 
 
@@ -4175,10 +4277,12 @@
                 return proyectos.find(p => String(p.id_proyecto) === String(selector.value)) || null;
             }
 
+            
             function validarHabilitacionDesembolsos() {
-                const btnDesembolsos = document.getElementById('btnDesembolsos');
+                const btnPreoperativo = document.getElementById('btnDesembolsoPreoperativo');
+                const btnConstructor = document.getElementById('btnDesembolsoConstructor');
                 
-                if (!btnDesembolsos) return;
+                if (!btnPreoperativo || !btnConstructor) return;
                 
                 const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
                 const selectorProyecto = document.getElementById('selectorProyecto');
@@ -4188,37 +4292,115 @@
                 const ventasProyecto = historialVentas.filter(v => v.proyectoId === proyectoSeleccionado);
                 
                 if (ventasProyecto.length > 0 && proyectoSeleccionado) {
-                    // Validar condiciones específicas de desembolso
-                    const resultadoValidacion = validarCondicionesDesembolso(ventasProyecto[ventasProyecto.length - 1]);
+                    // Validar condiciones específicas para cada tipo de desembolso
+                    const resultadoPreoperativo = validarCondicionesDesembolsoPreoperativo(ventasProyecto[ventasProyecto.length - 1]);
+                    const resultadoConstructor = validarCondicionesDesembolsoConstructor(ventasProyecto[ventasProyecto.length - 1]);
                     
-                    if (resultadoValidacion.cumplidas) {
-                        btnDesembolsos.disabled = false;
-                        if (tooltipInstance) {
-                            tooltipInstance.setContent({'.tooltip-inner': 'Haga clic para cargar desembolsos'});
+                    // Actualizar botón preoperativo
+                    if (resultadoPreoperativo.cumplidas) {
+                        btnPreoperativo.disabled = false;
+                        if (tooltipPreoperativo) {
+                            tooltipPreoperativo.setContent({'.tooltip-inner': 'Haga clic para cargar desembolso preoperativo'});
                         }
-                        ventasCargadas = true;
+                        preoperativoHabilitado = true;
                     } else {
-                        btnDesembolsos.disabled = true;
-                        if (tooltipInstance) {
-                            tooltipInstance.setContent({'.tooltip-inner': 'El informe de ventas no cumple con las condiciones requeridas para desembolso'});
+                        btnPreoperativo.disabled = true;
+                        if (tooltipPreoperativo) {
+                            tooltipPreoperativo.setContent({'.tooltip-inner': resultadoPreoperativo.mensajes.join('; ') || 'No se cumplen las condiciones para desembolso preoperativo'});
                         }
-                        ventasCargadas = false;
+                        preoperativoHabilitado = false;
+                    }
+                    
+                    // Actualizar botón constructor
+                    if (resultadoConstructor.cumplidas) {
+                        btnConstructor.disabled = false;
+                        if (tooltipConstructor) {
+                            tooltipConstructor.setContent({'.tooltip-inner': 'Haga clic para cargar desembolso constructor'});
+                        }
+                        constructorHabilitado = true;
+                    } else {
+                        btnConstructor.disabled = true;
+                        if (tooltipConstructor) {
+                            tooltipConstructor.setContent({'.tooltip-inner': resultadoConstructor.mensajes.join('; ') || 'No se cumplen las condiciones para desembolso constructor'});
+                        }
+                        constructorHabilitado = false;
                     }
                 } else {
-                    btnDesembolsos.disabled = true;
-                    if (tooltipInstance) {
+                    // Deshabilitar ambos botones si no hay ventas
+                    btnPreoperativo.disabled = true;
+                    btnConstructor.disabled = true;
+                    
+                    if (tooltipPreoperativo) {
                         if (!proyectoSeleccionado) {
-                            tooltipInstance.setContent({'.tooltip-inner': 'Seleccione un proyecto primero'});
+                            tooltipPreoperativo.setContent({'.tooltip-inner': 'Seleccione un proyecto primero'});
                         } else {
-                            tooltipInstance.setContent({'.tooltip-inner': 'Debe cargar un informe de ventas válido primero'});
+                            tooltipPreoperativo.setContent({'.tooltip-inner': 'Debe cargar un informe de ventas válido primero'});
                         }
                     }
-                    ventasCargadas = false;
+                    
+                    if (tooltipConstructor) {
+                        if (!proyectoSeleccionado) {
+                            tooltipConstructor.setContent({'.tooltip-inner': 'Seleccione un proyecto primero'});
+                        } else {
+                            tooltipConstructor.setContent({'.tooltip-inner': 'Debe cargar un informe de ventas válido primero'});
+                        }
+                    }
+                    
+                    preoperativoHabilitado = false;
+                    constructorHabilitado = false;
                 }
             }
 
 
-            function validarCondicionesDesembolso(datosVentas) {
+            function validarCondicionesDesembolsoPreoperativo(datosVentas) {
+                // Obtener el proyecto actual
+                const proyecto = obtenerProyectoActual();
+                if (!proyecto) {
+                    return {
+                        cumplidas: false,
+                        mensajes: ["No se encontró información del proyecto seleccionado"]
+                    };
+                }
+                
+                // Obtener valores del informe de ventas
+                const bg = parseFloat(datosVentas.campos["INMUEBLES VENDIDOS (unidades)"]?.valor) || 0;
+                const bh = parseFloat(datosVentas.campos["% PORCENTAJE DE VENTAS (VALOR)"]?.valor) || 0;
+                
+                // Obtener condiciones del proyecto para preoperativo
+                const porcentajePreoperativo = parseFloat(proyecto.porcentaje_preoperativo) || 0;
+                const tipoPreoperativo = proyecto.tipo_porcentaje_preoperativo || 'unidades';
+                
+                // Verificar si hay condiciones configuradas para preoperativo
+                if (porcentajePreoperativo <= 0) {
+                    return {
+                        cumplidas: false,
+                        mensajes: ["No hay condiciones configuradas para desembolso preoperativo en este proyecto"]
+                    };
+                }
+                
+                // Validar condiciones para preoperativo
+                let condicionesCumplidas = true;
+                let mensajes = [];
+                
+                if (tipoPreoperativo === 'unidades') {
+                    if (bg < porcentajePreoperativo) {
+                        condicionesCumplidas = false;
+                        mensajes.push(`Falta alcanzar el ${porcentajePreoperativo}% de ventas en unidades (actual: ${bg.toFixed(2)}%)`);
+                    }
+                } else {
+                    if (bh < porcentajePreoperativo) {
+                        condicionesCumplidas = false;
+                        mensajes.push(`Falta alcanzar el ${porcentajePreoperativo}% de ventas en valor (actual: ${bh.toFixed(2)}%)`);
+                    }
+                }
+                
+                return {
+                    cumplidas: condicionesCumplidas,
+                    mensajes: mensajes
+                };
+            }
+
+            function validarCondicionesDesembolsoConstructor(datosVentas) {
                 // Obtener el proyecto actual
                 const proyecto = obtenerProyectoActual();
                 if (!proyecto) {
@@ -4234,42 +4416,25 @@
                 const bk = parseFloat(datosVentas.campos["cartera RECAUDADA"]?.valor) || 0;
                 const bf = parseFloat(datosVentas.campos["valor inmuebles vendidos"]?.valor) || 0;
                 
-                // Obtener condiciones del proyecto
-                const porcentajePreoperativo = parseFloat(proyecto.porcentaje_preoperativo) || 0;
-                const tipoPreoperativo = proyecto.tipo_porcentaje_preoperativo || 'unidades';
+                // Obtener condiciones del proyecto para constructor
                 const porcentajeConstructor = parseFloat(proyecto.porcentaje_constructor) || 0;
                 const tipoConstructor = proyecto.tipo_porcentaje_constructor || 'unidades';
                 const porcentajeRecaudo = parseFloat(proyecto.porcentaje_recaudo_constructor) || 0;
                 
-                // Verificar si hay condiciones configuradas
-                const hayCondiciones = porcentajePreoperativo > 0 || porcentajeConstructor > 0 || porcentajeRecaudo > 0;
-                if (!hayCondiciones) {
+                // Verificar si hay condiciones configuradas para constructor
+                const hayCondicionesConstructor = porcentajeConstructor > 0 || porcentajeRecaudo > 0;
+                if (!hayCondicionesConstructor) {
                     return {
                         cumplidas: false,
-                        mensajes: ["No hay condiciones configuradas para desembolsos en este proyecto"]
+                        mensajes: ["No hay condiciones configuradas para desembolso constructor en este proyecto"]
                     };
                 }
                 
-                // Validar condiciones
+                // Validar condiciones para constructor
                 let condicionesCumplidas = true;
                 let mensajes = [];
                 
-                // 1. Validar condición preoperativa
-                if (porcentajePreoperativo > 0) {
-                    if (tipoPreoperativo === 'unidades') {
-                        if (bg < porcentajePreoperativo) {
-                            condicionesCumplidas = false;
-                            mensajes.push(`Falta alcanzar el ${porcentajePreoperativo}% de ventas en unidades (actual: ${bg.toFixed(2)}%)`);
-                        }
-                    } else {
-                        if (bh < porcentajePreoperativo) {
-                            condicionesCumplidas = false;
-                            mensajes.push(`Falta alcanzar el ${porcentajePreoperativo}% de ventas en valor (actual: ${bh.toFixed(2)}%)`);
-                        }
-                    }
-                }
-                
-                // 2. Validar condición constructor (ventas)
+                // Validar condición de ventas para constructor
                 if (porcentajeConstructor > 0) {
                     if (tipoConstructor === 'unidades') {
                         if (bg < porcentajeConstructor) {
@@ -4284,7 +4449,7 @@
                     }
                 }
                 
-                // 3. Validar condición constructor (recaudo)
+                // Validar condición de recaudo para constructor
                 if (porcentajeRecaudo > 0) {
                     if (bf > 0) {
                         const porcentajeRecaudoActual = (bk / bf) * 100;
@@ -4303,6 +4468,7 @@
                     mensajes: mensajes
                 };
             }
+
 
              // Función para mostrar notificaciones Toast
             function mostrarNotificacion(titulo, mensaje, tipo) {
@@ -4474,8 +4640,8 @@
                 cargarProyectosEnSelector();
                 renderSeguimientos();
                 
-                // Configurar el botón de desembolsos
-                configurarBotonDesembolsos();
+                // Configurar los botones de desembolsos
+                configurarBotonesDesembolsos();
                 
                 // Validar estado inicial
                 validarHabilitacionDesembolsos();
@@ -4490,16 +4656,24 @@
             }
 
 
-            function configurarBotonDesembolsos() {
-                const btnDesembolsos = document.getElementById('btnDesembolsos');
-                if (!btnDesembolsos) {
-                    setTimeout(configurarBotonDesembolsos, 100);
+            function configurarBotonesDesembolsos() {
+                const btnPreoperativo = document.getElementById('btnDesembolsoPreoperativo');
+                const btnConstructor = document.getElementById('btnDesembolsoConstructor');
+                
+                if (!btnPreoperativo || !btnConstructor) {
+                    setTimeout(configurarBotonesDesembolsos, 100);
                     return;
                 }
                 
-                // Inicializar tooltip de Bootstrap
-                tooltipInstance = new bootstrap.Tooltip(btnDesembolsos, {
-                    title: "Debe cargar un informe de ventas válido que cumpla con las condiciones de desembolso",
+                // Inicializar tooltips de Bootstrap
+                tooltipPreoperativo = new bootstrap.Tooltip(btnPreoperativo, {
+                    title: "Debe cargar un informe de ventas válido que cumpla con las condiciones para desembolso preoperativo",
+                    placement: "top",
+                    trigger: "hover"
+                });
+                
+                tooltipConstructor = new bootstrap.Tooltip(btnConstructor, {
+                    title: "Debe cargar un informe de ventas válido que cumpla con las condiciones para desembolso constructor",
                     placement: "top",
                     trigger: "hover"
                 });
