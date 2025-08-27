@@ -2167,7 +2167,7 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
             'vigencia_en_meses', 'instancia_aprobacion', 'condiciones_aprobacion', 'condiciones_constructor',
             'porcentaje_solicitado_financiables', 'porcentaje_solicitado_financiables', 'porcentaje_preoperativo',
             'tipo_porcentaje_preoperativo', 'porcentaje_constructor', 
-            'tipo_porcentaje_constructor', 'porcentaje_recaudo_constructor'
+            'tipo_porcentaje_constructor', 'porcentaje_recaudo_constructor', 'estado'
         ];
 
         const numericFields = [
@@ -2181,26 +2181,14 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
         const proyectosLimpios = proyectos.map(p => {
             let proyecto = {};
             KEYS.forEach(key => {
-                if (key === 'condiciones_aprobacion') {
-                    // Convertir a texto separado por comas
+                if (key === 'condiciones_aprobacion' || key === 'condiciones_constructor') {
                     proyecto[key] = Array.isArray(p[key]) 
                         ? p[key].join(', ') 
                         : p[key] || 'Sin condiciones';
                 } else {
                     proyecto[key] = numericFields.includes(key) 
                         ? cleanNumber(p[key]) 
-                        : p[key] || '';
-                }
-
-                if (key === 'condiciones_constructor') {
-                    // Convertir a texto separado por comas
-                    proyecto[key] = Array.isArray(p[key]) 
-                        ? p[key].join(', ') 
-                        : p[key] || 'Sin condiciones';
-                } else {
-                    proyecto[key] = numericFields.includes(key) 
-                        ? cleanNumber(p[key]) 
-                        : p[key] || '';
+                        : (p[key] !== undefined ? p[key] : (key === 'estado' ? 'sin aprobar' : ''));
                 }
             });
             return proyecto;
@@ -2729,16 +2717,44 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
             fecha_radicacion_licencia: getVal('[name="fecha_radicacion_licencia"]'),
             requiere_poliza_decenal: getVal('[name="requiere_poliza_decenal"]'),
             participantes,
-            estado:                         'Activo',
-            avance:                         0,
-            ultimo_desembolso:              null
+            // estado inicial al crear proyecto
+            estado: 'sin aprobar',
+            avance: 0,
+            ultimo_desembolso: null
         };
 
        
 
         // Guardar en LocalStorage
         const all = JSON.parse(localStorage.getItem('proyectos') || '[]');
-        const existingIndex = all.findIndex(p => p.id_proyecto === proyecto.id_proyecto);
+        const existingIndex = all.findIndex(p => String(p.id_proyecto).trim() === String(proyecto.id_proyecto).trim());
+
+        // Determinar estado final
+        try {
+            const preCumplidas = condicionesPreoperativoCumplidas();
+            const consCumplidas = condicionesConstructorCumplidas();
+            if (preCumplidas && consCumplidas) {
+                proyecto.estado = 'aprobado sin desembolsar';
+            } else {
+                if (existingIndex !== -1 && all[existingIndex] && all[existingIndex].estado) {
+                    proyecto.estado = all[existingIndex].estado;
+                } else {
+                    proyecto.estado = proyecto.estado || 'sin aprobar';
+                }
+            }
+        } catch (e) {
+            proyecto.estado = proyecto.estado || 'sin aprobar';
+            console.warn('Error evaluando condiciones de desembolso:', e);
+        }
+
+        // Guardar en array y persistencia
+        if (existingIndex !== -1) {
+        all[existingIndex] = proyecto;
+        } else {
+        all.push(proyecto);
+        }
+        localStorage.setItem('proyectos', JSON.stringify(all));
+
 
         if (existingIndex !== -1) {
             // Mantener fecha de creación original
@@ -3211,6 +3227,17 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
         });
     }
 
+    function condicionesPreoperativoCumplidas() {
+        const checkboxes = document.querySelectorAll('#lista-condiciones input[type="checkbox"]');
+        if (!checkboxes || checkboxes.length === 0) return false;
+        return Array.from(checkboxes).every(cb => cb.checked === true);
+    }
+    function condicionesConstructorCumplidas() {
+        const checkboxes = document.querySelectorAll('#lista-condiciones-constructor input[type="checkbox"]');
+        if (!checkboxes || checkboxes.length === 0) return false;
+        return Array.from(checkboxes).every(cb => cb.checked === true);
+    }
+
 
     // 3. Modificar evento change en checkboxes para guardar fecha única
     document.querySelectorAll('#lista-condiciones input[type="checkbox"]').forEach(checkbox => {
@@ -3225,56 +3252,56 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
         });
     });
 
-    // Reemplaza/Mejora la función existente
-    function actualizarBotonSiguiente() {
-        const btn = document.getElementById('btn-siguiente-paso');
-        if (!btn) return;
+    // // Reemplaza/Mejora la función existente
+    // function actualizarBotonSiguiente() {
+    //     const btn = document.getElementById('btn-siguiente-paso');
+    //     if (!btn) return;
 
-        // 1) Validación actual por checkboxes (condiciones generales)
-        const checkboxes = document.querySelectorAll('#lista-condiciones input[type="checkbox"]');
-        const algunaAprobada = Array.from(checkboxes).some(cb => cb.checked);
+    //     // 1) Validación actual por checkboxes (condiciones generales)
+    //     const checkboxes = document.querySelectorAll('#lista-condiciones input[type="checkbox"]');
+    //     const algunaAprobada = Array.from(checkboxes).some(cb => cb.checked);
 
-        // 2) Validación condiciones constructor (según rol o lógica existente)
-        const checkboxesCons = document.querySelectorAll('#lista-condiciones-constructor input[type="checkbox"]');
-        let constructorOk = true;
-        if (checkboxesCons.length > 0) {
-            if (session.usuario.rol === 'arquitecto') {
-                constructorOk = Array.from(checkboxesCons).every(cb => cb.checked);
-            } else {
-                constructorOk = Array.from(checkboxesCons).some(cb => cb.checked);
-            }
-        }
+    //     // 2) Validación condiciones constructor (según rol o lógica existente)
+    //     const checkboxesCons = document.querySelectorAll('#lista-condiciones-constructor input[type="checkbox"]');
+    //     let constructorOk = true;
+    //     if (checkboxesCons.length > 0) {
+    //         if (session.usuario.rol === 'arquitecto') {
+    //             constructorOk = Array.from(checkboxesCons).every(cb => cb.checked);
+    //         } else {
+    //             constructorOk = Array.from(checkboxesCons).some(cb => cb.checked);
+    //         }
+    //     }
 
-        // 3) Validación contra informe de ventas (nuevas condiciones)
-        const resultadoInforme = validarDesembolsoInterno();
+    //     // 3) Validación contra informe de ventas (nuevas condiciones)
+    //     const resultadoInforme = validarDesembolsoInterno();
 
-        // Consolidar razones (si hay)
-        const razones = [];
-        if (!algunaAprobada) razones.push('No hay ninguna condición general aprobada (lista de aprobaciones vacía).');
-        if (!constructorOk) razones.push('Condiciones de constructor no cumplen la regla según rol (ver sección de condiciones constructor).');
-        if (!resultadoInforme.ok) razones.push(...resultadoInforme.razones);
+    //     // Consolidar razones (si hay)
+    //     const razones = [];
+    //     if (!algunaAprobada) razones.push('No hay ninguna condición general aprobada (lista de aprobaciones vacía).');
+    //     if (!constructorOk) razones.push('Condiciones de constructor no cumplen la regla según rol (ver sección de condiciones constructor).');
+    //     if (!resultadoInforme.ok) razones.push(...resultadoInforme.razones);
 
-        // Habilitar solo si no hay razones pendientes
-        const habilitar = razones.length === 0;
-        btn.disabled = !habilitar;
+    //     // Habilitar solo si no hay razones pendientes
+    //     const habilitar = razones.length === 0;
+    //     btn.disabled = !habilitar;
 
-        // Mostrar/ocultar mensaje explicativo
-        mostrarRazonBotonDisabled(razones);
-    }
+    //     // Mostrar/ocultar mensaje explicativo
+    //     mostrarRazonBotonDisabled(razones);
+    // }
 
     // Ejecutar la verificación cuando cambien inputs relevantes
-    document.addEventListener('input', actualizarBotonSiguiente);
-    document.addEventListener('change', actualizarBotonSiguiente);
+    // document.addEventListener('input', actualizarBotonSiguiente);
+    // document.addEventListener('change', actualizarBotonSiguiente);
 
-    // Re-evaluar después de cargar proyecto/importar
-    document.getElementById('btn-confirm-import')?.addEventListener('click', () => {
-        // pequeña demora para que el import complete y guarde en localStorage
-        setTimeout(actualizarBotonSiguiente, 500);
-    });
-    document.getElementById('seleccionar-proyecto')?.addEventListener('change', actualizarBotonSiguiente);
+    // // Re-evaluar después de cargar proyecto/importar
+    // document.getElementById('btn-confirm-import')?.addEventListener('click', () => {
+    //     // pequeña demora para que el import complete y guarde en localStorage
+    //     setTimeout(actualizarBotonSiguiente, 500);
+    // });
+    // document.getElementById('seleccionar-proyecto')?.addEventListener('change', actualizarBotonSiguiente);
 
-    // Ejecutar la primera vez
-    setTimeout(actualizarBotonSiguiente, 300);
+    // // Ejecutar la primera vez
+    // setTimeout(actualizarBotonSiguiente, 300);
 
     // Actualizar event listeners para campos relacionados
     document.querySelectorAll('[name="total_aprobado"], [name="costos_financiables"]').forEach(input => {
@@ -3747,20 +3774,24 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
                         "monto_solicitado_1_desembolso", "monto_solicitado_cpi",
                         "monto_solicitado_lote", "total_valor_aprobado", "calificacion_it",
                         "costos_financiables", "valor_lote", "valor_total_proyecto",
-                        "meses_programacion", "total_inmuebles"
+                        "meses_programacion", "total_inmuebles", "estado"
                     ];
 
-                    // Filtrar y normalizar los proyectos recibidos
                     const proyectosReducidos = (data.proyectos || []).map(p => {
                         const nuevo = {};
                         camposNecesarios.forEach(campo => {
-                            nuevo[campo] = p[campo] !== undefined ? p[campo] : null;
+                            if (campo === 'estado') {
+                                nuevo[campo] = p[campo] && String(p[campo]).trim() !== '' 
+                                    ? String(p[campo]).trim() 
+                                    : 'sin aprobar';
+                            } else {
+                                nuevo[campo] = p[campo] !== undefined ? p[campo] : null;
+                            }
                         });
                         nuevo.id_proyecto = (nuevo.id_proyecto || '').toString().trim();
                         return nuevo;
-                    }).filter(p => p.id_proyecto); // descartamos registros sin id_proyecto
+                    }).filter(p => p.id_proyecto);
 
-                    // Obtener existentes del localStorage y deduplicar por id_proyecto
                     const actualesRaw = localStorage.getItem('proyectos');
                     let actuales = [];
                     try {
@@ -3770,20 +3801,24 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
                     }
 
                     const mapa = {};
-                    // Primero cargamos los actuales (conservamos)
                     actuales.forEach(p => {
                         const id = (p.id_proyecto || '').toString().trim();
                         if (id) mapa[id] = p;
                     });
-                    // Luego aplicamos los nuevos (reemplazan si existe)
+
                     proyectosReducidos.forEach(p => {
-                        mapa[p.id_proyecto] = p;
+                        const id = (p.id_proyecto || '').toString().trim();
+                        if (!id) return;
+                        if (mapa[id]) {
+                            // preservar estado si el nuevo no trae
+                            p.estado = p.estado && String(p.estado).trim() !== '' 
+                                ? p.estado 
+                                : mapa[id].estado || 'sin aprobar';
+                        }
+                        mapa[id] = p;
                     });
 
-                    // Resultado final
                     const final = Object.values(mapa);
-
-                    // Guardar en localStorage
                     localStorage.setItem('proyectos', JSON.stringify(final));
 
                     Swal.fire({
@@ -3802,9 +3837,8 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
                 Swal.fire('Error', 'Error procesando la respuesta del servidor', 'error');
             }
         });
-
-
     });
+
     
     // Helper: obtener el proyecto actualmente seleccionado (desde selector o localStorage)
     function getProyectoSeleccionado() {

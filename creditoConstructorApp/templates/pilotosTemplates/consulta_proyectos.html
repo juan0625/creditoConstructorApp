@@ -511,28 +511,19 @@
                     <div class="col-md-6">
                         <div class="card filtro-card">
                             <div class="card-body">
-                                <h5 class="card-title text-bancolombia">Avances</h5>
-                                <div class="mb-3">
-                                    <label class="form-label">Estado Obra</label>
-                                    <select class="form-select" name="estado_obra">
-                                        <option value="">Todos</option>
-                                        <option>En progreso</option>
-                                        <option>Completado</option>
-                                        <option>Detenido</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">% Avance</label>
-                                    <input type="range" class="form-range" min="0" max="100" name="avance">
-                                    <div class="d-flex justify-content-between">
-                                        <small>0%</small>
-                                        <small>100%</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
+                                <h5 class="card-title text-bancolombia">Estado Proyecto</h5>
+                                <select class="form-select" name="estado_proyecto" id="estado_proyecto">
+                                    <option value="">Todos</option>
+                                    <option value="sin aprobar">Sin aprobar</option>
+                                    <option value="aprobado sin desembolsar">Aprobado sin desembolsar</option>
+                                    <option value="en preoperativo">En preoperativo</option>
+                                    <option value="en construcción">En construcción</option>
+                                    <option value="en escrituración">En escrituración</option>
+                                    <option value="cancelado">Cancelado</option>
+                                </select>
+                            </div>    
+                        </div> 
+                    </div>        
                 <!-- Filtro 4: Desembolsos - Versión modificada -->
                 <div class="col-md-6">
                     <div class="card filtro-card">
@@ -577,6 +568,7 @@
                     <thead>
                         <tr>
                             <th>Proyecto</th>
+                            <th>Estado</th>
                             <th>Titular</th>
                             <th>NIT</th>
                             <th>Arquitecto</th>
@@ -670,16 +662,9 @@
                 }
                 
                 // 3. Buscar en proyectos
-                const proyectos = JSON.parse(localStorage.getItem('proyectos') || '[]');
-                const proyecto = proyectos.find(item => 
-                    item.id_proyecto == idProyecto && item.nombre_proyecto
-                );
-                
-                if (proyecto) {
-                    return proyecto.nombre_proyecto;
-                }
-                
-                return "Proyecto sin nombre";
+                const proyecto = proyectosGlobal.find(p => p.id_proyecto == idProyecto);
+                return proyecto ? proyecto.nombre_proyecto : "Proyecto sin nombre";
+
             } catch (e) {
                 console.error('Error al obtener nombre del proyecto:', e);
                 return "Proyecto sin nombre";
@@ -829,83 +814,97 @@
             const userRole = obtenerRolUsuario();
             let proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
 
-            // Ordena por fecha_creacion descendente
-            proyectos.sort((a, b) => 
-                (b.fecha_creacion || 0) - (a.fecha_creacion || 0)
-            );
+            // Ordena por fecha_creacion descendente (convirtiendo a Date)
+            proyectos.sort((a, b) => {
+                const fa = a.fecha_creacion ? new Date(a.fecha_creacion) : new Date(0);
+                const fb = b.fecha_creacion ? new Date(b.fecha_creacion) : new Date(0);
+                return fb - fa;
+            });
 
             // Aplica filtros solo si hay valor en el formulario
             proyectos = proyectos.filter(p => {
                 let ok = true;
 
-                // filtro por proyecto: ID o nombre
                 if (filtros.proyecto) {
                     const busq = filtros.proyecto.toLowerCase();
                     ok = ok && (
-                        (p.id_proyecto   || '').toString().toLowerCase().includes(busq) ||
+                        (p.id_proyecto || '').toString().toLowerCase().includes(busq) ||
                         (p.nombre_proyecto || '').toLowerCase().includes(busq)
                     );
                 }
 
-                // filtro por titular
                 if (filtros.titular) {
                     const busq = filtros.titular.toLowerCase();
-                    ok = ok && (
-                        (p.titular_credito || '').toLowerCase().includes(busq)
-                    );
+                    ok = ok && (p.titular_credito || '').toLowerCase().includes(busq);
                 }
 
-                // filtro por NIT (titular o grupo riesgo)
                 if (filtros.nit) {
                     const busq = filtros.nit.toLowerCase();
                     ok = ok && (
-                        (p.nit_titular      || '').toLowerCase().includes(busq) ||
+                        (p.nit_titular || '').toLowerCase().includes(busq) ||
                         (p.nit_grupo_riesgo || '').toLowerCase().includes(busq)
                     );
+                }
+
+                if (filtros.estado_proyecto) {
+                    const estadoProyecto = String(p.estado || 'sin aprobar').trim().toLowerCase();
+                    const filtroEstado = filtros.estado_proyecto.trim().toLowerCase();
+                    ok = ok && estadoProyecto === filtroEstado;
                 }
 
                 return ok;
             });
 
+            // Renderizado
             const tbody = document.getElementById('resultados-body');
             tbody.innerHTML = '';
 
             proyectos.forEach(p => {
                 const datos = {
                     nombre_proyecto: p.nombre_proyecto || 'Proyecto sin nombre',
-                    titular:         p.titular_credito || 'Sin titular',
-                    nit:             p.nit_titular || p.nit_grupo_riesgo || 'Sin NIT',
-                    arquitecto:      p.arquitecto || p.gerente || 'Sin arquitecto',
-                    avance:          Math.min(Math.max(p.avance || 0, 0), 100),
-                    perito:          p.perito || '—',
-                    estado:          p.estado || 'Activo'
+                    estado: (p.estado !== undefined && p.estado !== null) ? p.estado : 'sin aprobar',
+                    titular: p.titular_credito || 'Sin titular',
+                    nit: p.nit_titular || p.nit_grupo_riesgo || 'Sin NIT',
+                    arquitecto: p.arquitecto || p.gerente || 'Sin arquitecto',
+                    avance: Math.min(Math.max(p.avance || 0, 0), 100),
+                    perito: p.perito || '—'
                 };
-                const puedeEditar = ['admin','arquitecto'].includes(userRole);
-                const badge = datos.estado === 'Desistido'
-                    ? '<span class="badge bg-danger">Desistido</span>'
-                    : '<span class="badge bg-success">Activo</span>';
+
+                const puedeEditar = ['admin','auxiliar'].includes(userRole);
+
+                let badge = '';
+                switch ((datos.estado || '').toLowerCase()) {
+                    case 'sin aprobar': badge = '<span class="badge bg-secondary">Sin aprobar</span>'; break;
+                    case 'aprobado sin desembolsar': badge = '<span class="badge bg-primary">Aprobado sin desembolsar</span>'; break;
+                    case 'en preoperativo': badge = '<span class="badge bg-info text-dark">En preoperativo</span>'; break;
+                    case 'en construcción': badge = '<span class="badge bg-warning text-dark">En construcción</span>'; break;
+                    case 'en escrituración': badge = '<span class="badge bg-success">En escrituración</span>'; break;
+                    case 'cancelado': badge = '<span class="badge bg-danger">Cancelado</span>'; break;
+                    default: badge = `<span class="badge bg-light text-dark">${datos.estado}</span>`;
+                }
 
                 tbody.innerHTML += `
-                    <tr>
-                    <td>${datos.nombre_proyecto} ${badge}</td>
+                <tr>
+                    <td>${datos.nombre_proyecto}</td>
+                    <td>${badge}</td> <!-- Estado -->
                     <td>${datos.titular}</td>
                     <td>${datos.nit}</td>
                     <td>${datos.arquitecto}</td>
                     <td>
                         <div class="progress">
-                        <div class="progress-bar" style="width:${datos.avance}%">
-                            ${datos.avance}%
-                        </div>
+                            <div class="progress-bar" style="width:${datos.avance}%">
+                                ${datos.avance}%
+                            </div>
                         </div>
                     </td>
                     <td>${datos.perito}</td>
                     <td>
                         <div class="acciones-container">
-                        <button class="btn btn-accion btn-accion-primary"
-                                onclick="verProyecto('${p.id_proyecto}')"
-                                data-bs-toggle="tooltip" title="Ver detalles">
-                            <i class="fas fa-eye"></i> Ver
-                        </button>
+                            <button class="btn btn-accion btn-accion-primary"
+                                    onclick="verProyecto('${p.id_proyecto}')"
+                                    data-bs-toggle="tooltip" title="Ver detalles">
+                                <i class="fas fa-eye"></i> Ver
+                            </button>
                         ${puedeEditar ? `
                         <button class="btn btn-accion btn-accion-secondary"
                                 onclick="editarProyecto('${p.id_proyecto}')"
@@ -968,13 +967,6 @@
                                 </button>
                             </li>
                             <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <button class="dropdown-item text-danger"
-                                        onclick="eliminarProyecto('${p.id_proyecto}')">
-                                <i class="fas fa-trash-alt me-2"></i>
-                                Eliminar Proyecto
-                                </button>
-                            </li>
                             </ul>
                         </div>
                         ` : ''}
@@ -995,49 +987,62 @@
         }
 
         // Opcional: al cargar la página muestro todos
-        window.addEventListener('DOMContentLoaded', () => {
-            cargarProyectos({});
+        window.addEventListener('DOMContentLoaded', async () => {
+            await cargarProyectos({});
         });
                 
         // Función para abrir modal de edición
-        function editarProyecto(id) {
-            const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
-            const p = proyectos.find(x => x.id_proyecto === id);
-            if (!p) return;
+        async function editarProyecto(id) {
+            try {
+                // Hacer petición a la API
+                const response = await fetch(`/api/proyectos/${id}`);
+                const result = await response.json();
+                
+                if (!result.success) {
+                    Swal.fire('Error', 'Proyecto no encontrado', 'error');
+                    return;
+                }
 
-            // Rellenar campos básicos
-            document.getElementById('edit-id').value       = p.id_proyecto;
-            document.getElementById('edit-nombre').value   = p.nombre_proyecto || '';
-            document.getElementById('edit-titular').value  = p.titular_credito || '';
-            document.getElementById('edit-nit').value      = p.nit_titular || '';
-            document.getElementById('edit-avance').value   = p.avance || 0;
+                const p = result.proyecto;
 
-            // Rellenar lista de participantes
-            const lista = document.querySelector('.participantes-list');
-            lista.innerHTML = '';
-            if (Array.isArray(p.participantes)) {
-                p.participantes.forEach(pt => {
-                const row = document.createElement('div');
-                row.classList.add('participante-item', 'mb-2', 'row');
-                row.innerHTML = `
-                    <div class="col"><input type="text" class="form-control" placeholder="Nombre" value="${pt.nombre || ''}"></div>
-                    <div class="col"><input type="text" class="form-control" placeholder="Rol"    value="${pt.rol    || ''}"></div>
-                    <div class="col"><input type="number" class="form-control" placeholder="%"    min="0" max="100" value="${pt.participacion || 0}"></div>
-                    <div class="col-auto">
-                    <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.participante-item').remove()">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    </div>`;
-                lista.appendChild(row);
-                });
+                // Rellenar campos básicos
+                document.getElementById('edit-id').value = p.id_proyecto;
+                document.getElementById('edit-nombre').value = p.nombre_proyecto || '';
+                document.getElementById('edit-titular').value = p.titular_credito || '';
+                document.getElementById('edit-nit').value = p.nit_titular || '';
+                document.getElementById('edit-avance').value = p.avance || 0;
+
+                // Rellenar lista de participantes
+                const lista = document.querySelector('.participantes-list');
+                lista.innerHTML = '';
+                if (Array.isArray(p.participantes)) {
+                    p.participantes.forEach(pt => {
+                        const row = document.createElement('div');
+                        row.classList.add('participante-item', 'mb-2', 'row');
+                        row.innerHTML = `
+                            <div class="col"><input type="text" class="form-control" placeholder="Nombre" value="${pt.nombre || ''}"></div>
+                            <div class="col"><input type="text" class="form-control" placeholder="Rol"    value="${pt.rol || ''}"></div>
+                            <div class="col"><input type="number" class="form-control" placeholder="%"    min="0" max="100" value="${pt.participacion || 0}"></div>
+                            <div class="col-auto">
+                            <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.participante-item').remove()">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            </div>`;
+                        lista.appendChild(row);
+                    });
+                }
+
+                // Mostrar modal
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('editarModal')).show();
+            } catch (error) {
+                console.error('Error al cargar proyecto:', error);
+                Swal.fire('Error', 'No se pudo cargar el proyecto para edición', 'error');
             }
-
-            // Mostrar modal
-            bootstrap.Modal.getOrCreateInstance(document.getElementById('editarModal')).show();
-            }
+        }
         
-            // Añade un nuevo bloque de inputs para un participante
-            function agregarParticipante() {
+        
+        // Añade un nuevo bloque de inputs para un participante
+        function agregarParticipante() {
             const lista = document.querySelector('.participantes-list');
             const row = document.createElement('div');
             row.classList.add('participante-item', 'mb-2', 'row');
@@ -1051,7 +1056,7 @@
                 </button>
                 </div>`;
             lista.appendChild(row);
-            }
+        }
 
         function generarMenuAcciones(proyecto) {
             return `
@@ -1147,10 +1152,28 @@
                 });
             }
         }
-        // Función para manejar eliminación
-        function eliminarProyecto(id) {
-            document.getElementById('delete-id').value = id;
-            new bootstrap.Modal(document.getElementById('eliminarModal')).show();
+
+        // Eliminar proyecto
+        async function eliminarProyecto(id) {
+            if (confirm('¿Estás seguro de que deseas eliminar este proyecto?')) {
+                try {
+                    const response = await fetch(`/api/proyectos/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert('Proyecto eliminado correctamente');
+                        await cargarProyectos(); // Recargar la lista
+                    } else {
+                        alert('Error al eliminar el proyecto: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Error al eliminar proyecto:', error);
+                    alert('Error al eliminar el proyecto');
+                }
+            }
         }
 
         function confirmarEliminacion() {
@@ -1197,34 +1220,57 @@
             document.querySelectorAll('.participante-item')[index].remove();
         }
 
-        // Modificar la función verProyecto para usar ID
-        function verProyecto(id) {
-            try {
-                // 1. Buscar proyecto usando id_proyecto
-                const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
-                const proyecto = proyectos.find(p => p.id_proyecto === id);
+        function getBadgeEstado(estado) {
+            switch ((estado || '').toLowerCase()) {
+                case 'sin aprobar': 
+                    return '<span class="badge bg-secondary">Sin aprobar</span>';
+                case 'aprobado sin desembolsar': 
+                    return '<span class="badge bg-primary">Aprobado sin desembolsar</span>';
+                case 'en preoperativo': 
+                    return '<span class="badge bg-info text-dark">En preoperativo</span>';
+                case 'en construcción': 
+                    return '<span class="badge bg-warning text-dark">En construcción</span>';
+                case 'en escrituración': 
+                    return '<span class="badge bg-success">En escrituración</span>';
+                case 'cancelado': 
+                case 'desistido': 
+                    return '<span class="badge bg-danger">' + (estado || 'Cancelado') + '</span>';
+                default: 
+                    return `<span class="badge bg-light text-dark">${estado || 'Activo'}</span>`;
+            }
+        }
 
-                if (!proyecto) {
+
+        // Modificar la función verProyecto para usar ID
+        async function verProyecto(id) {
+            try {
+                // 1. Buscar proyecto usando API
+                const response = await fetch(`/api/proyectos/${id}`);
+                const result = await response.json();
+                
+                if (!result.success) {
                     Swal.fire('Error', `Proyecto con ID ${id} no existe`, 'error');
                     return;
                 }
 
+                const proyecto = result.proyecto;
+
                 // 2. Construir contenido dinámico
                 const contenidoHTML = `
                     <div class="container-fluid">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h4>${proyecto.nombre_proyecto || 'Proyecto sin nombre'}</h4>
-                        <button class="btn btn-primary btn-sm" onclick="mostrarHistorial('${id}')">
-                            <i class="fas fa-history me-2"></i>Ver Historial
-                        </button>
-                    </div>
-
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4>${proyecto.nombre_proyecto || 'Proyecto sin nombre'}</h4>
+                            <button class="btn btn-primary btn-sm" onclick="mostrarHistorial('${id}')">
+                                <i class="fas fa-history me-2"></i>Ver Historial
+                            </button>
+                        </div>
                         
                         <div class="row">
                             <div class="col-md-6">
                                 <p><strong>ID Proyecto:</strong> ${proyecto.id_proyecto}</p>
                                 <p><strong>Titular:</strong> ${proyecto.titular_credito || 'No registrado'}</p>
                                 <p><strong>NIT:</strong> ${proyecto.nit_titular || proyecto.nit || 'Sin NIT'}</p>
+                                <p><strong>Vigencia:</strong> ${proyecto.vigencia_en_meses || 'No definida'} meses</p>
                             </div>
                             <div class="col-md-6">
                                 <p><strong>Avance:</strong> 
@@ -1236,14 +1282,12 @@
                                     </div>
                                 </p>
                                 <p><strong>Estado:</strong> 
-                                    <span class="badge ${proyecto.estado === 'Desistido' ? 'bg-danger' : 'bg-success'}">
-                                        ${proyecto.estado || 'Activo'}
-                                    </span>
+                                    ${getBadgeEstado(proyecto.estado)}
                                 </p>
                             </div>
                         </div>
 
-                       ${proyecto.participantes?.length ? `
+                        ${proyecto.participantes?.length ? `
                         <div class="mt-4">
                             <h5>Participantes</h5>
                             <ul class="list-group">
@@ -1257,6 +1301,34 @@
                                     </li>
                                 `).join('')}
                             </ul>
+                        </div>
+                        ` : ''}
+
+                        ${proyecto.gestiones?.length ? `
+                        <div class="mt-4">
+                            <h5>Historial de Gestiones</h5>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Tipo</th>
+                                            <th>Usuario</th>
+                                            <th>Detalles</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${proyecto.gestiones.map(g => `
+                                            <tr>
+                                                <td>${formatFecha(g.fecha)}</td>
+                                                <td>${g.tipo || 'N/A'}</td>
+                                                <td>${g.usuario || 'N/A'}</td>
+                                                <td>${g.comentarios || 'Sin comentarios'}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                         ` : ''}
                     </div>`;
@@ -1280,7 +1352,8 @@
                 id_proyecto: (this.elements['id_proyecto']?.value || '').trim(),
                 proyecto: (this.elements['proyecto']?.value || '').trim(),
                 titular: (this.elements['titular']?.value || '').trim(),
-                nit: (this.elements['nit']?.value || '').trim()
+                nit: (this.elements['nit']?.value || '').trim(),
+                estado_proyecto: document.getElementById('estado_proyecto').value
             };
             cargarProyectos(filtros);
         });
@@ -1315,170 +1388,199 @@
             link.click();
         });
 
-        function mostrarModalGestion(tipo, idProyecto) {
-
+    // Mostrar modal de gestión
+    async function mostrarModalGestion(tipo, proyectoId) {
         try {
-            // 1. Obtener proyectos de forma segura
-            const proyectos = JSON.parse(localStorage.getItem('proyectos') || []);
+            // Primero obtener los datos del proyecto
+            const response = await fetch(`/api/proyectos/${proyectoId}`);
+            const result = await response.json();
             
-            // 2. Buscar usando id_proyecto como campo principal
-            const proyecto = proyectos.find(p => p.id_proyecto === idProyecto);
-            
-            if (!proyecto) {
-                Swal.fire('Error', 'Proyecto no encontrado', 'error');
+            if (!result.success) {
+                alert('Proyecto no encontrado');
                 return;
             }
 
-            // 3. Configuración del modal
-            const modal = new bootstrap.Modal(document.getElementById('gestionModal'));
-            const titulos = {
-                titular: 'Cambio de Titular',
-                nombre: 'Cambio de Nombre del Proyecto',
-                unidades: 'Gestión de Unidades',
-                desistimiento: 'Registrar Desistimiento',
-                monto: 'Ampliación de Monto Aprobado',
-                vigencia: 'Ampliación de Vigencia',
-                plazo: 'Ampliación de Plazo de Ejecución'
-            };
-
-            // 4. Resetear y preparar contenido
-            document.querySelectorAll('.gestion-contenido').forEach(div => div.style.display = 'none');
-            const contenido = document.getElementById(`contenido-${tipo}`);
-            if (!contenido) {
-                throw new Error(`No se encontró contenido para el tipo: ${tipo}`);
-            }
-            contenido.style.display = 'block';
+            const proyecto = result.proyecto;
             
-            // 5. Llenar datos dinámicos
-            document.getElementById('gestionModalTitle').textContent = titulos[tipo];
-            document.getElementById('gestion-id').value = idProyecto;
+            // Configurar el modal según el tipo de gestión
+            document.getElementById('gestionModalTitle').textContent = `Gestión: ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`;
             document.getElementById('gestion-tipo').value = tipo;
-
-            // 6. Manejo específico por tipo
-            switch(tipo) {
-                case 'titular':
-                    document.getElementById('actual-titular').value = proyecto.titular_credito || proyecto.titular || '';
-                    break;
-                case 'nombre':
-                    document.getElementById('actual-nombre').value = proyecto.nombre_proyecto || '';
-                    break;
-                case 'unidades':
-                    document.getElementById('actual-unidades').value = proyecto.total_inmuebles || 0;
-                    break;
-                case 'desistimiento':
-                    document.getElementById('fecha-desistimiento').value = new Date().toISOString().split('T')[0];
-                    break;
-                case 'monto':
-                    document.getElementById('actual-monto').value = proyecto.total_valor_aprobado || 0;
-                    break;
-                case 'vigencia':
-                    document.getElementById('actual-vigencia').value = proyecto.vigencia || '';
-                    break;
-                case 'plazo':
-                    document.getElementById('actual-plazo').value = proyecto.meses_programacion || 0;
-                    break;
+            document.getElementById('gestion-id').value = proyectoId;
+            
+            // Ocultar todos los contenidos primero
+            document.querySelectorAll('.gestion-contenido').forEach(el => {
+                el.style.display = 'none';
+            });
+            
+            // Mostrar el contenido específico según el tipo
+            const contenido = document.getElementById(`contenido-${tipo}`);
+            if (contenido) {
+                contenido.style.display = 'block';
+                
+                // Llenar campos según el tipo
+                switch(tipo) {
+                    case 'titular':
+                        document.getElementById('actual-titular').value = proyecto.titular_credito || '';
+                        break;
+                    case 'nombre':
+                        document.getElementById('actual-nombre').value = proyecto.nombre_proyecto || '';
+                        break;
+                    case 'unidades':
+                        document.getElementById('actual-unidades').value = proyecto.total_inmuebles || 0;
+                        break;
+                    case 'desistimiento':
+                        // Establecer fecha actual por defecto
+                        document.getElementById('fecha-desistimiento').value = new Date().toISOString().split('T')[0];
+                        break;
+                    case 'monto':
+                        document.getElementById('actual-monto').value = proyecto.total_valor_aprobado || 0;
+                        break;
+                    case 'vigencia':
+                        // Puedes establecer la vigencia actual si está disponible
+                        if (proyecto.vigencia_en_meses) {
+                            const fechaActual = new Date();
+                            fechaActual.setMonth(fechaActual.getMonth() + parseInt(proyecto.vigencia_en_meses));
+                            document.getElementById('actual-vigencia').value = fechaActual.toISOString().split('T')[0];
+                        }
+                        break;
+                    case 'plazo':
+                        document.getElementById('actual-plazo').value = proyecto.plazo_ajustado || proyecto.meses_programacion || 0;
+                        break;
+                }
             }
-
+            
+            // Mostrar el modal
+            const modal = new bootstrap.Modal(document.getElementById('gestionModal'));
             modal.show();
-
+            
         } catch (error) {
-            console.error('Error en mostrarModalGestion:', error);
-            Swal.fire('Error', 'No se pudo cargar el formulario de gestión', 'error');
+            console.error('Error al cargar datos para el modal:', error);
+            alert('Error al cargar los datos del proyecto');
         }
     }
-
-    function guardarGestion() {
+    
+    // Guardar gestión
+    async function guardarGestion() {
+        const tipo = document.getElementById('gestion-tipo').value;
+        const proyectoId = document.getElementById('gestion-id').value;
+        const comentarios = document.querySelector('#form-gestion textarea').value;
+        
+        let datosGestion = {
+            tipo: tipo,
+            fecha: new Date().toISOString(),
+            comentarios: comentarios,
+            usuario: '{{ session.usuario.nombre }}' // Usuario desde sesión
+        };
+        
+        // Recoger datos específicos según el tipo
+        switch(tipo) {
+            case 'titular':
+                datosGestion.actual = document.getElementById('actual-titular').value;
+                datosGestion.nuevo = document.getElementById('nuevo-titular').value;
+                break;
+            case 'nombre':
+                datosGestion.actual = document.getElementById('actual-nombre').value;
+                datosGestion.nuevo = document.getElementById('nuevo-nombre').value;
+                break;
+            case 'unidades':
+                datosGestion.actual = document.getElementById('actual-unidades').value;
+                datosGestion.nuevo = document.getElementById('nuevo-unidades').value;
+                datosGestion.tipo_modificacion = document.getElementById('tipo-modificacion').value;
+                break;
+            case 'desistimiento':
+                datosGestion.motivo = document.getElementById('motivo-desistimiento').value;
+                datosGestion.fecha_efectiva = document.getElementById('fecha-desistimiento').value;
+                break;
+            case 'monto':
+                datosGestion.actual = document.getElementById('actual-monto').value;
+                datosGestion.nuevo = document.getElementById('nuevo-monto').value;
+                break;
+            case 'vigencia':
+                datosGestion.actual = document.getElementById('actual-vigencia').value;
+                datosGestion.nuevo = document.getElementById('nueva-vigencia').value;
+                break;
+            case 'plazo':
+                datosGestion.actual = document.getElementById('actual-plazo').value;
+                datosGestion.nuevo = document.getElementById('nuevo-plazo').value;
+                break;
+        }
+        
         try {
-            // 1. Obtener datos del formulario
-            const proyectos = JSON.parse(localStorage.getItem('proyectos') || []);
-            const idProyecto = document.getElementById('gestion-id').value;
-            const tipo = document.getElementById('gestion-tipo').value;
+            const response = await fetch(`/api/proyectos/${proyectoId}/gestiones`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(datosGestion)
+            });
             
-            // 2. Buscar proyecto
-            const proyecto = proyectos.find(p => p.id_proyecto === idProyecto);
-            if (!proyecto) {
-                Swal.fire('Error', 'Proyecto no encontrado', 'error');
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('Gestión guardada correctamente');
+                
+                // Cerrar el modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('gestionModal'));
+                modal.hide();
+                
+                // Recargar el proyecto para ver los cambios
+                await cargarProyectos();
+            } else {
+                alert('Error al guardar la gestión: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error al guardar gestión:', error);
+            alert('Error al guardar la gestión');
+        }
+    }
+    
+    // Cargar gestiones de un proyecto (para el modal de historial)
+    async function cargarGestiones(proyectoId) {
+        try {
+            const response = await fetch(`/api/proyectos/${proyectoId}`);
+            const result = await response.json();
+            
+            if (!result.success) {
+                console.error('Error al cargar gestiones:', result.message);
                 return;
             }
-
-            // 3. Registrar cambios en histórico
-            const cambios = {};
-            const usuario = JSON.parse(localStorage.getItem('usuario'))?.nombre || 'Usuario desconocido';
-
-            switch(tipo) {
-                case 'titular':
-                    cambios.anterior = datos.titular;
-                    cambios.nuevo = document.getElementById('nuevo-titular').value;
-                    proyecto.datos.titular = cambios.nuevo;
-                    break;
-                    
-                case 'nombre':
-                    cambios.anterior = proyecto.nombre_proyecto;
-                    cambios.nuevo = document.getElementById('nuevo-nombre').value;
-                    proyecto.nombre_proyecto = cambios.nuevo;
-                    break;
-                    
-                case 'unidades':
-                    cambios.anterior = proyecto.total_inmuebles;
-                    cambios.nuevo = parseInt(document.getElementById('nuevo-unidades').value) || 0;
-                    proyecto.total_inmuebles = cambios.nuevo;
-                    break;
-                    
-                case 'desistimiento':
-                    proyecto.estado = 'Desistido';
-                    proyecto.motivo_desistimiento = document.getElementById('motivo-desistimiento').value;
-                    proyecto.fecha_desistimiento = document.getElementById('fecha-desistimiento').value;
-                    cambios = { motivo: proyecto.motivo_desistimiento, fecha: proyecto.fecha_desistimiento };
-                    break;
-                    
-                case 'monto':
-                    cambios.anterior = proyecto.total_valor_aprobado;
-                    cambios.nuevo = parseFloat(document.getElementById('nuevo-monto').value) || 0;
-                    proyecto.total_valor_aprobado = cambios.nuevo;
-                    break;
-                    
-                case 'vigencia':
-                    cambios.anterior = proyecto.vigencia;
-                    cambios.nuevo = document.getElementById('nueva-vigencia').value;
-                    proyecto.vigencia = cambios.nuevo;
-                    break;
-                    
-                case 'plazo':
-                    cambios.anterior = proyecto.meses_programacion;
-                    cambios.nuevo = parseInt(document.getElementById('nuevo-plazo').value) || 0;
-                    proyecto.meses_programacion = cambios.nuevo;
-                    break;
-            }
-
-            // 4. Guardar en histórico
-            const registroHistorico = {
-                tipo: 'modificación',
-                accion: tipo,
-                fecha: new Date().toISOString(),
-                cambios: cambios,
-                usuario: usuario,
-                proyectoId: idProyecto
-            };
-
-            const historico = JSON.parse(localStorage.getItem('historicoModificaciones') || []);
-            historico.push(registroHistorico);
-            localStorage.setItem('historicoModificaciones', JSON.stringify(historico));
-
-            // 5. Actualizar datos y UI
-            localStorage.setItem('proyectos', JSON.stringify(proyectos));
-            cargarProyectos();
             
-            // 6. Cerrar modal
-            bootstrap.Modal.getInstance(document.getElementById('gestionModal')).hide();
+            const proyecto = result.proyecto;
+            const gestiones = proyecto.gestiones || [];
             
-            Swal.fire('Éxito', 'Cambios guardados correctamente', 'success');
-
+            // Aquí puedes implementar la visualización de gestiones en tu modal de historial
+            console.log('Gestiones del proyecto:', gestiones);
+            
         } catch (error) {
-            console.error('Error en guardarGestion:', error);
-            Swal.fire('Error', 'No se pudieron guardar los cambios', 'error');
+            console.error('Error al cargar gestiones:', error);
         }
     }
-       // Funciones de utilidad (globales)
+
+    // Eliminar gestión
+    async function eliminarGestion(proyectoId, gestionId) {
+        if (confirm('¿Estás seguro de que deseas eliminar esta gestión?')) {
+            try {
+                const response = await fetch(`/api/proyectos/${proyectoId}/gestiones/${gestionId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Gestión eliminada correctamente');
+                    await cargarGestiones(proyectoId); // Recargar las gestiones
+                } else {
+                    alert('Error al eliminar la gestión: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error al eliminar gestión:', error);
+                alert('Error al eliminar la gestión');
+            }
+        }
+    }
+
+    
+    // Funciones de utilidad (globales)
     function formatFecha(valor) {
         if (!valor) return 'N/A';
         try {
@@ -1625,57 +1727,52 @@
     // Función mejorada para mostrar el historial
     function mostrarHistorial(idProyecto) {
         try {
-            const proyectos = JSON.parse(localStorage.getItem('proyectos') || '[]');
-            const proyecto = proyectos.find(p => p.id_proyecto === idProyecto);
-            
-            if (!proyecto) {
-                Swal.fire('Error', 'Proyecto no encontrado', 'error');
-                return;
-            }
-
-            const modal = document.getElementById('historialModal');
-            modal.dataset.proyectoId = idProyecto;
-            
-            // Verificar si todos los historiales están vacíos
+            // Obtener historiales desde localStorage
             const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
             const historialVisitas = JSON.parse(localStorage.getItem('historialVisitas') || '[]');
-            const historialDesembolsosDiarios = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
+            const historialDesembolsos = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
             
-            const tieneVentas = historialVentas.some(v => v.proyectoId === idProyecto);
-            const tieneVisitas = historialVisitas.some(v => v.proyectoId === idProyecto);
-            const tieneDesembolsos = historialDesembolsosDiarios.some(d => d.proyectoId === idProyecto);
+            // Filtrar por proyecto
+            const ventasProyecto = historialVentas.filter(v => v.proyectoId == idProyecto);
+            const visitasProyecto = historialVisitas.filter(v => v.proyectoId == idProyecto);
+            const desembolsosProyecto = historialDesembolsos.filter(d => d.proyectoId == idProyecto);
             
-            if (!tieneVentas && !tieneVisitas && !tieneDesembolsos) {
+            // Verificar si hay datos
+            if (ventasProyecto.length === 0 && visitasProyecto.length === 0 && desembolsosProyecto.length === 0) {
                 Swal.fire({
                     title: 'Historial vacío',
                     text: 'Este proyecto no tiene registros de ventas, visitas ni desembolsos',
                     icon: 'info',
                     confirmButtonText: 'Entendido'
                 });
-            } else {
-                // Cargar datos iniciales (prioridad: ventas > visitas > desembolsos)
-                if (tieneVentas) {
-                    cargarHistorialVentas(idProyecto);
-                    document.querySelector('[data-tipo="ventas"]').classList.add('active');
-                    document.getElementById('contenido-ventas').style.display = 'block';
-                } else if (tieneVisitas) {
-                    cargarHistorialVisitas(idProyecto);
-                    document.querySelector('[data-tipo="visitas"]').classList.add('active');
-                    document.getElementById('contenido-visitas').style.display = 'block';
-                } else if (tieneDesembolsos) {
-                    cargarHistorialDesembolsosDiarios(idProyecto);
-                    document.querySelector('[data-tipo="desembolsos"]').classList.add('active');
-                    document.getElementById('contenido-desembolsos').style.display = 'block';
-                }
+                return;
             }
             
+            // Cargar datos en las tablas
+            if (ventasProyecto.length > 0) {
+                cargarHistorialVentas(idProyecto);
+                document.querySelector('[data-tipo="ventas"]').classList.add('active');
+                document.getElementById('contenido-ventas').style.display = 'block';
+            } else if (visitasProyecto.length > 0) {
+                cargarHistorialVisitas(idProyecto);
+                document.querySelector('[data-tipo="visitas"]').classList.add('active');
+                document.getElementById('contenido-visitas').style.display = 'block';
+            } else if (desembolsosProyecto.length > 0) {
+                cargarHistorialDesembolsosDiarios(idProyecto);
+                document.querySelector('[data-tipo="desembolsos"]').classList.add('active');
+                document.getElementById('contenido-desembolsos').style.display = 'block';
+            }
+            
+            // Mostrar modal
+            const modal = document.getElementById('historialModal');
+            modal.dataset.proyectoId = idProyecto;
             new bootstrap.Modal(modal).show();
+            
         } catch (error) {
             console.error('Error mostrando historial:', error);
             Swal.fire('Error', 'No se pudo cargar el historial', 'error');
         }
     }
-
     // Configuración de event listeners
     document.addEventListener('DOMContentLoaded', () => {
         // Cargar proyectos iniciales
@@ -2272,49 +2369,71 @@
         let tamanoPagina = 10;
         let proyectosFiltrados = [];
 
-        function cargarProyectos(filtros = {}) {
+        async function cargarProyectos(filtros = {}) {
             const userRole = obtenerRolUsuario();
-            let proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+    
+            try {
+                    // Obtener proyectos del servidor
+                    const response = await fetch('/api/proyectos');
+                    if (!response.ok) throw new Error('Error al cargar proyectos');
+                    let proyectos = await response.json();
 
-            // Ordenar
-            proyectos.sort((a, b) => (b.fecha_creacion || 0) - (a.fecha_creacion || 0));
+                    // Ordenar y filtrar (mantén tu lógica existente)
+                    const parseFecha = (v) => {
+                        if (!v) return 0;
+                        const d = new Date(v);
+                        return isNaN(d.getTime()) ? 0 : d.getTime();
+                    };
 
-            // Filtrar
-            proyectos = proyectos.filter(p => {
-                let ok = true;
+                    proyectos.sort((a, b) => parseFecha(b.fecha_creacion) - parseFecha(a.fecha_creacion));
 
-                // Nuevo filtro por ID Proyecto
-                if (filtros.id_proyecto) {
-                    const busq = filtros.id_proyecto.toLowerCase();
-                    ok = ok && (p.id_proyecto || '').toString().toLowerCase().includes(busq);
-                }
 
-                if (filtros.proyecto) {
-                    const busq = filtros.proyecto.toLowerCase();
-                    ok = ok && (
-                        (p.id_proyecto || '').toString().toLowerCase().includes(busq) ||
-                        (p.nombre_proyecto || '').toLowerCase().includes(busq)
-                    );
-                }
-                if (filtros.titular) {
-                    const busq = filtros.titular.toLowerCase();
-                    ok = ok && (p.titular_credito || '').toLowerCase().includes(busq);
-                }
-                if (filtros.nit) {
-                    const busq = filtros.nit.toLowerCase();
-                    ok = ok && (
-                        (p.nit_titular || '').toLowerCase().includes(busq) ||
-                        (p.nit_grupo_riesgo || '').toLowerCase().includes(busq)
-                    );
-                }
+                // Filtrar
+                proyectos = proyectos.filter(p => {
+                    let ok = true;
 
-                return ok;
-            });
+                    // Nuevo filtro por ID Proyecto
+                    if (filtros.id_proyecto) {
+                        const busq = filtros.id_proyecto.toLowerCase();
+                        ok = ok && (p.id_proyecto || '').toString().toLowerCase().includes(busq);
+                    }
 
-            proyectosFiltrados = proyectos; // Guardar filtrados para paginación
-            paginaActual = 1; // Reiniciar página al aplicar filtros
-            renderPagina(userRole);
-            renderPaginacion();
+                    if (filtros.proyecto) {
+                        const busq = filtros.proyecto.toLowerCase();
+                        ok = ok && (
+                            (p.id_proyecto || '').toString().toLowerCase().includes(busq) ||
+                            (p.nombre_proyecto || '').toLowerCase().includes(busq)
+                        );
+                    }
+                    if (filtros.titular) {
+                        const busq = filtros.titular.toLowerCase();
+                        ok = ok && (p.titular_credito || '').toLowerCase().includes(busq);
+                    }
+                    if (filtros.nit) {
+                        const busq = (filtros.nit || '').replace(/\D+/g, ''); // solo dígitos
+                        ok = ok && (
+                            ((p.nit_titular || '').toString().replace(/\D+/g, '')).includes(busq) ||
+                            ((p.nit_grupo_riesgo || '').toString().replace(/\D+/g, '')).includes(busq)
+                        );
+                    }
+                    if (filtros.estado_proyecto) {
+                        const estadoProyecto = String(p.estado || 'sin aprobar').trim().toLowerCase();
+                        const filtroEstado   = filtros.estado_proyecto.trim().toLowerCase();
+                        ok = ok && (estadoProyecto === filtroEstado);
+                    }
+
+                    return ok;
+                });
+
+                proyectosFiltrados = proyectos; // Guardar filtrados para paginación
+                paginaActual = 1; // Reiniciar página al aplicar filtros
+                renderPagina(userRole);
+                renderPaginacion();
+
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire('Error', 'No se pudieron cargar los proyectos', 'error');
+            }
         }
 
 
@@ -2329,40 +2448,51 @@
             pagina.forEach(p => {
                 const datos = {
                     nombre_proyecto: p.nombre_proyecto || 'Proyecto sin nombre',
+                    estado: (p.estado !== undefined && p.estado !== null) ? p.estado : 'sin aprobar',
                     titular: p.titular_credito || 'Sin titular',
                     nit: p.nit_titular || p.nit_grupo_riesgo || 'Sin NIT',
                     arquitecto: p.arquitecto || p.gerente || 'Sin arquitecto',
                     avance: Math.min(Math.max(p.avance || 0, 0), 100),
-                    perito: p.perito || '—',
-                    estado: p.estado || 'Activo'
+                    perito: p.perito || '—'
                 };
-                const puedeEditar = ['admin', 'arquitecto'].includes(userRole);
-                const badge = datos.estado === 'Desistido'
-                    ? '<span class="badge bg-danger">Desistido</span>'
-                    : '<span class="badge bg-success">Activo</span>';
+
+                const puedeEditar = ['admin', 'auxiliar'].includes(userRole);
+
+                // Badge por estado
+                let badge = '';
+                switch ((datos.estado || '').toLowerCase()) {
+                    case 'sin aprobar': badge = '<span class="badge bg-secondary">Sin aprobar</span>'; break;
+                    case 'aprobado sin desembolsar': badge = '<span class="badge bg-primary">Aprobado sin desembolsar</span>'; break;
+                    case 'en preoperativo': badge = '<span class="badge bg-info text-dark">En preoperativo</span>'; break;
+                    case 'en construcción': badge = '<span class="badge bg-warning text-dark">En construcción</span>'; break;
+                    case 'en escrituración': badge = '<span class="badge bg-success">En escrituración</span>'; break;
+                    case 'cancelado': badge = '<span class="badge bg-danger">Cancelado</span>'; break;
+                    default: badge = `<span class="badge bg-light text-dark">${datos.estado}</span>`;
+                }
 
                 tbody.innerHTML += `
-                    <tr>
-                        <td>${datos.nombre_proyecto} ${badge}</td>
-                        <td>${datos.titular}</td>
-                        <td>${datos.nit}</td>
-                        <td>${datos.arquitecto}</td>
-                        <td>
-                            <div class="progress">
-                                <div class="progress-bar" style="width:${datos.avance}%">
-                                    ${datos.avance}%
-                                </div>
+                <tr>
+                    <td>${datos.nombre_proyecto}</td>
+                    <td>${badge}</td> <!-- Estado -->
+                    <td>${datos.titular}</td>
+                    <td>${datos.nit}</td>
+                    <td>${datos.arquitecto}</td>
+                    <td>
+                        <div class="progress">
+                            <div class="progress-bar" style="width:${datos.avance}%">
+                                ${datos.avance}%
                             </div>
-                        </td>
-                        <td>${datos.perito}</td>
-                        <td>
-                            <div class="acciones-container">
-                                <button class="btn btn-accion btn-accion-primary"
-                                        onclick="verProyecto('${p.id_proyecto}')"
-                                        data-bs-toggle="tooltip" title="Ver detalles">
-                                    <i class="fas fa-eye"></i> Ver
-                                </button>
-                                ${puedeEditar ? `
+                        </div>
+                    </td>
+                    <td>${datos.perito}</td>
+                    <td>
+                        <div class="acciones-container">
+                            <button class="btn btn-accion btn-accion-primary"
+                                    onclick="verProyecto('${p.id_proyecto}')"
+                                    data-bs-toggle="tooltip" title="Ver detalles">
+                                <i class="fas fa-eye"></i> Ver
+                            </button>
+                            ${puedeEditar ? `
                                 <button class="btn btn-accion btn-accion-secondary"
                                         onclick="editarProyecto('${p.id_proyecto}')"
                                         data-bs-toggle="tooltip" title="Editar proyecto">
@@ -2424,13 +2554,6 @@
                                             </button>
                                         </li>
                                         <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <button class="dropdown-item text-danger"
-                                                    onclick="eliminarProyecto('${p.id_proyecto}')">
-                                                <i class="fas fa-trash-alt me-2"></i>
-                                                Eliminar Proyecto
-                                            </button>
-                                        </li>
                                     </ul>
                                 </div>
                                 ` : ''}

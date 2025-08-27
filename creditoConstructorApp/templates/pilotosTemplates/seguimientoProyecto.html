@@ -908,7 +908,47 @@
             </div>
         </div>
     </div> 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+<script>
+// Fallback: definir helpers si por alguna razon no existen (insertado por ChatGPT)
+if (typeof safeSetItem !== 'function') {
+  function safeSetItem(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+      console.warn('safeSetItem fallo para', key, e);
+    }
+  }
+}
+if (typeof safeEntries !== 'function') {
+  function safeEntries(obj) {
+    if (!obj || typeof obj !== 'object') return [];
+    return Object.entries(obj);
+  }
+}
+if (typeof safeArray !== 'function') {
+  function safeArray(arr) {
+    return Array.isArray(arr) ? arr : [];
+  }
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js">
+// helpers añadidos por ChatGPT: safeSetItem y safeEntries
+function safeSetItem(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.warn('safeSetItem fallo para', key, e);
+  }
+}
+function safeEntries(obj) {
+  if (!obj || typeof obj !== 'object') return [];
+  return safeEntries(obj);
+}
+function safeArray(arr) {
+  return Array.isArray(arr) ? arr : [];
+}
+</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -920,6 +960,38 @@
         let constructorHabilitado = false;
         let tooltipPreoperativo = null;
         let tooltipConstructor = null;
+        let proyectos = [];
+        let appData = {
+            seguimientos: [],
+            historialVentas: [],
+            historialVisitas: [],
+            historialDesembolsos: [],
+            historialDesembolsosDiarios: [],
+            historialComentarios: []
+        };
+
+        // ===== INICIALIZACIÓN (carga inicial de datos) =====
+        async function inicializarDatos() {
+            try {
+                [proyectos, appData] = await Promise.all([
+                    obtenerProyectos(),
+                    obtenerAppData()
+                ]);
+                
+                // Inicializar variables con los datos obtenidos
+                window.proyectos = proyectos;
+                window.appData = appData;
+                
+                // Continuar con la inicialización de la UI
+                cargarProyectosEnSelector();
+                renderSeguimientos();
+                configurarBotonesDesembolsos();
+                validarHabilitacionDesembolsos();
+            } catch (error) {
+                console.error('Error inicializando datos:', error);
+                mostrarErrorModal("Error al inicializar datos: " + error.message);
+            }
+        }
         // Mapeo completo de campos para ambos formatos
         const mapeoCamposVisitas = {
             // Campos comunes (compartidos entre ambos formatos)
@@ -1188,27 +1260,80 @@
             renderSeguimientos();
         });
     
-        // Función corregida cargarProyectosEnSelector
-        function cargarProyectosEnSelector() {
-            const selector = document.getElementById('selectorProyecto');
-            if (!selector) return;
-            
-            selector.innerHTML = '<option value="">Seleccione un proyecto...</option>';
-            const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
-
-            proyectos.forEach(proyecto => {
-                if (!proyecto.id_proyecto || !proyecto.nombre_proyecto) {
-                    console.error("Proyecto inválido:", proyecto);
+        // Version robusta de cargarProyectosEnSelector
+        async function cargarProyectosEnSelector() {
+            try {
+                const selector = document.getElementById('selectorProyecto');
+                if (!selector) {
+                    console.warn('Selector no encontrado: #selectorProyecto');
                     return;
                 }
 
-                const option = document.createElement('option');
-                option.value = proyecto.id_proyecto;
-                option.textContent = proyecto.nombre_proyecto;
-                option.dataset.totalUnidades = proyecto.total_inmuebles || 0;
-                selector.appendChild(option);
-            });
+                // Inicializar contenido del select
+                selector.innerHTML = '<option value="">Seleccione un proyecto...</option>';
+
+                // Asegurarnos de tener la lista de proyectos: preferir window.proyectos, fallback a localStorage, fallback a fetch
+                let lista = Array.isArray(window.proyectos) ? window.proyectos.slice() : null;
+
+                if (!Array.isArray(lista) || lista.length === 0) {
+                    try {
+                        const fromLS = JSON.parse(localStorage.getItem('proyectos') || 'null');
+                        if (Array.isArray(fromLS) && fromLS.length > 0) lista = fromLS.slice();
+                    } catch (e) {
+                        console.warn('Error parseando proyectos desde localStorage', e);
+                    }
+                }
+
+                // Si aun no hay proyectos, pedir al backend
+                if (!Array.isArray(lista) || lista.length === 0) {
+                    try {
+                        const resp = await fetch('/api/proyectos');
+                        if (resp.ok) {
+                            const data = await resp.json();
+                            // backend puede devolver {proyectos: [...]} o directamente [...]
+                            if (Array.isArray(data)) lista = data;
+                            else if (data && Array.isArray(data.proyectos)) lista = data.proyectos;
+                            else lista = [];
+                            // guardar en window y localStorage para consistencia
+                            window.proyectos = lista;
+                            try { localStorage.setItem('proyectos', JSON.stringify(lista)); } catch {}
+                        } else {
+                            console.error('Error al obtener /api/proyectos:', resp.status);
+                            lista = [];
+                        }
+                    } catch (e) {
+                        console.error('Fetch /api/proyectos fallo:', e);
+                        lista = [];
+                    }
+                }
+
+                // Normalizar y poblar el select
+                lista.forEach(proyecto => {
+                    if (!proyecto || typeof proyecto !== 'object') return;
+                    // soportar id_proyecto o id, y nombre_proyecto o nombre
+                    const id = String(proyecto.id_proyecto ?? proyecto.id ?? '').trim();
+                    const nombre = proyecto.nombre_proyecto ?? proyecto.nombre ?? proyecto.titulo ?? 'Sin nombre';
+                    if (!id) {
+                        console.warn('Proyecto sin id encontrado, se ignora', proyecto);
+                        return;
+                    }
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = String(nombre);
+                    option.dataset.totalUnidades = proyecto.total_inmuebles ?? proyecto.totalUnidades ?? 0;
+                    selector.appendChild(option);
+                });
+
+                // (opcional) mantener la seleccion previa si existe
+                const seleccionadoPrevio = selector.getAttribute('data-selected') || selector.dataset.selected || '';
+                if (seleccionadoPrevio) selector.value = seleccionadoPrevio;
+
+                console.log('Selector cargado con', selector.options.length - 1, 'proyectos');
+            } catch (err) {
+                console.error('Error en cargarProyectosEnSelector:', err);
+            }
         }
+
     
         function mostrarFormulario(editar = false, index = -1) {
             form.reset();
@@ -1243,7 +1368,8 @@
             });
         }
     
-        function guardarSeguimiento() {
+        // Función para guardar seguimiento
+        async function guardarSeguimiento() {
             const proyectoId = document.getElementById('selectorProyecto').value;
             
             if (!proyectoId) {
@@ -1257,27 +1383,29 @@
             }
 
             const nuevoSeguimiento = {
-                id: editandoIndex !== -1 ? seguimientos[editandoIndex].id : Date.now(),
+                id: editandoIndex !== -1 ? appData.seguimientos[editandoIndex].id : Date.now(),
                 proyectoId,
                 titulo: campos.titulo.value.trim(),
                 tipo: campos.tipo.value,
                 estado: campos.estado.value,
                 contenido: campos.contenido.value.trim(),
                 usuario: "{{ session.usuario.nombre }}",
-                fecha: obtenerFechaLocalISO(campos.fecha.value), // Usar función de formateo
+                fecha: obtenerFechaLocalISO(campos.fecha.value),
             };
 
             if (editandoIndex !== -1) {
-                seguimientos[editandoIndex] = nuevoSeguimiento;
+                appData.seguimientos[editandoIndex] = nuevoSeguimiento;
             } else {
-                seguimientos.push(nuevoSeguimiento);
+                appData.seguimientos.push(nuevoSeguimiento);
             }
 
-            localStorage.setItem('seguimientos', JSON.stringify(seguimientos));
-            renderSeguimientos();
-            ocultarFormulario();
+            // Guardar en backend en lugar de localStorage
+            const resultado = await guardarAppData(appData);
+            if (resultado.success) {
+                renderSeguimientos();
+                ocultarFormulario();
+            }
         }
-        
     
         function confirmarEliminacion(index) {
             const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
@@ -1404,7 +1532,7 @@
         }
 
         // Función para cargar seguimientos (Actualizada)
-        function cargarSeguimientos() {
+        async function cargarSeguimientos() {
             const proyectoId = String(document.getElementById('selectorProyecto').value);
             renderSeguimientos();
             pintarComentarios(proyectoId);
@@ -1412,10 +1540,11 @@
             // Validar desembolsos cuando se cargan seguimientos
             validarHabilitacionDesembolsos();
         }
-        // Función para eliminar con modal
-        function eliminarPorId(id) {
+
+        // Función para eliminar seguimiento
+        async function eliminarPorId(id) {
             const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
-            const seguimiento = seguimientos.find(seg => seg.id === id);
+            const seguimiento = appData.seguimientos.find(seg => seg.id === id);
             
             document.getElementById('confirmModalBody').innerHTML = `
                 <p>¿Está seguro de eliminar el seguimiento:</p>
@@ -1423,11 +1552,15 @@
                 <p>Esta acción no se puede deshacer</p>
             `;
             
-            document.getElementById('confirmActionBtn').onclick = () => {
-                seguimientos = seguimientos.filter(seg => seg.id !== id);
-                localStorage.setItem('seguimientos', JSON.stringify(seguimientos));
-                renderSeguimientos();
-                modal.hide();
+            document.getElementById('confirmActionBtn').onclick = async () => {
+                appData.seguimientos = appData.seguimientos.filter(seg => seg.id !== id);
+                
+                // Guardar en backend en lugar de localStorage
+                const resultado = await guardarAppData(appData);
+                if (resultado.success) {
+                    renderSeguimientos();
+                    modal.hide();
+                }
             };
             
             modal.show();
@@ -1435,8 +1568,8 @@
 
         // Función para filtrar (Actualizada)
         function seguimientosFiltradosPorProyecto() {
-            const proyectoId = String(document.getElementById('selectorProyecto').value); // <- Comparar como strings
-            return seguimientos.filter(s => String(s.proyectoId) === proyectoId);
+            const proyectoId = String(document.getElementById('selectorProyecto').value);
+            return appData.seguimientos.filter(s => String(s.proyectoId) === proyectoId);
         }
     
         function getEstadoColor(estado) {
@@ -1721,7 +1854,7 @@
                 estado: validacionFecha
             };
 
-            Object.entries(mapeoCampos).forEach(([clave, config]) => {
+            safeEntries(mapeoCampos).forEach(([clave, config]) => {
                 if (clave === "TOTAL ESPERADO VENTAS") {
                     const celda = hoja[config.celda];
                     datos.campos[clave] = {
@@ -1860,94 +1993,144 @@
             return null;
         }
 
-        // Modificar la función guardarDatosVentas para habilitar desembolsos
-        function guardarDatosVentas(datos) {
-            const historial = JSON.parse(localStorage.getItem('historialVentas') || '[]');
-            const usuario = document.querySelector('#responsable-input').value;
-            
-            const nuevaVenta = {
-                proyectoId: datos.proyectoId,
-                proyectoNombre: datos.proyectoNombre,
-                campos: datos.campos,
-                usuario: usuario,
-                fechaCarga: new Date().toISOString()
-            };
-
-            historial.push(nuevaVenta);
-            localStorage.setItem('historialVentas', JSON.stringify(historial));
-            
-            // Validar condiciones después de guardar ventas
-            const resultadoPreoperativo = validarCondicionesDesembolsoPreoperativo(nuevaVenta);
-            const resultadoConstructor = validarCondicionesDesembolsoConstructor(nuevaVenta);
-            
-            // Mostrar mensaje de éxito
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    title: '¡Datos guardados!',
-                    text: 'La información de ventas se ha almacenado correctamente',
-                    icon: 'success',
-                    confirmButtonText: 'Aceptar'
-                }).then(() => {
-                    // Mostrar mensajes adicionales sobre el estado de las condiciones
-                    let mensajesAdicionales = [];
-                    
-                    if (!resultadoPreoperativo.cumplidas && resultadoPreoperativo.mensajes.length > 0) {
-                        mensajesAdicionales.push('Preoperativo: ' + resultadoPreoperativo.mensajes.join('; '));
-                    }
-                    
-                    if (!resultadoConstructor.cumplidas && resultadoConstructor.mensajes.length > 0) {
-                        mensajesAdicionales.push('Constructor: ' + resultadoConstructor.mensajes.join('; '));
-                    }
-                    
-                    if (mensajesAdicionales.length > 0) {
-                        Swal.fire({
-                            title: 'Condiciones no cumplidas',
-                            html: 'El informe de ventas no cumple con todas las condiciones para habilitar desembolsos:<br><br>' + 
-                                mensajesAdicionales.join('<br><br>'),
-                            icon: 'warning',
-                            confirmButtonText: 'Entendido'
-                        });
-                    } else if (resultadoPreoperativo.cumplidas || resultadoConstructor.cumplidas) {
-                        let mensajesExito = [];
-                        
-                        if (resultadoPreoperativo.cumplidas) {
-                            mensajesExito.push('Desembolso preoperativo habilitado');
-                        }
-                        
-                        if (resultadoConstructor.cumplidas) {
-                            mensajesExito.push('Desembolso constructor habilitado');
-                        }
-                        
-                        Swal.fire({
-                            title: '¡Condiciones cumplidas!',
-                            text: mensajesExito.join(' y '),
-                            icon: 'success',
-                            confirmButtonText: 'Continuar'
-                        });
-                    }
-                });
-            }
-            
-            // Cerrar modal de confirmación
-            const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
-            if (confirmModal) {
-                confirmModal.hide();
-            }
-            
-            // Ocultar formulario de carga
-            ocultarFormCargaVentas();
-            
-            // Generar Excel (con protección contra errores)
+        // Función para guardar datos de ventas
+        async function guardarDatosVentas(datos) {
             try {
-                const proyectos = JSON.parse(localStorage.getItem('proyectos') || '[]');
-                generarExcel(proyectos, usuario);
-            } catch (error) {
-                console.error("Error al generar Excel:", error);
-                // No mostrar error al usuario para no interrumpir el flujo
+                // asegurar appData en window
+                window.appData = window.appData || {
+                    seguimientos: [],
+                    historialVentas: [],
+                    historialVisitas: [],
+                    historialDesembolsos: [],
+                    historialDesembolsosDiarios: [],
+                    historialComentarios: []
+                };
+                window.appData.historialVentas = window.appData.historialVentas || [];
+
+                const usuario = document.querySelector('#responsable-input')?.value || 'sin_usuario';
+
+                const nuevaVenta = {
+                    proyectoId: datos.proyectoId,
+                    proyectoNombre: datos.proyectoNombre,
+                    campos: datos.campos,
+                    usuario: usuario,
+                    fechaCarga: new Date().toISOString()
+                };
+
+                // push local (memoria)
+                window.appData.historialVentas.push(nuevaVenta);
+
+                // actualizar cache local inmediatamente para UX
+                try {
+                    localStorage.setItem('appData', JSON.stringify(window.appData));
+                    localStorage.setItem('historialVentas', JSON.stringify(window.appData.historialVentas));
+                } catch (e) {
+                    console.warn('No se pudo guardar cache en localStorage:', e);
+                }
+
+                // Guardar en backend (PUT /api/appData)
+                const result = await guardarAppData(window.appData);
+
+                // manejar respuesta: si falla, avisar pero no interrumpir validaciones UI
+                if (!result || !result.success) {
+                    console.warn('guardarAppData devolvio fallo:', result);
+                    // mostramos aviso no bloqueante
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title: 'Advertencia',
+                            text: 'Los datos se guardaron localmente, pero no se pudo guardar en el servidor. Revisa la conexion o el servidor.',
+                            icon: 'warning',
+                            confirmButtonText: 'Aceptar'
+                        });
+                    }
+                } else {
+                    // si el backend devuelve appData actualizada, sincronizarla
+                    if (result.appData && typeof result.appData === 'object') {
+                        window.appData = result.appData;
+                        window.appData.historialVentas = window.appData.historialVentas || [];
+                        try { localStorage.setItem('appData', JSON.stringify(window.appData)); } catch(e){}
+                    }
+                }
+
+                // Validar condiciones despues de guardar (usa la nueva venta)
+                const resultadoPreoperativo = typeof validarCondicionesDesembolsoPreoperativo === 'function'
+                    ? validarCondicionesDesembolsoPreoperativo(nuevaVenta)
+                    : { cumplidas: false, mensajes: [] };
+
+                const resultadoConstructor = typeof validarCondicionesDesembolsoConstructor === 'function'
+                    ? validarCondicionesDesembolsoConstructor(nuevaVenta)
+                    : { cumplidas: false, mensajes: [] };
+
+                // Mensajes y alertas (misma logica que tenias)
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: '¡Datos guardados!',
+                        text: 'La información de ventas se ha almacenado correctamente',
+                        icon: 'success',
+                        confirmButtonText: 'Aceptar'
+                    }).then(() => {
+                        let mensajesAdicionales = [];
+
+                        if (!resultadoPreoperativo.cumplidas && resultadoPreoperativo.mensajes.length > 0) {
+                            mensajesAdicionales.push('Preoperativo: ' + resultadoPreoperativo.mensajes.join('; '));
+                        }
+                        if (!resultadoConstructor.cumplidas && resultadoConstructor.mensajes.length > 0) {
+                            mensajesAdicionales.push('Constructor: ' + resultadoConstructor.mensajes.join('; '));
+                        }
+
+                        if (mensajesAdicionales.length > 0) {
+                            Swal.fire({
+                                title: 'Condiciones no cumplidas',
+                                html: 'El informe de ventas no cumple con todas las condiciones para habilitar desembolsos:<br><br>' +
+                                    mensajesAdicionales.join('<br><br>'),
+                                icon: 'warning',
+                                confirmButtonText: 'Entendido'
+                            });
+
+                        } else if (resultadoPreoperativo.cumplidas || resultadoConstructor.cumplidas) {
+                            let mensajesExito = [];
+                            if (resultadoPreoperativo.cumplidas) mensajesExito.push('Desembolso preoperativo habilitado');
+                            if (resultadoConstructor.cumplidas) mensajesExito.push('Desembolso constructor habilitado');
+
+                            Swal.fire({
+                                title: '¡Condiciones cumplidas!',
+                                text: mensajesExito.join(' y '),
+                                icon: 'success',
+                                confirmButtonText: 'Continuar'
+                            });
+                        }
+                    });
+                }
+
+                // Cerrar modal de confirmacion (si existe)
+                try {
+                    const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
+                    if (confirmModal) confirmModal.hide();
+                } catch (e) {}
+
+                // Ocultar formulario de carga
+                if (typeof ocultarFormCargaVentas === 'function') ocultarFormCargaVentas();
+
+                // Generar Excel (si tienes la funcion cliente generarExcel)
+                try {
+                    const proyectosCache = window.proyectos || JSON.parse(localStorage.getItem('proyectos') || '[]');
+                    if (typeof generarExcel === 'function') generarExcel(proyectosCache, usuario);
+                } catch (e) {
+                    console.warn('Error al generar Excel (no critico):', e);
+                }
+
+                // Actualizar habilitacion de botones de desembolso (si existe)
+                if (typeof validarHabilitacionDesembolsos === 'function') validarHabilitacionDesembolsos();
+
+                return { success: true, nuevaVenta };
+            } catch (err) {
+                console.error('Error en guardarDatosVentas:', err);
+                // informar al usuario
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ title: 'Error', text: 'No se pudo guardar la venta: ' + (err.message || err), icon: 'error' });
+                }
+                return { success: false, error: String(err) };
             }
-            
-            // Validar habilitación de desembolsos después de guardar
-            validarHabilitacionDesembolsos();
         }
 
         // Funciones para mostrar/ocultar formularios de desembolsos
@@ -2036,7 +2219,7 @@
             const camposRegulares = {};
             const promedios = {};
             
-            Object.entries(datos.campos).forEach(([nombre, info]) => {
+            safeEntries(datos.campos).forEach(([nombre, info]) => {
                 if (nombre.includes('promedio')) {
                     promedios[nombre] = info.valor;
                 } else {
@@ -2045,7 +2228,7 @@
             });
 
             // Generar tabla solo con campos regulares
-            const tabla = Object.entries(camposRegulares).map(([nombre, info]) => {
+            const tabla = safeEntries(camposRegulares).map(([nombre, info]) => {
                 const valorFormateado = formatearValorTabla(nombre, info.valor);
                 
                 // Manejar estado de validación
@@ -2101,32 +2284,58 @@
             btnConfirmar.onclick = null;
             
             // Nuevo evento para guardar definitivamente y generar Excel
-            btnConfirmar.onclick = function() {
-                const usuario = document.querySelector('#responsable-input').value;
-                guardarDatosVentas({
-                    ...datos,
-                    usuario: usuario
-                }); 
-                
-                // Obtener proyectos y usuario
-                const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
-                
-                // Generar el Excel (asegurando que los porcentajes se multipliquen por 100)
-                generarExcel(proyectos, usuario);
-                
-                confirmModal.hide();
-                
-                // Mostrar confirmación adicional
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        title: '¡Datos guardados en la base!',
-                        text: 'La información de ventas se ha almacenado',
-                        icon: 'success'
-                    });
-                } else {
-                    alert('¡Datos guardados correctamente!');
-                }
+            
+btnConfirmar.onclick = async function() {
+    try {
+        btnConfirmar.disabled = true;
+        const usuario = document.querySelector('#responsable-input')?.value || 'sin_usuario';
+        // esperar a que la venta se guarde (merge local + remoto)
+        const resp = await guardarDatosVentas(Object.assign({}, datos, { usuario: usuario }));
+        // obtener proyectos y usuario (desde memoria o localStorage)
+        const proyectos = window.proyectos || JSON.parse(localStorage.getItem('proyectos') || '[]');
+        // asegurar que los historiales esten persistidos antes de generar el Excel
+        if (typeof safeSetItem !== 'function') {
+            window.safeSetItem = function(key, value) {
+                try { localStorage.setItem(key, JSON.stringify(value)); }
+                catch (e) { console.warn('safeSetItem fallo', key, e); }
             };
+        }
+        const historialDesembolsos = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]');
+        const historialDesembolsosDiarios = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
+        const historialComentarios = JSON.parse(localStorage.getItem('historialComentarios') || '[]');
+        safeSetItem('historialDesembolsos', historialDesembolsos);
+        safeSetItem('historialDesembolsosDiarios', historialDesembolsosDiarios);
+        safeSetItem('historialComentarios', historialComentarios);
+        // construir datosProcesados si tu generarExcel los necesita
+        const datosProcesados = (window.appData && window.appData.historialVentas)
+            ? { ventas: window.appData.historialVentas }
+            : null;
+        if (typeof generarExcel === 'function') {
+            if (datosProcesados) generarExcel(proyectos, usuario, datosProcesados);
+            else generarExcel(proyectos, usuario);
+        }
+        try { if (typeof confirmModal !== 'undefined' && confirmModal) confirmModal.hide(); } catch(e){}
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: '¡Datos guardados en la base!',
+                text: 'La informacion de ventas se ha almacenado',
+                icon: 'success'
+            });
+        } else {
+            alert('¡Datos guardados correctamente!');
+        }
+    } catch (err) {
+        console.error('Error en confirmación guardar ventas:', err);
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ title: 'Error', text: 'No se pudo completar la operacion: ' + (err.message || err), icon: 'error' });
+        } else {
+            alert('Error al guardar: ' + (err.message || err));
+        }
+    } finally {
+        try { btnConfirmar.disabled = false; } catch(e){}
+    }
+};
+
 
             confirmModal.show();
         }
@@ -2233,23 +2442,20 @@
             // 1. Crear una copia completa del proyecto original para preservar TODOS los campos
             let proyectoCompleto = {...p};
             
-            // 2. Procesar ventas (solo agregar/actualizar campos, no reemplazar todo)
+            // 2. Procesar ventas (SOLO actualizar si hay valor válido)
             const ventasProyecto = historialVentas.filter(v => v.proyectoId === p.id_proyecto);
             let responsableVenta = '';
             let fechaVenta = '';
-            
+
             if (ventasProyecto.length > 0) {
                 const ultimaVenta = ventasProyecto[ventasProyecto.length - 1];
-                Object.entries(ultimaVenta.campos).forEach(([nombreCampo, infoCampo]) => {
-                    // Usar nombres deseados para campos específicos
+                safeEntries(ultimaVenta.campos).forEach(([nombreCampo, infoCampo]) => {
                     const nombreNormalizado = nombreCampo.toLowerCase().replace(/\s+/g, '_');
                     const nombreFinal = mapeoNombres[nombreNormalizado] || nombreCampo;
                     const key = nombreFinal.toLowerCase().replace(/\s+/g, '_');
                     
-                    // Extraer y formatear el valor del campo
                     let valor = null;
                     if (infoCampo && typeof infoCampo === 'object' && 'valor' in infoCampo) {
-                        // Formatear fechas durante la extracción
                         if (infoCampo.tipo === 'fecha') {
                             valor = formatearFechaDDMMAAAA(infoCampo.valor);
                         } else {
@@ -2259,8 +2465,10 @@
                         valor = infoCampo;
                     }
                     
-                    // Agregar campo al proyecto completo (no reemplazar el objeto)
-                    proyectoCompleto[key] = valor;
+                    // SOLO ACTUALIZAR SI EL VALOR NUEVO ES VÁLIDO Y NO ESTÁ VACÍO
+                    if (valor !== null && valor !== undefined && valor !== '' && valor !== 'N/A') {
+                        proyectoCompleto[key] = valor;
+                    }
                 });
                 
                 responsableVenta = ultimaVenta.usuario || '';
@@ -2268,22 +2476,19 @@
                 fechaVenta = formatearFechaConHora(fechaVenta);
             }
 
-            // 3. Procesar visitas (mismo enfoque)
+            // 3. Procesar visitas (MISMA LÓGICA - solo actualizar si hay valor válido)
             let responsableVisita = '';
             let fechaVisita = '';
             const visitaProyecto = historialVisitas.find(v => v.proyectoId === p.id_proyecto);
-            
+
             if (visitaProyecto) {
-                Object.entries(visitaProyecto.campos).forEach(([nombreCampo, infoCampo]) => {
-                    // Usar nombres deseados para campos específicos
+                safeEntries(visitaProyecto.campos).forEach(([nombreCampo, infoCampo]) => {
                     const nombreNormalizado = nombreCampo.toLowerCase().replace(/\s+/g, '_');
                     const nombreFinal = mapeoNombres[nombreNormalizado] || nombreCampo;
                     const key = nombreFinal.toLowerCase().replace(/\s+/g, '_');
                     
-                    // Extraer y formatear el valor del campo
                     let valor = null;
                     if (infoCampo && typeof infoCampo === 'object' && 'valor' in infoCampo) {
-                        // Formatear fechas durante la extracción
                         if (infoCampo.tipo === 'fecha') {
                             valor = formatearFechaDDMMAAAA(infoCampo.valor);
                         } else {
@@ -2293,8 +2498,10 @@
                         valor = infoCampo;
                     }
                     
-                    // Agregar campo al proyecto completo
-                    proyectoCompleto[key] = valor;
+                    // SOLO ACTUALIZAR SI EL VALOR NUEVO ES VÁLIDO
+                    if (valor !== null && valor !== undefined && valor !== '' && valor !== 'N/A') {
+                        proyectoCompleto[key] = valor;
+                    }
                 });
 
                 responsableVisita = visitaProyecto.usuario || '';
@@ -2302,15 +2509,15 @@
                 fechaVisita = formatearFechaConHora(fechaVisita);
             }
 
-            // 4. PROCESAR DESEMBOLSOS (mismo enfoque)
+            // 4. PROCESAR DESEMBOLSOS (MISMA LÓGICA)
             const desembolsosProyecto = historialDesembolsos.filter(d => d.proyectoId === p.id_proyecto);
             let responsableDesembolso = '';
             let fechaDesembolso = '';
-            
+
             if (desembolsosProyecto.length > 0) {
                 const ultimoDesembolso = desembolsosProyecto[desembolsosProyecto.length - 1];
                 
-                Object.entries(ultimoDesembolso.campos).forEach(([nombreCampo, infoCampo]) => {
+                safeEntries(ultimoDesembolso.campos).forEach(([nombreCampo, infoCampo]) => {
                     const nombreFinal = nombreCampo;
                     const key = nombreFinal.toLowerCase().replace(/\s+/g, '_');
                     
@@ -2321,15 +2528,16 @@
                         valor = infoCampo;
                     }
                     
-                    // Agregar campo al proyecto completo
-                    proyectoCompleto[key] = valor;
+                    // SOLO ACTUALIZAR SI EL VALOR NUEVO ES VÁLIDO
+                    if (valor !== null && valor !== undefined && valor !== '' && valor !== 'N/A') {
+                        proyectoCompleto[key] = valor;
+                    }
                 });
 
                 responsableDesembolso = ultimoDesembolso.usuario || '';
                 fechaDesembolso = ultimoDesembolso.fechaCarga || '';
                 fechaDesembolso = formatearFechaConHora(fechaDesembolso);
             }
-
             // 5) Desembolsos diarios (procesamiento igual)
             const diariosProyectoInSitu = p.desembolsosDiarios && Array.isArray(p.desembolsosDiarios) 
                 ? p.desembolsosDiarios 
@@ -2394,7 +2602,12 @@
             proyectoCompleto.fecha_confirmacion = formatearFechaDDMMAAAA(p.fecha_confirmacion);
             proyectoCompleto.fecha_primera_visita = formatearFechaDDMMAAAA(p.fecha_primera_visita);
             proyectoCompleto.fecha_carga_desembolso = fechaDesembolso;
-            proyectoCompleto.observacion_control = p.observacion_control || 'Sin observaciones';
+            // Preservar observacion_control existente si no viene de nuevas fuentes
+            if (typeof p.observacion_control !== 'string') {
+                p.observacion_control = p.observacion_control || "";
+            }
+            // 🔹 Asegurar que el estado se guarde también en el objeto final
+            proyectoCompleto.estado = p.estado || 'sin aprobar';
 
             // 7. RETORNAR EL PROYECTO COMPLETO CON TODOS LOS CAMPOS
             return proyectoCompleto;
@@ -2461,11 +2674,13 @@
                 'fecha_carga_desembolso',
                 'desembolsos_diarios',
                 'valor_entregado_total',
-                'observacion_control'      
+                'observacion_control',
+                'estado'
+                      
             ];
 
             // Identificar campos numéricos para visitas
-            const camposNumericosVisitas = Object.entries(mapeoCamposVisitas)
+            const camposNumericosVisitas = safeEntries(mapeoCamposVisitas)
                 .filter(([_, config]) => tiposNumericos.includes(config.tipo))
                 .map(([key, _]) => key.toLowerCase().replace(/\s+/g, '_'));
 
@@ -2492,8 +2707,8 @@
                 ...camposNumericosDesembolsos,
                 'valor_entregado_total' 
             ];
-            // Limpiar y formatear datos
-            const proyectosLimpios = proyectosCompletos.map(p => {
+            // En la limpieza final de datos:
+            proyectosLimpios = proyectosCompletos.map(p => {
                 let proyecto = {};
                 KEYS.forEach(key => {
                     if (key === 'condiciones_aprobacion') {
@@ -2503,34 +2718,32 @@
                     } else {
                         let value = p[key];
                         
-                        // Manejar campos numéricos especiales
+                        // --- Limpieza segura: preserva valores existentes y evita 'N/A' ---
+                        if (value === null || value === undefined) {
+                            // si no existe, dejar string vacío para que backend lo maneje
+                            value = '';
+                        }
+                        if (key === 'observacion_control') {
+                            // preserva texto largo (párrafos) tal cual si existe; si no, dejar ''
+                            value = (p.observacion_control && String(p.observacion_control).trim() !== '') 
+                                    ? String(p.observacion_control).replace(/\r\n/g, '\n') 
+                                    : '';
+                        }
+                        // Normalizar numéricos (solo para campos numéricos)
                         if (numericFields.includes(key)) {
-                            if (value === 0 || value === "0" || value === null || value === undefined) {
-                                value = 'N/A';
+                            const numValue = parseFloat(value);
+                            if (isNaN(numValue)) {
+                                value = '';
                             } else {
-                                const numValue = parseFloat(value);
-                                value = isNaN(numValue) ? 'N/A' : numValue;
-                                
-                                // Ajustar porcentajes solo si son números válidos
-                                if ((key.includes('porcentaje') || key.includes('%') || camposPorcentajeVentas.includes(key)) 
+                                value = numValue;
+                                // porcentajes: asegurar escala 0-100
+                                if ((key.includes('porcentaje') || key.includes('%') || camposPorcentajeVentas.includes(key))
                                     && typeof value === 'number') {
-                                    // Ajuste especial para porcentajes de ventas
                                     value = value < 1 ? value * 100 : value;
-                                    
-                                    // Formatear a 2 decimales
                                     value = Math.round(value * 100) / 100;
                                 }
                             }
-                        } else {
-                            // Para campos no numéricos
-                            value = value ?? '';
-                            
-                            // Manejar campos de texto vacíos
-                            if (value === '') {
-                                value = 'N/A';
-                            }
                         }
-                        
                         proyecto[key] = value;
                     }
                 });
@@ -2574,6 +2787,130 @@
             });
         }
 
+        // Función para limpiar y regenerar historiales desde los proyectos actuales
+        function regenerarHistorialesDesdeProyectos() {
+            try {
+                const proyectos = JSON.parse(localStorage.getItem('proyectos') || '[]');
+                
+                // Limpiar historiales existentes
+                localStorage.removeItem('historialVentas');
+                localStorage.removeItem('historialVisitas');
+                localStorage.removeItem('historialDesembolsos');
+                localStorage.removeItem('historialDesembolsosDiarios');
+                localStorage.removeItem('historialComentarios');
+                
+                // Arrays para los nuevos historiales
+                const nuevoHistorialVentas = [];
+                const nuevoHistorialVisitas = [];
+                const nuevoHistorialDesembolsos = [];
+                const nuevoHistorialDesembolsosDiarios = [];
+                const nuevoHistorialComentarios = [];
+                
+                // Procesar cada proyecto para extraer información de historiales
+                proyectos.forEach(proyecto => {
+                    const proyectoId = proyecto.id_proyecto || proyecto.id;
+                    
+                    // Extraer información de ventas si existe
+                    if (proyecto.fecha_ultimo_informe_de_ventas || proyecto.inmuebles_vendidos) {
+                        nuevoHistorialVentas.push({
+                            proyectoId: proyectoId,
+                            proyectoNombre: proyecto.nombre_proyecto,
+                            fecha: proyecto.fecha_ultimo_informe_de_ventas,
+                            inmueblesVendidos: proyecto.inmuebles_vendidos,
+                            porcentajeVentas: proyecto['%_porcentaje_de_ventas_(unidades)'],
+                            valorVentas: proyecto.valor_inmuebles_vendidos,
+                            fechaCarga: new Date().toISOString(),
+                            usuario: 'Sistema (Regenerado)'
+                        });
+                    }
+                    
+                    // Extraer información de visitas si existe
+                    if (proyecto.fecha_visita || proyecto.avance_obra) {
+                        nuevoHistorialVisitas.push({
+                            proyectoId: proyectoId,
+                            proyectoNombre: proyecto.nombre_proyecto,
+                            fechaVisita: proyecto.fecha_visita,
+                            avanceObra: proyecto.avance_obra,
+                            valorInvertido: proyecto.inversion_del_proyecto,
+                            fechaCarga: new Date().toISOString(),
+                            usuario: 'Sistema (Regenerado)'
+                        });
+                    }
+                    
+                    // Extraer información de desembolsos si existe
+                    if (proyecto.valor_entregado || proyecto.valor_por_entregar) {
+                        nuevoHistorialDesembolsos.push({
+                            proyectoId: proyectoId,
+                            proyectoNombre: proyecto.nombre_proyecto,
+                            valorEntregado: proyecto.valor_entregado,
+                            valorPorEntregar: proyecto.valor_por_entregar,
+                            fechaCarga: new Date().toISOString(),
+                            usuario: 'Sistema (Regenerado)'
+                        });
+                    }
+                    
+                    // Extraer información de desembolsos diarios si existe
+                    if (proyecto.desembolsos_diarios && proyecto.desembolsos_diarios !== 'Sin desembolsos diarios') {
+                        // Parsear desembolsos diarios del formato texto
+                        const desembolsosTexto = proyecto.desembolsos_diarios;
+                        const desembolsosMatches = desembolsosTexto.match(/\$\s*[\d,]+(\s*\(\d{2}-\d{2}-\d{4}\))?/g) || [];
+                        
+                        desembolsosMatches.forEach(match => {
+                            const valorMatch = match.match(/\$\s*([\d,]+)/);
+                            const fechaMatch = match.match(/(\d{2}-\d{2}-\d{4})/);
+                            
+                            if (valorMatch) {
+                                nuevoHistorialDesembolsosDiarios.push({
+                                    proyectoId: proyectoId,
+                                    proyectoNombre: proyecto.nombre_proyecto,
+                                    valor: parseFloat(valorMatch[1].replace(/,/g, '')),
+                                    fecha: fechaMatch ? fechaMatch[1] : new Date().toISOString().split('T')[0],
+                                    fechaCarga: new Date().toISOString(),
+                                    usuario: 'Sistema (Regenerado)'
+                                });
+                            }
+                        });
+                    }
+                    
+                    // Extraer información de comentarios si existe
+                    if (proyecto.observacion_control && proyecto.observacion_control !== 'Sin observaciones') {
+                        const lineasComentarios = proyecto.observacion_control.split('\n');
+                        
+                        lineasComentarios.forEach(linea => {
+                            if (linea.trim() && !linea.includes('Sin observaciones')) {
+                                // Intentar parsear el formato de comentario
+                                const usuarioMatch = linea.match(/^([^:]+):/);
+                                const fechaMatch = linea.match(/\((\d{2}-\d{2}-\d{4} \d{2}:\d{2})\)/);
+                                
+                                nuevoHistorialComentarios.push({
+                                    proyectoId: proyectoId,
+                                    proyectoNombre: proyecto.nombre_proyecto,
+                                    comentario: linea,
+                                    usuario: usuarioMatch ? usuarioMatch[1].trim() : 'Usuario desconocido',
+                                    fecha: fechaMatch ? fechaMatch[1] : new Date().toISOString(),
+                                    fechaCarga: new Date().toISOString()
+                                });
+                            }
+                        });
+                    }
+                });
+                
+                // Guardar los nuevos historiales
+                localStorage.setItem('historialVentas', JSON.stringify(nuevoHistorialVentas));
+                localStorage.setItem('historialVisitas', JSON.stringify(nuevoHistorialVisitas));
+                localStorage.setItem('historialDesembolsos', JSON.stringify(nuevoHistorialDesembolsos));
+                localStorage.setItem('historialDesembolsosDiarios', JSON.stringify(nuevoHistorialDesembolsosDiarios));
+                localStorage.setItem('historialComentarios', JSON.stringify(nuevoHistorialComentarios));
+                
+                console.log('Historiales regenerados correctamente');
+                return true;
+                
+            } catch (error) {
+                console.error('Error regenerando historiales:', error);
+                return false;
+            }
+        }
+
         // Manejar envío del formulario
         document.getElementById('form-actividad4').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -2609,7 +2946,7 @@
             const index = proyectos.findIndex(p => p.id_proyecto === idProyecto);
 
             if (index !== -1) {
-                Object.entries(datos).forEach(([key, value]) => {
+                safeEntries(datos).forEach(([key, value]) => {
                     proyectos[index][key] = value;
                 });
             } else {
@@ -3120,7 +3457,7 @@
                         </thead>
                         <tbody>`;
 
-            Object.entries(mapeoCamposVisitas).forEach(([nombreCampo, config]) => {
+            safeEntries(mapeoCamposVisitas).forEach(([nombreCampo, config]) => {
                 const campo = datosProcesados.campos[nombreCampo];
                 let valorFormateado = 'N/A';
 
@@ -3228,7 +3565,7 @@
                 campos: {}
             };
 
-            Object.entries(mapeoCamposVisitas).forEach(([clave, config]) => {
+            safeEntries(mapeoCamposVisitas).forEach(([clave, config]) => {
                 let valor = null;
                 let celdaFuente = 'N/A';
                 let tipoFuente = 'directo';
@@ -3463,48 +3800,78 @@
                 </div>
             `;
             
-            // Asignar contenido al modal
-            document.getElementById('confirmModalDesembolsosBody').innerHTML = contenido;
-            
-            // Mostrar el modal
-            const modal = new bootstrap.Modal(document.getElementById('confirmModalDesembolsos'));
-            modal.show();
-            
-            // Configurar acción del botón Confirmar
-            document.getElementById('confirmActionBtnDesembolsos').onclick = function() {
-                // Aquí iría la lógica para guardar en la base de datos
+        // Asignar contenido al modal
+        document.getElementById('confirmModalDesembolsosBody').innerHTML = contenido;
+        
+        // Mostrar el modal
+        const modal = new bootstrap.Modal(document.getElementById('confirmModalDesembolsos'));
+        modal.show();
+        
+        // Configurar acción del botón Confirmar
+        document.getElementById('confirmActionBtnDesembolsos').onclick = function() {
+            const proyecto = obtenerProyectoActual();
+            const valores = calcularValoresDesembolsos(proyecto);
+            const usuario = document.querySelector('#responsable-input').value;
 
-                // Obtener proyecto y valores calculados
-                const proyecto = obtenerProyectoActual();
-                const valores = calcularValoresDesembolsos(proyecto);
-                const usuario = document.querySelector('#responsable-input').value;
-                 // Guardar en historial de desembolsos
-                guardarDatosDesembolsos({
+            // Guardar en historial de desembolsos
+            guardarDatosDesembolsos({
+                proyectoId: proyecto.id_proyecto,
+                valorEntregado: valores.valorEntregado,
+                valorPorEntregar: valores.valorPorEntregar,
+                formulaA: valores.formulaA,
+                formulaB: valores.formulaB,
+                superavit: valores.superavit,
+                cobertura: valores.cobertura,
+                maximoDesembolsar: valores.maximoDesembolsar,
+                requiereVistoBueno: valores.requiereVistoBueno
+            });
+
+            // === Lógica de cambio de estado ===
+            const estadoAnterior = proyecto.estado || 'sin aprobar';
+            let nuevoEstado = estadoAnterior;
+
+            if (typeof preoperativoHabilitado !== 'undefined' && preoperativoHabilitado) {
+                nuevoEstado = 'en preoperativo';
+            } 
+            if (typeof constructorHabilitado !== 'undefined' && constructorHabilitado) {
+                nuevoEstado = 'en construcción';
+            }
+
+            if (nuevoEstado !== estadoAnterior) {
+                // Actualizar estado en proyecto
+                proyecto.estado = nuevoEstado;
+
+                // === Guardar historial de cambios de estado ===
+                let historialEstados = JSON.parse(localStorage.getItem('historialEstados')) || [];
+                historialEstados.push({
                     proyectoId: proyecto.id_proyecto,
-                    valorEntregado: valores.valorEntregado,
-                    valorPorEntregar: valores.valorPorEntregar,
-                    formulaA: valores.formulaA,
-                    formulaB: valores.formulaB,
-                    superavit: valores.superavit,
-                    cobertura: valores.cobertura,
-                    maximoDesembolsar: valores.maximoDesembolsar,
-                    requiereVistoBueno: valores.requiereVistoBueno
+                    estadoAnterior,
+                    estadoNuevo: nuevoEstado,
+                    usuario: usuario || 'sistema',
+                    fecha: new Date().toISOString()
                 });
+                localStorage.setItem('historialEstados', JSON.stringify(historialEstados));
+            }
 
-                // Obtener proyectos actualizados
-                const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+            // Guardar cambios en proyectos (localStorage)
+            let proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+            proyectos = proyectos.map(p => 
+                p.id_proyecto === proyecto.id_proyecto ? { ...p, estado: proyecto.estado } : p
+            );
+            localStorage.setItem('proyectos', JSON.stringify(proyectos));
 
-                // Generar Excel incluyendo desembolsos
-                generarExcel(proyectos, usuario, null);
-                modal.hide();
-                
-                // Mostrar confirmación
-                Swal.fire({
-                    title: '¡Procesado!',
-                    text: 'Los valores de desembolsos han sido registrados',
-                    icon: 'success'
-                });
-            };
+            // Generar Excel incluyendo estado actualizado
+            generarExcel(proyectos, usuario, null);
+            modal.hide();
+            
+            // Mostrar confirmación
+            Swal.fire({
+                title: '¡Procesado!',
+                html: `Los valores de desembolsos han sido registrados.<br>
+                    Estado actualizado a <b>${proyecto.estado}</b>`,
+                icon: 'success'
+            });
+        };
         }
 
         // Función para calcular todos los valores
@@ -3820,7 +4187,17 @@
                 console.error('Error en guardarDesembolsosDiarios:', err);
                 mostrarErrorModal(`Error al guardar los desembolsos: ${err.message}`);
             }
-        }
+        
+    // --- garantizando persistencia de historiales (añadido por ChatGPT) ---
+    try {
+        safeSetItem('historialDesembolsos', JSON.parse(localStorage.getItem('historialDesembolsos') || '[]'));
+        safeSetItem('historialDesembolsosDiarios', JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]'));
+        safeSetItem('historialVisitas', JSON.parse(localStorage.getItem('historialVisitas') || '[]'));
+        safeSetItem('historialComentarios', JSON.parse(localStorage.getItem('historialComentarios') || '[]'));
+    } catch (e) {
+        console.warn('Error al forzar persistencia de historiales:', e);
+    }
+}
 
         // ==================================================================
         // FUNCIÓN PARA PROCESAR DESEMBOLSOS DIARIOS (OPTIMIZADA)
@@ -4069,159 +4446,143 @@
             document.getElementById('comentario-texto').value = '';
 
             new bootstrap.Modal(modalEl).show();
-            }
+        }
 
-            function guardarComentario() {
-                try {
-                    const modalEl = document.getElementById("modalComentario");
-                    const proyectoIdRaw = modalEl?.dataset?.proyectoId ?? null;
-                    const proyectoId = proyectoIdRaw !== null ? String(proyectoIdRaw).trim() : null;
-                    const comentarioTexto = document.getElementById("comentario-texto").value.trim();
-                    const usuario = document.getElementById("responsable-input")?.value || localStorage.getItem('usuarioActual') || 'Usuario';
+        function guardarComentario() {
+            try {
+                const modalEl = document.getElementById("modalComentario");
+                const proyectoIdRaw = modalEl?.dataset?.proyectoId ?? null;
+                const proyectoId = proyectoIdRaw !== null ? String(proyectoIdRaw).trim() : null;
+                const comentarioTextoRaw = document.getElementById("comentario-texto").value || '';
+                const comentarioTexto = String(comentarioTextoRaw).trim();
+                const usuario = document.getElementById("responsable-input")?.value || localStorage.getItem('usuarioActual') || 'Usuario';
 
-                    if (!proyectoId) {
+                if (!proyectoId) {
                     console.error("guardarComentario: no hay proyectoId en el modal (data-proyecto-id).");
                     alert("Error interno: id de proyecto no encontrado.");
                     return;
-                    }
-                    if (!comentarioTexto) {
+                }
+                if (!comentarioTexto) {
                     document.getElementById("comentario-texto").classList.add("is-invalid");
                     return;
-                    }
-                    document.getElementById("comentario-texto").classList.remove("is-invalid");
+                }
+                document.getElementById("comentario-texto").classList.remove("is-invalid");
 
-                    // --- 1) actualizar historialComentarios ---
-                    let historial = [];
-                    try {
+                // --- safeSetItem global dentro de la funcion ---
+                if (typeof safeSetItem !== 'function') {
+                    window.safeSetItem = function (key, value) {
+                        try {
+                            localStorage.setItem(key, JSON.stringify(value));
+                        } catch (e) {
+                            console.warn('safeSetItem fallo', e);
+                        }
+                    };
+                }
+
+                // --- 1) actualizar historialComentarios ---
+                let historial = [];
+                try {
                     historial = JSON.parse(localStorage.getItem("historialComentarios") || "[]");
                     if (!Array.isArray(historial)) historial = [];
-                    } catch (e) {
-                    console.warn("historialComentarios corrupto. Se inicializa array vacío.", e);
+                } catch {
                     historial = [];
-                    }
+                }
 
-                    const nuevoRegistro = {
+                const nuevoRegistro = {
                     idProyecto: proyectoId,
                     comentario: comentarioTexto,
                     fecha: new Date().toISOString(),
                     usuario
-                    };
-                    historial.push(nuevoRegistro);
-                    localStorage.setItem("historialComentarios", JSON.stringify(historial));
+                };
+                historial.push(nuevoRegistro);
 
-                    // --- 2) construir la observacion_control para el proyecto (un string con saltos) ---
-                    const comentariosProyecto = historial
+                safeSetItem("historialComentarios", historial);
+
+                // --- 2) reconstruir observacion_control (string concatenado) ---
+                const comentariosProyecto = historial
                     .filter(c => String(c.idProyecto).trim() === proyectoId)
                     .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
                     .map(c => {
                         const fechaFmt = new Date(c.fecha).toLocaleString('es-CO', {
-                        day: '2-digit', month: '2-digit', year: 'numeric',
-                        hour: '2-digit', minute: '2-digit'
+                            day: '2-digit', month: '2-digit', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit'
                         });
                         return `${c.usuario}: ${c.comentario} (${fechaFmt})`;
                     })
                     .join('\n');
 
-                    // --- 3) actualizar 'proyectos' en localStorage (defensivo) ---
-                    let proyectos = [];
-                    try {
+                const comentariosProyectoClean = (comentariosProyecto || "")
+                    .replace(/\r\n/g, '\n')
+                    .replace(/\t/g, ' ')
+                    .trim();
+
+                // --- 3) actualizar proyectos ---
+                let proyectos = [];
+                try {
                     proyectos = JSON.parse(localStorage.getItem("proyectos") || "[]");
                     if (!Array.isArray(proyectos)) proyectos = [];
-                    } catch (e) {
-                    console.warn("proyectos corrupto. Se inicializa array vacío.", e);
+                } catch {
                     proyectos = [];
-                    }
-
-                    // Buscamos por varias keys posibles y normalizamos comparación
-                    let encontrado = false;
-                    proyectos = proyectos.map(p => {
-                    const pid1 = (p && p.id_proyecto) ? String(p.id_proyecto).trim() : null;
-                    const pid2 = (p && p.id) ? String(p.id).trim() : null;
-                    if (String(pid1) === proyectoId || String(pid2) === proyectoId) {
-                        encontrado = true;
-                        // Conserva todo lo que tenga 'p' y actualiza observacion_control
-                        return { ...p, observacion_control: comentariosProyecto };
-                    }
-                    return p;
-                    });
-
-                    // Si no se encontró el proyecto, lo agregamos mínimo con id y observacion_control
-                    if (!encontrado) {
-                    proyectos.push({
-                        id_proyecto: proyectoId,
-                        observacion_control: comentariosProyecto
-                    });
-                    }
-
-                    // Guardamos y verificamos
-                    try {
-                    localStorage.setItem("proyectos", JSON.stringify(proyectos));
-                    // Verificación rápida: leer y comparar
-                    const check = JSON.parse(localStorage.getItem("proyectos") || "[]");
-                    const existe = Array.isArray(check) && check.some(pp => {
-                        return (String(pp.id_proyecto || '').trim() === proyectoId) || (String(pp.id || '').trim() === proyectoId);
-                    });
-                    if (!existe) {
-                        console.error("guardarComentario: fallo al verificar guardado en localStorage. check:", check);
-                        alert("No fue posible actualizar el proyecto en localStorage (ver consola).");
-                    }
-                    } catch (e) {
-                    console.error("Error guardando proyectos en localStorage:", e);
-                    alert("Error al guardar datos localmente. Revisa la consola.");
-                    return;
-                    }
-
-                    // --- 4) refrescar UI y generar Excel con proyectos actualizados ---
-                    try { pintarComentarios(proyectoId); } catch (e) { console.warn('pintarComentarios falla:', e); }
-
-                    try {
-                    // pasar proyectos actualizados evita race condition
-                    generarExcel(proyectos, usuario);
-                    } catch (e) {
-                    console.error('Error al llamar generarExcel tras guardar comentario:', e);
-                    }
-
-                    // --- 5) cerrar modal y notificar ---
-                    try { bootstrap.Modal.getInstance(modalEl).hide(); } catch(e){}
-
-                    if (typeof Swal !== 'undefined') {
-                    Swal.fire({ title: 'Comentario guardado', text: 'El comentario fue almacenado correctamente', icon: 'success' });
-                    } else {
-                    alert('Comentario guardado correctamente');
-                    }
-
-                } catch (err) {
-                    console.error("Error inesperado en guardarComentario:", err);
-                    alert("Ocurrió un error al guardar el comentario. Revisa la consola.");
                 }
 
-            }
-
-            function actualizarObservacionControl(proyectoId) {
-            const proyectos = JSON.parse(localStorage.getItem('proyectos') || '[]');
-            const historial = JSON.parse(localStorage.getItem('historialComentarios') || '[]');
-
-            const comentariosProyecto = historial
-                .filter(c => String(c.idProyecto) === String(proyectoId))
-                .sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
-
-            const observacionControl = comentariosProyecto.map(c => {
-                const f = new Date(c.fecha).toLocaleString('es-CO', {
-                day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'
+                const idx = proyectos.findIndex(p => {
+                    const pid1 = p?.id_proyecto ? String(p.id_proyecto).trim() : null;
+                    const pid2 = p?.id ? String(p.id).trim() : null;
+                    return pid1 === proyectoId || pid2 === proyectoId;
                 });
-                return `[${f}] ${c.usuario}: ${c.comentario}`;
-            }).join('\n');
 
-            const proyectosAct = proyectos.map(p => 
-                String(p.id_proyecto) === String(proyectoId)
-                ? { ...p, observacion_control: observacionControl || 'Sin observaciones' }
-                : p
-            );
+                if (idx >= 0) {
+                    proyectos[idx] = {
+                        ...proyectos[idx],
+                        observacion_control: comentariosProyectoClean
+                    };
+                } else {
+                    proyectos.push({
+                        id_proyecto: proyectoId,
+                        observacion_control: comentariosProyectoClean
+                    });
+                }
 
-            localStorage.setItem('proyectos', JSON.stringify(proyectosAct));
+                safeSetItem("proyectos", proyectos);
+
+                // --- 4) refrescar UI ---
+                try { pintarComentarios(proyectoId); } catch (e) { console.warn('pintarComentarios fallo:', e); }
+
+                // --- 5) cerrar modal ---
+                try { bootstrap.Modal.getInstance(modalEl).hide(); } catch (e) {}
+
+                // --- 6) notificar ---
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: 'Comentario guardado',
+                        text: 'El comentario fue almacenado correctamente',
+                        icon: 'success'
+                    });
+                } else {
+                    alert('Comentario guardado correctamente');
+                }
+
+                // --- 7) llamar a generarExcel (actualizacion directa al backend) ---
+                try {
+                    if (typeof generarExcel === "function") {
+                        const proyectosActualizados = JSON.parse(localStorage.getItem("proyectos") || "[]");
+                        generarExcel(proyectosActualizados, usuario);
+                    } else {
+                        console.warn("generarExcel no esta definida en este contexto");
+                    }
+                } catch (e) {
+                    console.error("Error llamando a generarExcel desde guardarComentario:", e);
+                }
+
+            } catch (err) {
+                console.error("Error inesperado en guardarComentario:", err);
+                alert("Ocurrió un error al guardar el comentario. Revisa la consola.");
             }
+        }
 
-            function pintarComentarios(proyectoId) {
+
+
+        function pintarComentarios(proyectoId) {
                 const cont = document.getElementById('listado-comentarios');
                 const sec = document.getElementById('comentariosSection');
                 const btnC = document.getElementById('comentarioContainer');
@@ -4260,25 +4621,25 @@
                     </div>
                     ${htmlComentarios}
                 `;
-            }
+        }
 
             // Función para cerrar la sección de comentarios
-            function cerrarComentarios() {
+        function cerrarComentarios() {
                 const sec = document.getElementById('comentariosSection');
                 if (sec) sec.style.display = 'none';
-            }
+        }
 
             // Helper: obtener el proyecto actualmente seleccionado
-            function getProyectoSeleccionado() {
+        function getProyectoSeleccionado() {
                 const selector = document.getElementById('selectorProyecto');
                 if (!selector || !selector.value) return null;
                 
                 const proyectos = JSON.parse(localStorage.getItem('proyectos') || '[]');
                 return proyectos.find(p => String(p.id_proyecto) === String(selector.value)) || null;
-            }
+        }
 
             
-            function validarHabilitacionDesembolsos() {
+        function validarHabilitacionDesembolsos() {
                 const btnPreoperativo = document.getElementById('btnDesembolsoPreoperativo');
                 const btnConstructor = document.getElementById('btnDesembolsoConstructor');
                 
@@ -4352,7 +4713,7 @@
             }
 
 
-            function validarCondicionesDesembolsoPreoperativo(datosVentas) {
+        function validarCondicionesDesembolsoPreoperativo(datosVentas) {
                 // Obtener el proyecto actual
                 const proyecto = obtenerProyectoActual();
                 if (!proyecto) {
@@ -4398,9 +4759,9 @@
                     cumplidas: condicionesCumplidas,
                     mensajes: mensajes
                 };
-            }
+        }
 
-            function validarCondicionesDesembolsoConstructor(datosVentas) {
+        function validarCondicionesDesembolsoConstructor(datosVentas) {
                 // Obtener el proyecto actual
                 const proyecto = obtenerProyectoActual();
                 if (!proyecto) {
@@ -4630,9 +4991,17 @@
                 }
             }
 
-           // Esperar a que el DOM esté completamente cargado
-            document.addEventListener('DOMContentLoaded', function() {
-                inicializarAplicacion();
+            // ===== INICIALIZACIÓN AL CARGAR LA PÁGINA =====
+            document.addEventListener('DOMContentLoaded', async () => {
+                await inicializarDatos();
+                
+                // Configurar event listeners
+                const selectorProyecto = document.getElementById('selectorProyecto');
+                if (selectorProyecto) {
+                    selectorProyecto.addEventListener('change', function() {
+                        validarHabilitacionDesembolsos();
+                    });
+                }
             });
 
             function inicializarAplicacion() {
@@ -4677,6 +5046,114 @@
                     placement: "top",
                     trigger: "hover"
                 });
+            }
+
+            // Obtener todos los proyectos
+            async function obtenerProyectos() {
+                try {
+                    const response = await fetch('/api/proyectos');
+                    if (!response.ok) throw new Error('Error al obtener proyectos');
+                    return await response.json();
+                } catch (error) {
+                    console.error('Error:', error);
+                    mostrarErrorModal("Error al cargar proyectos: " + error.message);
+                    return [];
+                }
+            }
+
+            // Guardar proyectos
+            async function guardarProyectos(proyectos) {
+                try {
+                    const response = await fetch('/api/proyectos', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(proyectos)
+                    });
+                    
+                    if (!response.ok) throw new Error('Error al guardar proyectos');
+                    return await response.json();
+                } catch (error) {
+                    console.error('Error:', error);
+                    mostrarErrorModal("Error al guardar proyectos: " + error.message);
+                    return {success: false};
+                }
+            }
+
+            async function obtenerAppData() {
+                try {
+                    const resp = await fetch('/api/appData');
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        // Asegurar estructura minima
+                        data.seguimientos = data.seguimientos || [];
+                        data.historialVentas = data.historialVentas || [];
+                        data.historialVisitas = data.historialVisitas || [];
+                        data.historialDesembolsos = data.historialDesembolsos || [];
+                        data.historialDesembolsosDiarios = data.historialDesembolsosDiarios || [];
+                        data.historialComentarios = data.historialComentarios || [];
+                        // guardar cache
+                        try { localStorage.setItem('appData', JSON.stringify(data)); } catch(e){}
+                        return data;
+                    }
+                } catch (err) {
+                    console.warn('GET /api/appData fallo, usando cache:', err);
+                }
+
+                // Fallback: leer localStorage
+                try {
+                    const stored = JSON.parse(localStorage.getItem('appData') || 'null');
+                    if (stored && typeof stored === 'object') {
+                        stored.seguimientos = stored.seguimientos || [];
+                        stored.historialVentas = stored.historialVentas || [];
+                        stored.historialVisitas = stored.historialVisitas || [];
+                        stored.historialDesembolsos = stored.historialDesembolsos || [];
+                        stored.historialDesembolsosDiarios = stored.historialDesembolsosDiarios || [];
+                        stored.historialComentarios = stored.historialComentarios || [];
+                        return stored;
+                    }
+                } catch (e) {
+                    console.error('Error parseando appData desde localStorage', e);
+                }
+
+                // Default
+                return {
+                    seguimientos: [],
+                    historialVentas: [],
+                    historialVisitas: [],
+                    historialDesembolsos: [],
+                    historialDesembolsosDiarios: [],
+                    historialComentarios: []
+                };
+            }
+
+            // Guardar datos de aplicación
+            async function guardarAppData(appDataToSave) {
+                try {
+                    const resp = await fetch('/api/appData', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(appDataToSave)
+                    });
+
+                    if (!resp.ok) {
+                        const texto = await resp.text().catch(()=>null);
+                        console.error('PUT /api/appData fallo:', resp.status, texto);
+                        // fallback: persistir en localStorage como cache
+                        try { localStorage.setItem('appData', JSON.stringify(appDataToSave)); } catch (e) {}
+                        return { success: false, error: `HTTP ${resp.status}` };
+                    }
+
+                    const json = await resp.json().catch(()=>null);
+                    // tambien actualizar cache local
+                    try { localStorage.setItem('appData', JSON.stringify(appDataToSave)); } catch (e) {}
+                    return json || { success: true, appData: appDataToSave };
+                } catch (err) {
+                    console.error('Error guardando appData (network):', err);
+                    try { localStorage.setItem('appData', JSON.stringify(appDataToSave)); } catch (e) {}
+                    return { success: false, error: String(err) };
+                }
             }
 
 
