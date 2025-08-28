@@ -2334,18 +2334,57 @@
         }
     }
 
+    /* ---------- HELPERS ---------- */
+    function normalizarIdProyecto(id) {
+        return id === null || id === undefined ? '' : String(id).trim();
+    }
+
+    /**
+     * Intenta extraer un valor numerico a partir de un objeto `d` buscando
+     * por varias llaves posibles dentro de `d.campos` o en `d` mismo.
+     * keys: array de nombres posibles, en orden de preferencia.
+     * Devuelve number o null si no hay valor valido.
+     */
+    function obtenerValorCampo(d, keys = []) {
+        if (!d) return null;
+        const fuente = d.campos && typeof d.campos === 'object' ? d.campos : d;
+
+        for (const k of keys) {
+            if (fuente.hasOwnProperty(k)) {
+                const v = fuente[k];
+                // Si es string numerica la convertimos
+                if (typeof v === 'string' && v.trim() !== '') {
+                    const n = Number(v.replace(/[^0-9\-\.,]/g, '').replace(',', '.'));
+                    if (!isNaN(n)) return n;
+                }
+                if (typeof v === 'number' && !isNaN(v)) return v;
+                // si es object que envuelve valor
+                if (v && typeof v === 'object' && (v.valor !== undefined || v.value !== undefined)) {
+                    const cand = v.valor !== undefined ? v.valor : v.value;
+                    const n = Number(cand);
+                    if (!isNaN(n)) return n;
+                }
+            }
+        }
+        return null;
+    }
+
     function cargarHistorialDesembolsosDiarios(idProyecto) {
         try {
-            const idStr = String(idProyecto).trim();
+            const idStr = normalizarIdProyecto(idProyecto);
             const historialRaw = localStorage.getItem('historialDesembolsosDiarios') || '[]';
             const historial = JSON.parse(historialRaw);
-            console.log('cargarHistorialDesembolsosDiarios: idProyecto=', idProyecto, 'historial length=', Array.isArray(historial) ? historial.length : 'no-array');
+            console.log('cargarHistorialDesembolsosDiarios -> id:', idStr, 'registros totales:', Array.isArray(historial) ? historial.length : 'no-array');
 
             const desembolsosProyecto = Array.isArray(historial)
-                ? historial.filter(d => String(d.proyectoId).trim() === idStr)
+                ? historial.filter(d => normalizarIdProyecto(d.proyectoId) === idStr)
                 : [];
 
             const tbody = document.querySelector('#tabla-desembolsos tbody');
+            if (!tbody) {
+                console.warn('tabla-desembolsos tbody no encontrada');
+                return;
+            }
             tbody.innerHTML = '';
 
             if (desembolsosProyecto.length === 0) {
@@ -2353,25 +2392,40 @@
                 return;
             }
 
+            // Llaves candidatas en orden de preferencia
+            const keysValorEntregado = ['valorEntregado', 'valor_entregado', 'valorEntregadoCOP', 'valor_entregado_cop', 'valor'];
+            const keysValorPorEntregar = ['valorPorEntregar', 'valor_por_entregar', 'valor_por_entrega', 'valorPendiente', 'valor_por_entregar'];
+            const keysCobertura = ['cobertura', 'porcentajeCobertura', 'cobertura_porcentaje'];
+            const keysSuperavit = ['superavit', 'superávit', 'superavit_cop'];
+
             desembolsosProyecto.forEach((d, index) => {
-                const campos = d.campos || {};
+                const vEntregado = obtenerValorCampo(d, keysValorEntregado) ?? 0;
+                const vPorEntregar = obtenerValorCampo(d, keysValorPorEntregar) ?? 0;
+                let coberturaVal = obtenerValorCampo(d, keysCobertura);
+                if (coberturaVal === null) {
+                    // si no existe cobertura, intentar calcularla si hay totales disponibles
+                    // (evita mostrar NaN)
+                    coberturaVal = 0;
+                }
+                const superavitVal = obtenerValorCampo(d, keysSuperavit) ?? 0;
+
                 tbody.innerHTML += `
                     <tr>
                         <td>${index + 1}</td>
-                        <td>${formatFecha(d.fechaCarga)}</td>
-                        <td>${d.usuario || 'N/A'}</td>
-                        <td>${formatCurrency(campos.valorEntregado || campos.valor_entregado || 0)}</td>
-                        <td>${formatCurrency(campos.valorPorEntregar || campos.valor_por_entregar || 0)}</td>
-                        <td>${((campos.cobertura || 0)).toFixed ? (campos.cobertura || 0).toFixed(2) + '%' : (campos.cobertura || 0) + '%'}</td>
-                        <td>${formatCurrency(campos.superavit || campos.superavit || 0)}</td>
-                        <td>${campos.requiereVistoBueno ? 'Sí' : 'No'}</td>
+                        <td>${formatFecha(d.fechaCarga || d.fecha || d.createdAt)}</td>
+                        <td>${d.usuario || d.usuarioCreacion || 'N/A'}</td>
+                        <td>${formatCurrency(vEntregado)}</td>
+                        <td>${formatCurrency(vPorEntregar)}</td>
+                        <td>${(Number(coberturaVal) || 0).toFixed(2)}%</td>
+                        <td>${formatCurrency(superavitVal)}</td>
+                        <td>${(d.campos && (d.campos.requiereVistoBueno || d.campos.requiere_visto_bueno)) ? 'Sí' : (d.requiereVistoBueno || d.requiere_visto_bueno ? 'Sí' : 'No')}</td>
                     </tr>
                 `;
             });
         } catch (error) {
             console.error('Error cargando desembolsos:', error);
             const tbody = document.querySelector('#tabla-desembolsos tbody');
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar desembolsos</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar desembolsos</td></tr>';
         }
     }
 
@@ -2379,28 +2433,24 @@
     // Función mejorada para mostrar el historial
     function mostrarHistorial(idProyecto) {
         try {
-            // Obtener historiales desde localStorage
+            const idStr = normalizarIdProyecto(idProyecto);
             const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
             const historialVisitas = JSON.parse(localStorage.getItem('historialVisitas') || '[]');
             const historialDesembolsos = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
-            
-            // Filtrar por proyecto
-            const ventasProyecto = historialVentas.filter(v => v.proyectoId == idProyecto);
-            const visitasProyecto = historialVisitas.filter(v => v.proyectoId == idProyecto);
-            const desembolsosProyecto = historialDesembolsos.filter(d => d.proyectoId == idProyecto);
-            
-            // Verificar si hay datos
+
+            const ventasProyecto = Array.isArray(historialVentas) ? historialVentas.filter(v => normalizarIdProyecto(v.proyectoId) === idStr) : [];
+            const visitasProyecto = Array.isArray(historialVisitas) ? historialVisitas.filter(v => normalizarIdProyecto(v.proyectoId) === idStr) : [];
+            const desembolsosProyecto = Array.isArray(historialDesembolsos) ? historialDesembolsos.filter(d => normalizarIdProyecto(d.proyectoId) === idStr) : [];
+
             if (ventasProyecto.length === 0 && visitasProyecto.length === 0 && desembolsosProyecto.length === 0) {
-                Swal.fire({
-                    title: 'Historial vacío',
-                    text: 'Este proyecto no tiene registros de ventas, visitas ni desembolsos',
-                    icon: 'info',
-                    confirmButtonText: 'Entendido'
-                });
+                Swal.fire({ title: 'Historial vacío', text: 'No hay historial disponible para este proyecto', icon: 'info' });
                 return;
             }
-            
-            // Cargar datos en las tablas
+
+            // Ocultar contenidos y elegir que mostrar por prioridad (ventas>visitas>desembolsos)
+            document.querySelectorAll('.historial-contenido').forEach(c => c.style.display = 'none');
+            document.querySelectorAll('[data-tipo]').forEach(b => b.classList.remove('active'));
+
             if (ventasProyecto.length > 0) {
                 cargarHistorialVentas(idProyecto);
                 document.querySelector('[data-tipo="ventas"]').classList.add('active');
@@ -2409,17 +2459,19 @@
                 cargarHistorialVisitas(idProyecto);
                 document.querySelector('[data-tipo="visitas"]').classList.add('active');
                 document.getElementById('contenido-visitas').style.display = 'block';
-            } else if (desembolsosProyecto.length > 0) {
+            } else {
                 cargarHistorialDesembolsosDiarios(idProyecto);
                 document.querySelector('[data-tipo="desembolsos"]').classList.add('active');
                 document.getElementById('contenido-desembolsos').style.display = 'block';
             }
-            
-            // Mostrar modal
+
             const modal = document.getElementById('historialModal');
-            modal.dataset.proyectoId = idProyecto;
-            new bootstrap.Modal(modal).show();
-            
+            if (modal) {
+                modal.dataset.proyectoId = idProyecto;
+                new bootstrap.Modal(modal).show();
+            } else {
+                console.warn('mostrarHistorial: modalHistorial no encontrado');
+            }
         } catch (error) {
             console.error('Error mostrando historial:', error);
             Swal.fire('Error', 'No se pudo cargar el historial', 'error');
@@ -2829,89 +2881,61 @@
         // Función para generar contenido de desembolsos en PDF (síncrona ahora)
         function generarContenidoDesembolsosPDF(proyecto) {
             try {
-                const historial = JSON.parse(localStorage.getItem('historialDesembolsosDiarios')) || [];
-                const desembolsosProyecto = historial.filter(d => d.proyectoId === proyecto.id_proyecto);
-                
-                // Verificar si hay datos
+                const historial = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
+                const idStr = normalizarIdProyecto(proyecto.id_proyecto || proyecto.proyectoId || proyecto.id);
+                const desembolsosProyecto = Array.isArray(historial) ? historial.filter(d => normalizarIdProyecto(d.proyectoId) === idStr) : [];
+                console.log('generarContenidoDesembolsosPDF -> proyecto id:', idStr, 'encontrados:', desembolsosProyecto.length);
+
                 if (desembolsosProyecto.length === 0) {
                     return `
                         <div style="font-family: Arial, sans-serif; padding: 20px;">
                             <h1 style="text-align: center; color: #004884;">Historial de Desembolsos</h1>
-                            <h2 style="text-align: center;">${proyecto.nombre_proyecto}</h2>
+                            <h2 style="text-align: center;">${proyecto.nombre_proyecto || proyecto.nombre || ''}</h2>
                             <p style="text-align: center; color: red; margin-top: 50px;">
                                 No hay datos de desembolsos disponibles para este proyecto
-                            </p>
-                            <p style="text-align: right; margin-top: 30px; font-size: 0.8em;">
-                                Generado el ${new Date().toLocaleDateString('es-CO', { 
-                                    year: 'numeric', 
-                                    month: 'long', 
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                })}
                             </p>
                         </div>
                     `;
                 }
 
-                const rows = desembolsosProyecto.map(d => {
-                    const campos = d.campos || {};
-                    const valorEntregado = campos.valorEntregado || 0;
-                    const valorPorEntregar = campos.valorPorEntregar || 0;
-                    const cobertura = campos.cobertura || 0;
-                    const superavit = campos.superavit || 0;
-                    const requiereVistoBueno = campos.requiereVistoBueno ? 'Sí' : 'No';
-
+                const rows = desembolsosProyecto.map((d, idx) => {
+                    const vEntregado = obtenerValorCampo(d, ['valorEntregado','valor_entregado','valor','valorEntregadoCOP']) ?? 0;
+                    const vPorEntregar = obtenerValorCampo(d, ['valorPorEntregar','valor_por_entregar','valorPendiente']) ?? 0;
+                    const cobertura = obtenerValorCampo(d, ['cobertura','porcentajeCobertura']) ?? 0;
+                    const superavit = obtenerValorCampo(d, ['superavit','superávit']) ?? 0;
                     return `
                         <tr>
-                            <td style="padding: 6px; border: 1px solid #ddd;">${formatFecha(d.fechaCarga)}</td>
-                            <td style="padding: 6px; border: 1px solid #ddd;">${d.usuario || 'N/A'}</td>
-                            <td style="padding: 6px; border: 1px solid #ddd; text-align: right;">${formatCurrency(valorEntregado)}</td>
-                            <td style="padding: 6px; border: 1px solid #ddd; text-align: right;">${formatCurrency(valorPorEntregar)}</td>
-                            <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${cobertura.toFixed(2)}%</td>
-                            <td style="padding: 6px; border: 1px solid #ddd; text-align: right;">${formatCurrency(superavit)}</td>
-                            <td style="padding: 6px; border: 1px solid #ddd; text-align: center;">${requiereVistoBueno}</td>
+                            <td>${idx + 1}</td>
+                            <td>${formatFecha(d.fechaCarga || d.fecha || d.createdAt)}</td>
+                            <td>${d.usuario || d.usuarioCreacion || 'N/A'}</td>
+                            <td>${formatCurrency(vEntregado)}</td>
+                            <td>${formatCurrency(vPorEntregar)}</td>
+                            <td>${(Number(cobertura) || 0).toFixed(2)}%</td>
+                            <td>${formatCurrency(superavit)}</td>
+                            <td>${(d.campos && (d.campos.requiereVistoBueno || d.campos.requiere_visto_bueno)) ? 'Si' : (d.requiereVistoBueno || d.requiere_visto_bueno ? 'Si' : 'No')}</td>
                         </tr>
                     `;
                 }).join('');
 
                 return `
-                    <div style="font-family: Arial, sans-serif; padding: 20px; width: 100%;">
+                    <div style="font-family: Arial, sans-serif; padding: 20px;">
                         <h1 style="text-align: center; color: #004884;">Historial de Desembolsos</h1>
-                        <h2 style="text-align: center;">${proyecto.nombre_proyecto}</h2>
-                        <p style="text-align: center;">${proyecto.direccion || ''}</p>
-                        
-                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                        <h2 style="text-align: center;">${proyecto.nombre_proyecto || proyecto.nombre || ''}</h2>
+                        <table style="width:100%; border-collapse: collapse; margin-top: 20px;">
                             <thead>
-                                <tr style="background-color: #004884; color: white;">
-                                    <th style="padding: 8px; border: 1px solid #ddd;">Fecha</th>
-                                    <th style="padding: 8px; border: 1px solid #ddd;">Usuario</th>
-                                    <th style="padding: 8px; border: 1px solid #ddd;">Valor Entregado</th>
-                                    <th style="padding: 8px; border: 1px solid #ddd;">Valor por Entregar</th>
-                                    <th style="padding: 8px; border: 1px solid #ddd;">Cobertura</th>
-                                    <th style="padding: 8px; border: 1px solid #ddd;">Superávit</th>
-                                    <th style="padding: 8px; border: 1px solid #ddd;">Visto Bueno</th>
+                                <tr style="background:#eee;">
+                                    <th>#</th><th>Fecha</th><th>Usuario</th><th>Valor Entregado</th><th>Valor por Entregar</th><th>Cobertura</th><th>Superavit</th><th>Visto Bueno</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${rows}
                             </tbody>
                         </table>
-                        
-                        <p style="text-align: right; margin-top: 30px; font-size: 0.8em;">
-                            Generado el ${new Date().toLocaleDateString('es-CO', { 
-                                year: 'numeric', 
-                                month: 'long', 
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            })}
-                        </p>
                     </div>
                 `;
             } catch (error) {
                 console.error('Error generando contenido de desembolsos:', error);
-                return generarErrorPDF('desembolsos', error.message);
+                return generarErrorPDF('desembolsos', error.message || error.toString());
             }
         }
 
