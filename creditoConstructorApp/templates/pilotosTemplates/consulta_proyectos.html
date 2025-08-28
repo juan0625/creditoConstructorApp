@@ -1916,7 +1916,14 @@
                     return;
                 }
 
-                const proyecto = result.proyecto;
+                let proyecto = result.proyecto;
+
+                // 🔹 Override con datos de localStorage (si existen)
+                const proyectosLocal = JSON.parse(localStorage.getItem('proyectos') || '[]');
+                const override = proyectosLocal.find(p => p.id_proyecto === id);
+                if (override) {
+                    proyecto = { ...proyecto, ...override };
+                }
 
                 // 2. Obtener avance: primero historialVisitas, si no existe fallback a la propiedad en proyecto
                 const avanceDesdeVisitas = (typeof obtenerAvanceProyecto === 'function') ? obtenerAvanceProyecto(id) : null;
@@ -1924,7 +1931,7 @@
                 const avanceNumero = Number(avanceDesdeVisitas ?? avanceFallback) || 0;
                 const avanceNormalized = Math.min(Math.max(avanceNumero, 0), 100);
 
-                // 3. Construir contenido dinamico (usamos avanceNormalized)
+                // 3. Construir contenido dinámico
                 const contenidoHTML = `
                     <div class="container-fluid">
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -1957,64 +1964,20 @@
                             </div>
                         </div>
 
-                        ${proyecto.participantes?.length ? `
-                        <div class="mt-4">
-                            <h5>Participantes</h5>
-                            <ul class="list-group">
-                                ${proyecto.participantes.map(p => `
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        ${p.nombre || 'N/A'}
-                                        <span class="badge bg-primary rounded-pill">
-                                            ${p.rol || 'Sin rol'}
-                                        </span>
-                                        <span class="text-muted">${p.participacion || 0}%</span>
-                                    </li>
-                                `).join('')}
-                            </ul>
-                        </div>
-                        ` : ''}
-
-                        ${proyecto.gestiones?.length ? `
-                        <div class="mt-4">
-                            <h5>Historial de Gestiones</h5>
-                            <div class="table-responsive">
-                                <table class="table table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th>Fecha</th>
-                                            <th>Tipo</th>
-                                            <th>Usuario</th>
-                                            <th>Detalles</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${proyecto.gestiones.map(g => `
-                                            <tr>
-                                                <td>${formatFecha(g.fecha)}</td>
-                                                <td>${g.tipo || 'N/A'}</td>
-                                                <td>${g.usuario || 'N/A'}</td>
-                                                <td>${g.comentarios || 'Sin comentarios'}</td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        ` : ''}
+                        ${proyecto.participantes?.length ? `...` : ''}
+                        ${proyecto.gestiones?.length ? `...` : ''}
                     </div>`;
 
                 // 4. Inyectar contenido y mostrar modal
                 const detalleContent = document.getElementById('detalle-content');
                 detalleContent.innerHTML = contenidoHTML;
 
-                // Mostrar modal (Bootstrap)
                 const detalleModalEl = document.getElementById('detalleModal');
                 if (detalleModalEl) {
                     try { new bootstrap.Modal(detalleModalEl).show(); } catch(e) { /* ignore */ }
                 }
 
-                // 5. Log para depuracion
-                console.log('verProyecto -> id:', id, 'avanceVisitas:', avanceDesdeVisitas, 'avanceFallback:', avanceFallback, 'usado:', avanceNormalized);
+                console.log('verProyecto -> id:', id, 'estado usado:', proyecto.estado);
 
             } catch (error) {
                 console.error('Error en verProyecto:', error);
