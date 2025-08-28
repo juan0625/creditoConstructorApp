@@ -1827,13 +1827,12 @@
         }
 
 
-        // Modificar la función verProyecto para usar ID
         async function verProyecto(id) {
             try {
                 // 1. Buscar proyecto usando API
                 const response = await fetch(`/api/proyectos/${id}`);
                 const result = await response.json();
-                
+
                 if (!result.success) {
                     Swal.fire('Error', `Proyecto con ID ${id} no existe`, 'error');
                     return;
@@ -1841,7 +1840,13 @@
 
                 const proyecto = result.proyecto;
 
-                // 2. Construir contenido dinámico
+                // 2. Obtener avance: primero historialVisitas, si no existe fallback a la propiedad en proyecto
+                const avanceDesdeVisitas = (typeof obtenerAvanceProyecto === 'function') ? obtenerAvanceProyecto(id) : null;
+                const avanceFallback = proyecto.avanceObra ?? proyecto.avance ?? proyecto.campos?.['AVANCE OBRA'] ?? proyecto.campos?.avance_obra ?? 0;
+                const avanceNumero = Number(avanceDesdeVisitas ?? avanceFallback) || 0;
+                const avanceNormalized = Math.min(Math.max(avanceNumero, 0), 100);
+
+                // 3. Construir contenido dinamico (usamos avanceNormalized)
                 const contenidoHTML = `
                     <div class="container-fluid">
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -1859,15 +1864,16 @@
                                 <p><strong>Vigencia:</strong> ${proyecto.vigencia_en_meses || 'No definida'} meses</p>
                             </div>
                             <div class="col-md-6">
-                                <p><strong>Avance:</strong> 
-                                    <div class="progress">
-                                        <div class="progress-bar" 
-                                            style="width: ${proyecto.avanceObra || 0}%">
-                                            ${proyecto.avanceObra || 0}%
-                                        </div>
+                                <p><strong>Avance:</strong></p>
+                                <div class="progress">
+                                    <div id="verProyecto-avance-bar" class="progress-bar" 
+                                        role="progressbar" style="width: ${avanceNormalized}%"
+                                        aria-valuenow="${avanceNormalized}" aria-valuemin="0" aria-valuemax="100">
+                                        ${avanceNormalized}%
                                     </div>
-                                </p>
-                                <p><strong>Estado:</strong> 
+                                </div>
+
+                                <p class="mt-2"><strong>Estado:</strong> 
                                     ${getBadgeEstado(proyecto.estado)}
                                 </p>
                             </div>
@@ -1919,10 +1925,18 @@
                         ` : ''}
                     </div>`;
 
-                // 3. Inyectar contenido y mostrar modal
+                // 4. Inyectar contenido y mostrar modal
                 const detalleContent = document.getElementById('detalle-content');
                 detalleContent.innerHTML = contenidoHTML;
-                new bootstrap.Modal(document.getElementById('detalleModal')).show();
+
+                // Mostrar modal (Bootstrap)
+                const detalleModalEl = document.getElementById('detalleModal');
+                if (detalleModalEl) {
+                    try { new bootstrap.Modal(detalleModalEl).show(); } catch(e) { /* ignore */ }
+                }
+
+                // 5. Log para depuracion
+                console.log('verProyecto -> id:', id, 'avanceVisitas:', avanceDesdeVisitas, 'avanceFallback:', avanceFallback, 'usado:', avanceNormalized);
 
             } catch (error) {
                 console.error('Error en verProyecto:', error);
