@@ -1234,22 +1234,27 @@
         // Función para obtener datos del proyecto
         function obtenerDatosProyecto(idProyecto) {
             try {
-                // Obtener datos de historialDesembolsos
+                // Buscar en historialDesembolsos
                 const historialDesembolsos = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]');
-                const desembolsosProyecto = Array.isArray(historialDesembolsos) ? 
+                let desembolsosProyecto = Array.isArray(historialDesembolsos) ?
                     historialDesembolsos.filter(item => item.proyectoId == idProyecto) : [];
-                
-                // Obtener el registro más reciente
-                const desembolsosMasRecientes = desembolsosProyecto.length > 0 ?
-                    desembolsosProyecto.sort((a, b) => 
-                        new Date(b.fechaCarga) - new Date(a.fechaCarga))[0] : null;
-                
-                return desembolsosMasRecientes;
+
+                // Si no hay nada, buscar en historialDesembolsosDiarios
+                if (desembolsosProyecto.length === 0) {
+                    const diarios = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
+                    desembolsosProyecto = Array.isArray(diarios) ?
+                        diarios.filter(item => item.proyectoId == idProyecto) : [];
+                }
+
+                return desembolsosProyecto.length > 0 ?
+                    desembolsosProyecto.sort((a, b) => new Date(b.fechaCarga) - new Date(a.fechaCarga))[0] :
+                    null;
             } catch (e) {
                 console.error('Error al obtener datos del proyecto:', e);
                 return null;
             }
         }
+
 
         // Inicializar datos al cargar la página
         document.addEventListener('DOMContentLoaded', function() {
