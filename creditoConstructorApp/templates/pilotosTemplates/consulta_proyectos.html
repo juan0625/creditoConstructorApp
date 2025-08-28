@@ -1234,23 +1234,38 @@
         // Función para obtener datos del proyecto
         function obtenerDatosProyecto(idProyecto) {
             try {
-                const historial = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]');
+                // Normalizar idProyecto a string para comparaciones seguras
+                const idStr = String(idProyecto).trim();
 
-                if (!Array.isArray(historial)) return null;
+                // Intentar leer ambas posibles claves (compatibilidad retroactiva)
+                const historial1 = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]');
+                const historial2 = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
 
-                const desembolsosProyecto = historial.filter(item => item.proyectoId == idProyecto);
+                // Unir ambas fuentes (siempre array)
+                const historial = []
+                    .concat(Array.isArray(historial1) ? historial1 : [])
+                    .concat(Array.isArray(historial2) ? historial2 : []);
+
+                // Asegurar que sea array
+                if (!Array.isArray(historial) || historial.length === 0) return null;
+
+                // Filtrar por proyecto comparando como string (evita ===/tipo)
+                const desembolsosProyecto = historial.filter(item => String(item.proyectoId).trim() === idStr);
 
                 if (desembolsosProyecto.length === 0) return null;
 
-                // Tomar el ultimo registrado por fecha
-                return desembolsosProyecto.sort(
-                    (a, b) => new Date(b.fechaCarga) - new Date(a.fechaCarga)
-                )[0];
+                // Tomar el ultimo registrado por fecha (siempre validar fecha)
+                return desembolsosProyecto.sort((a, b) => {
+                    const fa = a.fechaCarga ? new Date(a.fechaCarga) : new Date(0);
+                    const fb = b.fechaCarga ? new Date(b.fechaCarga) : new Date(0);
+                    return fb - fa;
+                })[0];
             } catch (e) {
-                console.error("Error al obtener desembolsos:", e);
+                console.error("Error al obtener desembolsos (obtenerDatosProyecto):", e);
                 return null;
             }
         }
+
 
 
 
@@ -2321,8 +2336,15 @@
 
     function cargarHistorialDesembolsosDiarios(idProyecto) {
         try {
-            const historial = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
-            const desembolsosProyecto = historial.filter(d => d.proyectoId === idProyecto);
+            const idStr = String(idProyecto).trim();
+            const historialRaw = localStorage.getItem('historialDesembolsosDiarios') || '[]';
+            const historial = JSON.parse(historialRaw);
+            console.log('cargarHistorialDesembolsosDiarios: idProyecto=', idProyecto, 'historial length=', Array.isArray(historial) ? historial.length : 'no-array');
+
+            const desembolsosProyecto = Array.isArray(historial)
+                ? historial.filter(d => String(d.proyectoId).trim() === idStr)
+                : [];
+
             const tbody = document.querySelector('#tabla-desembolsos tbody');
             tbody.innerHTML = '';
 
@@ -2332,16 +2354,16 @@
             }
 
             desembolsosProyecto.forEach((d, index) => {
-            const campos = d.campos || {};
-            tbody.innerHTML += `
+                const campos = d.campos || {};
+                tbody.innerHTML += `
                     <tr>
-                        <td>${index + 1}</td> <!-- Columna enumeradora -->
+                        <td>${index + 1}</td>
                         <td>${formatFecha(d.fechaCarga)}</td>
                         <td>${d.usuario || 'N/A'}</td>
-                        <td>${formatCurrency(campos.valorEntregado || 0)}</td>
-                        <td>${formatCurrency(campos.valorPorEntregar || 0)}</td>
-                        <td>${(campos.cobertura || 0).toFixed(2)}%</td>
-                        <td>${formatCurrency(campos.superavit || 0)}</td>
+                        <td>${formatCurrency(campos.valorEntregado || campos.valor_entregado || 0)}</td>
+                        <td>${formatCurrency(campos.valorPorEntregar || campos.valor_por_entregar || 0)}</td>
+                        <td>${((campos.cobertura || 0)).toFixed ? (campos.cobertura || 0).toFixed(2) + '%' : (campos.cobertura || 0) + '%'}</td>
+                        <td>${formatCurrency(campos.superavit || campos.superavit || 0)}</td>
                         <td>${campos.requiereVistoBueno ? 'Sí' : 'No'}</td>
                     </tr>
                 `;
@@ -2352,6 +2374,7 @@
             tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar desembolsos</td></tr>';
         }
     }
+
 
     // Función mejorada para mostrar el historial
     function mostrarHistorial(idProyecto) {
