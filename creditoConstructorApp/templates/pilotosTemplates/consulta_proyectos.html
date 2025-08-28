@@ -3139,12 +3139,19 @@
        
         async function cargarProyectos(filtros = {}) {
             const userRole = obtenerRolUsuario();
-    
-            try {
-                    // Obtener proyectos del servidor
+
+                try {
                     const response = await fetch('/api/proyectos');
                     if (!response.ok) throw new Error('Error al cargar proyectos');
                     let proyectos = await response.json();
+
+                    // --- aplicar overrides desde localStorage ---
+                    const proyectosLocal = JSON.parse(localStorage.getItem('proyectos') || '[]');
+                    proyectos = proyectos.map(p => {
+                        const override = proyectosLocal.find(x => x.id_proyecto === p.id_proyecto);
+                        return override ? { ...p, ...override } : p;
+                    });
+
 
                     // Ordenar y filtrar (mantén tu lógica existente)
                     const parseFecha = (v) => {
@@ -3188,6 +3195,15 @@
                         return filtroStr.includes(valorStr) || valorStr.includes(filtroStr);
                     }
 
+                    function normalizarEstado(txt) {
+                        return String(txt || '')
+                            .toLowerCase()
+                            .normalize("NFD")
+                            .replace(/[\u0300-\u036f]/g, "") // quitar tildes
+                            .trim();
+                    }
+                    
+
 
                 // Filtrar
                 proyectos = proyectos.filter(p => {
@@ -3218,14 +3234,14 @@
                         );
                     }
                     if (filtros.estado_proyecto) {
-                        const estadoProyecto = String(p.estado || 'sin aprobar').trim().toLowerCase();
-                        const filtroEstado   = filtros.estado_proyecto.trim().toLowerCase();
-                        ok = ok && (estadoProyecto === filtroEstado);
+                        ok = ok && (
+                            normalizarEstado(p.estado) === normalizarEstado(filtros.estado_proyecto)
+                        );
                     }
 
                     if (filtros.arquitecto) {
                         const busq = normalizarTexto(filtros.arquitecto);
-                        const arquitecto = normalizarTexto(p.arquitecto);
+                        const arquitecto = normalizarTexto(p.arquitecto);   
                         ok = ok && coincidePorPalabras(busq, arquitecto);
                     }
 
