@@ -1577,13 +1577,13 @@
             await cargarProyectos({});
         });
                 
-        // Función para abrir modal de edición
+        // Funcion para abrir modal de edicion
         async function editarProyecto(id) {
             try {
-                // Hacer petición a la API
+                // Peticion al backend
                 const response = await fetch(`/api/proyectos/${id}`);
                 const result = await response.json();
-                
+
                 if (!result.success) {
                     Swal.fire('Error', 'Proyecto no encontrado', 'error');
                     return;
@@ -1591,12 +1591,28 @@
 
                 const p = result.proyecto;
 
-                // Rellenar campos básicos
-                document.getElementById('edit-id').value = p.id_proyecto;
+                // Obtener avance desde historialVisitas
+                let avanceDesdeVisitas = null;
+                try {
+                    if (typeof obtenerAvanceProyecto === 'function') {
+                        avanceDesdeVisitas = obtenerAvanceProyecto(id);
+                    }
+                } catch (e) {
+                    console.warn('editarProyecto: error al obtener avance desde historialVisitas', e);
+                    avanceDesdeVisitas = null;
+                }
+
+                // fallback si no hay avance en historialVisitas
+                let avanceParaEditar = Number(avanceDesdeVisitas ?? p.avance ?? p.avanceObra ?? 0);
+                if (!Number.isFinite(avanceParaEditar)) avanceParaEditar = 0;
+                avanceParaEditar = Math.min(Math.max(avanceParaEditar, 0), 100);
+
+                // Rellenar campos
+                document.getElementById('edit-id').value = p.id_proyecto ?? id;
                 document.getElementById('edit-nombre').value = p.nombre_proyecto || '';
                 document.getElementById('edit-titular').value = p.titular_credito || '';
                 document.getElementById('edit-nit').value = p.nit_titular || '';
-                document.getElementById('edit-avance').value = p.avance || 0;
+                document.getElementById('edit-avance').value = avanceParaEditar; // siempre numero, incluso 0
 
                 // Rellenar lista de participantes
                 const lista = document.querySelector('.participantes-list');
@@ -1607,12 +1623,12 @@
                         row.classList.add('participante-item', 'mb-2', 'row');
                         row.innerHTML = `
                             <div class="col"><input type="text" class="form-control" placeholder="Nombre" value="${pt.nombre || ''}"></div>
-                            <div class="col"><input type="text" class="form-control" placeholder="Rol"    value="${pt.rol || ''}"></div>
-                            <div class="col"><input type="number" class="form-control" placeholder="%"    min="0" max="100" value="${pt.participacion || 0}"></div>
+                            <div class="col"><input type="text" class="form-control" placeholder="Rol" value="${pt.rol || ''}"></div>
+                            <div class="col"><input type="number" class="form-control" placeholder="%" min="0" max="100" value="${pt.participacion || 0}"></div>
                             <div class="col-auto">
-                            <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.participante-item').remove()">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                                <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.participante-item').remove()">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </div>`;
                         lista.appendChild(row);
                     });
@@ -1620,11 +1636,15 @@
 
                 // Mostrar modal
                 bootstrap.Modal.getOrCreateInstance(document.getElementById('editarModal')).show();
+
+                console.log('editarProyecto -> id:', id, 'avance usado:', avanceParaEditar);
+
             } catch (error) {
                 console.error('Error al cargar proyecto:', error);
-                Swal.fire('Error', 'No se pudo cargar el proyecto para edición', 'error');
+                Swal.fire('Error', 'No se pudo cargar el proyecto para edicion', 'error');
             }
         }
+
         
         
         // Añade un nuevo bloque de inputs para un participante
@@ -1694,17 +1714,23 @@
                 const form = document.getElementById('form-editar');
                 if (!form) throw new Error('Formulario no encontrado');
 
+                // --- Avance con soporte para 0 ---
+                let avanceVal = parseInt(form.querySelector('#edit-avance')?.value, 10);
+                if (isNaN(avanceVal)) avanceVal = proyectos[idx].avance ?? 0;
+                avanceVal = Math.min(Math.max(avanceVal, 0), 100);
+
+                // Datos actualizados
                 const updated = {
                     ...proyectos[idx],
                     nombre_proyecto: form.querySelector('#edit-nombre')?.value?.trim() || proyectos[idx].nombre_proyecto,
                     titular_credito: form.querySelector('#edit-titular')?.value?.trim() || proyectos[idx].titular_credito,
                     nit_titular: form.querySelector('#edit-nit')?.value?.trim() || proyectos[idx].nit_titular,
-                    avance: parseInt(form.querySelector('#edit-avance')?.value, 10) || proyectos[idx].avance || 0,
-                    avanceObra: parseInt(form.querySelector('#edit-avance')?.value, 10) || proyectos[idx].avanceObra || 0,
+                    avance: avanceVal,
+                    avanceObra: avanceVal,
                     participantes: []
                 };
 
-                // Recoger participantes
+                // Participantes
                 document.querySelectorAll('.participante-item').forEach(item => {
                     const inputs = item.querySelectorAll('input');
                     if (inputs.length >= 3) {
@@ -1720,7 +1746,7 @@
                 proyectos[idx] = updated;
                 localStorage.setItem('proyectos', JSON.stringify(proyectos));
 
-                // 2) --- NUEVO: actualizar historialVisitas ---
+                // 2) Actualizar historialVisitas
                 try {
                     const rawVis = localStorage.getItem('historialVisitas') || '[]';
                     const visitas = Array.isArray(JSON.parse(rawVis)) ? JSON.parse(rawVis) : [];
@@ -1730,13 +1756,13 @@
                         proyectoId: id,
                         fecha: now,
                         fechaCarga: now,
-                        usuario: 'usuario_local', // <-- si tienes login, cámbialo
+                        usuario: 'usuario_local',
                         tipo: 'actualizacion_avance',
-                        comentarios: `Edicion desde modal - avance ${updated.avance}%`,
+                        comentarios: `Edicion desde modal - avance ${avanceVal}%`,
                         campos: {
-                            'AVANCE OBRA': updated.avance,
-                            'avance_obra': updated.avance,
-                            'avance': updated.avance
+                            'AVANCE OBRA': avanceVal,
+                            'avance_obra': avanceVal,
+                            'avance': avanceVal
                         }
                     };
 
@@ -1747,7 +1773,7 @@
                     console.warn('guardarCambios: no se pudo actualizar historialVisitas', err);
                 }
 
-                // 3) Actualizar UI y cerrar modal
+                // 3) Refrescar UI
                 cargarProyectos({});
                 bootstrap.Modal.getInstance(document.getElementById('editarModal'))?.hide();
 
@@ -1767,7 +1793,6 @@
                 });
             }
         }
-
 
         // Eliminar proyecto
         async function eliminarProyecto(id) {
