@@ -1346,6 +1346,50 @@ def obtener_proyectos_api():
         app.logger.exception("Error leyendo proyectos")
         return jsonify([])  # fallback: lista vacia
 
+# Reemplaza la funcion actual por esta en appRun.py
+@app.route('/api/proyectos/<proyecto_id>', methods=['GET'])
+def obtener_proyecto_por_id(proyecto_id):
+    try:
+        datos_completos = leer_datos_completos()
+        proyectos = datos_completos.get('proyectos', [])
+        
+        # Normalizar búsqueda considerando ambos campos posibles
+        target_id = str(proyecto_id).strip().lower()
+        
+        for proyecto in proyectos:
+            # Verificar ambos campos posibles para el ID
+            id_candidates = [
+                str(proyecto.get('id_proyecto', '')).strip().lower(),
+                str(proyecto.get('id', '')).strip().lower()
+            ]
+            
+            if target_id in id_candidates:
+                # Asegurar campos necesarios
+                proyecto.setdefault('participantes', [])
+                proyecto.setdefault('gestiones', [])
+                
+                if 'estado' not in proyecto:
+                    proyecto['estado'] = 'sin aprobar'
+                elif isinstance(proyecto['estado'], str):
+                    proyecto['estado'] = proyecto['estado'].strip()
+                
+                return jsonify({
+                    'success': True, 
+                    'proyecto': proyecto
+                })
+        
+        return jsonify({
+            'success': False, 
+            'message': 'Proyecto no encontrado'
+        }), 404
+        
+    except Exception as e:
+        app.logger.error(f"Error al obtener proyecto: {str(e)}")
+        return jsonify({
+            'success': False, 
+            'message': f'Error interno: {str(e)}'
+        }), 500    
+
 # Cambiar todas las instancias donde se busca por 'id' a 'id_proyecto'
 
 @app.route('/api/proyectos/<proyecto_id>', methods=['DELETE'])
@@ -1371,35 +1415,6 @@ def api_eliminar_proyecto(proyecto_id):
     
     except Exception as e:
         print(f"Error al eliminar proyecto: {str(e)}")
-        return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
-
-
-# Reemplaza la funcion actual por esta en appRun.py
-@app.route('/api/proyectos/<proyecto_id>', methods=['GET'])
-def obtener_proyecto_por_id(proyecto_id):
-    try:
-        datos_completos = leer_datos_completos()
-        proyectos = datos_completos.get('proyectos', [])
-
-        # Buscar proyecto por id (comparar como strings y trim)
-        target = str(proyecto_id).strip()
-        proyecto = next((p for p in proyectos
-                         if str(p.get('id_proyecto', '') or p.get('id', '')).strip() == target),
-                        None)
-
-        if not proyecto:
-            return jsonify({'success': False, 'message': 'Proyecto no encontrado'}), 404
-
-        # Asegurar campos necesarios
-        proyecto.setdefault('participantes', [])
-        if 'estado' in proyecto and isinstance(proyecto['estado'], str):
-            proyecto['estado'] = proyecto['estado'].strip()
-        else:
-            proyecto['estado'] = 'sin aprobar'
-
-        return jsonify({'success': True, 'proyecto': proyecto})
-    except Exception as e:
-        app.logger.exception("Error al obtener proyecto")
         return jsonify({'success': False, 'message': f'Error interno: {str(e)}'}), 500
 
 
