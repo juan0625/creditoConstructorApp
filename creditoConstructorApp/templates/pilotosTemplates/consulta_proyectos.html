@@ -3189,6 +3189,12 @@
                 const idDesdeCampos = p?.campos?.['ID PROYECTO']?.valor ?? p?.campos?.['ID_PROYECTO']?.valor;
                 const idProyecto = p?.id_proyecto ?? p?.proyectoId ?? p?.id ?? idDesdeCampos ?? '';
 
+                // Obtener avance preferentemente desde historialVisitas
+                // (asegurate de tener la funcion obtenerAvanceProyecto disponible)
+                const avanceNumero = (typeof obtenerAvanceProyecto === 'function')
+                    ? (obtenerAvanceProyecto(idProyecto) ?? obtenerValorCampo?.(p, ['avance','avance_obra','AVANCE OBRA']) ?? 0)
+                    : (p.avance ?? obtenerValorCampo?.(p, ['avance','avance_obra','AVANCE OBRA']) ?? 0);
+
                 const datos = {
                     id_proyecto: idProyecto || 'Sin ID', // coincide con la plantilla que usas
                     nombre_proyecto: p.nombre_proyecto || 'Proyecto sin nombre',
@@ -3196,7 +3202,8 @@
                     titular: p.titular_credito || 'Sin titular',
                     nit: p.nit_titular || p.nit_grupo_riesgo || 'Sin NIT',
                     arquitecto: p.arquitecto || 'Sin arquitecto',
-                    avance: Math.min(Math.max(p.avance || 0, 0), 100),
+                    // normalizar entre 0 y 100
+                    avance: Math.min(Math.max(Number(avanceNumero) || 0, 0), 100),
                     perito: p.perito || '—',
                     gerente: typeof p.gerente === 'object' ? p.gerente.nombre || 'Sin gerente' : p.gerente || 'Sin gerente',
                     grupoPrincipal: p.grupoPrincipal || 'Sin Constructor',
@@ -3232,84 +3239,85 @@
                     <td>${datos.auxiliar}</td>
                     <td>
                         <div class="progress">
-                            <div class="progress-bar" style="width:${datos.avance}%">
+                            <div class="progress-bar" role="progressbar" style="width:${datos.avance}%"
+                                aria-valuenow="${datos.avance}" aria-valuemin="0" aria-valuemax="100">
                                 ${datos.avance}%
                             </div>
                         </div>
                     </td>
-                   <td>
+                <td>
                         <div class="acciones-container">
-                             <button class="btn btn-accion btn-accion-primary"
-                                    onclick="verProyecto('${p.id_proyecto}')"
+                            <button class="btn btn-accion btn-accion-primary"
+                                    onclick="verProyecto(${JSON.stringify(idProyecto)})"
                                     data-bs-toggle="tooltip" title="Ver detalles">
-                             <i class="fas fa-eye"></i> Ver
+                            <i class="fas fa-eye"></i> Ver
                             </button>
                     ${puedeEditar ? `
                         <button class="btn btn-accion btn-accion-secondary"
-                                 onclick="editarProyecto('${p.id_proyecto}')"
+                                onclick="editarProyecto(${JSON.stringify(idProyecto)})"
                                 data-bs-toggle="tooltip" title="Editar proyecto">
-                         <i class="fas fa-edit"></i> Editar Grupo
+                        <i class="fas fa-edit"></i> Editar Grupo
                         </button>
                     <div class="dropdown">
                             <button class="btn btn-accion btn-accion-secondary"
-                                 data-bs-toggle="dropdown" title="Más acciones">
-                         <i class="fas fa-ellipsis-h"></i>
+                                data-bs-toggle="dropdown" title="Más acciones">
+                            <i class="fas fa-ellipsis-h"></i>
                             </button>
-                             <ul class="dropdown-menu dropdown-menu-end animate__fadeIn">
+                            <ul class="dropdown-menu dropdown-menu-end animate__fadeIn">
                             <li>
-                               <button class="dropdown-item"
-                                         onclick="mostrarModalGestion('titular','${p.id_proyecto}')">
+                            <button class="dropdown-item"
+                                        onclick="mostrarModalGestion('titular',${JSON.stringify(idProyecto)})">
                                 <i class="fas fa-user-edit me-2 text-primary"></i>
-                                 Cambio Titular
-                                 </button>
-                             </li>
-                             <li>
-                                 <button class="dropdown-item"
-                                         onclick="mostrarModalGestion('nombre','${p.id_proyecto}')">
-                                 <i class="fas fa-signature me-2 text-info"></i>
-                                 Cambio Nombre
-                                 </button>
-                             </li>
-                             <li>
-                                 <button class="dropdown-item"
-                                         onclick="mostrarModalGestion('unidades','${p.id_proyecto}')">
-                                 <i class="fas fa-cubes me-2 text-warning"></i>
-                                 Gestión Unidades
-                                 </button>
-                             </li>
-                             <li>
-                                 <button class="dropdown-item"
-                                         onclick="mostrarModalGestion('desistimiento','${p.id_proyecto}')">
-                                 <i class="fas fa-ban me-2 text-danger"></i>
-                                 Desistimiento
-                                 </button>
-                             </li>
-                             <li>
-                                 <button class="dropdown-item"
-                                         onclick="mostrarModalGestion('monto','${p.id_proyecto}')">
-                                 <i class="fas fa-coins me-2 text-success"></i>
-                                 Ampliación de Monto
-                                 </button>
-                             </li>
+                                Cambio Titular
+                                </button>
+                            </li>
                             <li>
                                 <button class="dropdown-item"
-                                        onclick="mostrarModalGestion('vigencia','${p.id_proyecto}')">
-                                 <i class="fas fa-calendar-day me-2 text-info"></i>
-                                 Ampliación de Vigencia
-                                 </button>
-                             </li>
-                             <li>
+                                        onclick="mostrarModalGestion('nombre',${JSON.stringify(idProyecto)})">
+                                <i class="fas fa-signature me-2 text-info"></i>
+                                Cambio Nombre
+                                </button>
+                            </li>
+                            <li>
                                 <button class="dropdown-item"
-                                         onclick="mostrarModalGestion('plazo','${p.id_proyecto}')">
-                                 <i class="fas fa-clock me-2 text-warning"></i>
+                                        onclick="mostrarModalGestion('unidades',${JSON.stringify(idProyecto)})">
+                                <i class="fas fa-cubes me-2 text-warning"></i>
+                                Gestión Unidades
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item"
+                                        onclick="mostrarModalGestion('desistimiento',${JSON.stringify(idProyecto)})">
+                                <i class="fas fa-ban me-2 text-danger"></i>
+                                Desistimiento
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item"
+                                        onclick="mostrarModalGestion('monto',${JSON.stringify(idProyecto)})">
+                                <i class="fas fa-coins me-2 text-success"></i>
+                                Ampliación de Monto
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item"
+                                        onclick="mostrarModalGestion('vigencia',${JSON.stringify(idProyecto)})">
+                                <i class="fas fa-calendar-day me-2 text-info"></i>
+                                Ampliación de Vigencia
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item"
+                                        onclick="mostrarModalGestion('plazo',${JSON.stringify(idProyecto)})">
+                                <i class="fas fa-clock me-2 text-warning"></i>
                                 Ampliación de Plazo
-                                 </button>
-                             </li>
-                             <li><hr class="dropdown-divider"></li>
+                                </button>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
                             </ul>
-                         </div>
-                         ` : ''}
-                     </div>
+                        </div>
+                        ` : ''}
+                    </div>
                     </td>
                 </tr>
                 `;
@@ -3357,6 +3365,100 @@
             renderPagina(obtenerRolUsuario());
             renderPaginacion();
         });
+
+        /* ---------- HELPERS PARA AVANCE ---------- */
+        /**
+         * Intenta normalizar y convertir a numero un valor que puede estar en:
+         * 'AVANCE OBRA', 'avance_obra', 'avanceObra', 'avance', 'porcentajeAvance', etc.
+         * Acepta valores como "45%", "45,5" o 45 y devuelve numero (ej: 45 or 45.5) o null.
+         */
+        function parseAvanceValor(v) {
+            if (v === null || v === undefined) return null;
+            if (typeof v === 'number' && !isNaN(v)) return v;
+            if (typeof v === 'string') {
+                // quitar espacios y % y convertir coma a punto
+                const cleaned = v.replace(/\s/g, '').replace('%', '').replace(',', '.');
+                const n = Number(cleaned);
+                return isNaN(n) ? null : n;
+            }
+            // si es objeto con propiedad valor/value
+            if (typeof v === 'object') {
+                const cand = v.valor ?? v.value ?? v;
+                return parseAvanceValor(cand);
+            }
+            return null;
+        }
+
+        /**
+         * Devuelve el avance (numero) para un proyecto consultando historialVisitas.
+         * Busca los registros de historialVisitas por proyectoId, ordena por fecha
+         * y toma el valor de la llave 'AVANCE OBRA' (o variantes).
+         * Retorna numero (ej: 45.5) o null si no se encontro.
+         */
+        function obtenerAvanceProyecto(idProyecto) {
+            try {
+                const idStr = normalizarIdProyecto(idProyecto);
+                const raw = localStorage.getItem('historialVisitas') || '[]';
+                const visitas = JSON.parse(raw);
+                if (!Array.isArray(visitas) || visitas.length === 0) return null;
+
+                // Filtrar por proyecto
+                const visitasProyecto = visitas.filter(v => normalizarIdProyecto(v.proyectoId) === idStr);
+                if (visitasProyecto.length === 0) return null;
+
+                // Ordenar por fecha (descendente) - considera varios nombres de fecha
+                visitasProyecto.sort((a, b) => {
+                    const fa = new Date(a.fecha || a.fechaCarga || a.createdAt || 0).getTime() || 0;
+                    const fb = new Date(b.fecha || b.fechaCarga || b.createdAt || 0).getTime() || 0;
+                    return fb - fa;
+                });
+
+                // Lista de llaves candidatas donde puede estar el avance
+                const candidateKeys = [
+                    'AVANCE OBRA','avance_obra','avanceObra','avance','porcentajeAvance',
+                    'avance_obra_porcentaje','avancePorcentaje'
+                ];
+
+                // buscar en el objeto d.campos primero, luego en la raiz del objeto visita
+                const latest = visitasProyecto[0];
+                const fuente = (latest.campos && typeof latest.campos === 'object') ? latest.campos : latest;
+
+                for (const k of candidateKeys) {
+                    // chequeo directo respetando mayus/minus (algunos JSON pueden tener mayus)
+                    if (fuente.hasOwnProperty(k)) {
+                        const parsed = parseAvanceValor(fuente[k]);
+                        if (parsed !== null) return parsed;
+                    }
+                }
+
+                // Intento case-insensitive: buscar cualquier propiedad que contenga 'avance' y 'obra' o 'avance'
+                const keys = Object.keys(fuente || {});
+                for (const key of keys) {
+                    const lk = key.toLowerCase();
+                    if (lk.includes('avance')) {
+                        const parsed = parseAvanceValor(fuente[key]);
+                        if (parsed !== null) return parsed;
+                    }
+                    // si contiene 'avance' y 'obra' preferirlo
+                    if (lk.includes('avance') && lk.includes('obra')) {
+                        const parsed = parseAvanceValor(fuente[key]);
+                        if (parsed !== null) return parsed;
+                    }
+                }
+
+                return null;
+            } catch (err) {
+                console.error('obtenerAvanceProyecto error:', err);
+                return null;
+            }
+        }
+
+        /* ---------- UTIL: formatea porcentaje para mostrar en tabla o detalle ---------- */
+        function formatPorcentaje(n) {
+            if (n === null || n === undefined || isNaN(Number(n))) return '0.00%';
+            return Number(n).toFixed(2) + '%';
+        }
+
 
         window.addEventListener('DOMContentLoaded', () => {
             cargarProyectos({});
