@@ -445,26 +445,35 @@ def df_to_serializable_records(df, date_format='%Y-%m-%dT%H:%M:%S'):
 
 # ---------------- FUNCIONES HELPER PARA PERSISTENCIA ----------------
 def leer_datos_completos():
-    """Lee todos los datos manteniendo la estructura completa"""
-    if not os.path.exists(LOCAL_STORAGE_PATH):
+    """Lee todos los datos desde el Excel principal"""
+    excel_path = os.path.join(BASE_DIR, "data", "Base_principal_proyectos.xlsx")
+    if not os.path.exists(excel_path):
         return {'proyectos': [], 'appData': {}}
     
     try:
-        with open(LOCAL_STORAGE_PATH, 'r', encoding='utf-8') as f:
-            datos = json.load(f)
-    except (json.JSONDecodeError, FileNotFoundError):
-        return {'proyectos': [], 'appData': {}}
-    
-    # Normalizar estructura
-    if isinstance(datos, list):
-        return {'proyectos': datos, 'appData': {}}
-    elif isinstance(datos, dict):
-        if 'proyectos' not in datos:
-            datos['proyectos'] = []
-        if 'appData' not in datos:
-            datos['appData'] = {}
-        return datos
-    else:
+        # Cargar la hoja "Proyectos"
+        df = pd.read_excel(excel_path, sheet_name="Proyectos")
+
+        # Reemplazar NaN con string vacío para evitar problemas en JSON
+        df = df.fillna("")
+
+        # Convertir a lista de diccionarios
+        proyectos = df.to_dict(orient="records")
+
+        # Normalizar estructura mínima
+        for p in proyectos:
+            if not isinstance(p, dict):
+                continue
+            p.setdefault('id_proyecto', p.get('id', ''))
+            p.setdefault('participantes', [])
+            if 'estado' in p and isinstance(p['estado'], str):
+                p['estado'] = p['estado'].strip()
+            else:
+                p['estado'] = 'sin aprobar'
+
+        return {'proyectos': proyectos, 'appData': {}}
+    except Exception as e:
+        print(f"Error leyendo Excel {excel_path}: {e}")
         return {'proyectos': [], 'appData': {}}
 
 def guardar_datos_completos(datos):
