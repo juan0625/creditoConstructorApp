@@ -3247,77 +3247,77 @@
                     </td>
                 <td>
                         <div class="acciones-container">
-                            <button class="btn btn-accion btn-accion-primary"
-                                    onclick="verProyecto(${JSON.stringify(idProyecto)})"
+                             <button class="btn btn-accion btn-accion-primary"
+                                    onclick="verProyecto('${p.id_proyecto}')"
                                     data-bs-toggle="tooltip" title="Ver detalles">
-                            <i class="fas fa-eye"></i> Ver
+                             <i class="fas fa-eye"></i> Ver
                             </button>
                     ${puedeEditar ? `
                         <button class="btn btn-accion btn-accion-secondary"
-                                onclick="editarProyecto(${JSON.stringify(idProyecto)})"
+                                 onclick="editarProyecto('${p.id_proyecto}')"
                                 data-bs-toggle="tooltip" title="Editar proyecto">
-                        <i class="fas fa-edit"></i> Editar Grupo
+                         <i class="fas fa-edit"></i> Editar Grupo
                         </button>
                     <div class="dropdown">
                             <button class="btn btn-accion btn-accion-secondary"
-                                data-bs-toggle="dropdown" title="Más acciones">
-                            <i class="fas fa-ellipsis-h"></i>
+                                 data-bs-toggle="dropdown" title="Más acciones">
+                         <i class="fas fa-ellipsis-h"></i>
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end animate__fadeIn">
+                             <ul class="dropdown-menu dropdown-menu-end animate__fadeIn">
                             <li>
-                            <button class="dropdown-item"
-                                        onclick="mostrarModalGestion('titular',${JSON.stringify(idProyecto)})">
+                               <button class="dropdown-item"
+                                         onclick="mostrarModalGestion('titular','${p.id_proyecto}')">
                                 <i class="fas fa-user-edit me-2 text-primary"></i>
-                                Cambio Titular
-                                </button>
-                            </li>
+                                 Cambio Titular
+                                 </button>
+                             </li>
+                             <li>
+                                 <button class="dropdown-item"
+                                         onclick="mostrarModalGestion('nombre','${p.id_proyecto}')">
+                                 <i class="fas fa-signature me-2 text-info"></i>
+                                 Cambio Nombre
+                                 </button>
+                             </li>
+                             <li>
+                                 <button class="dropdown-item"
+                                         onclick="mostrarModalGestion('unidades','${p.id_proyecto}')">
+                                 <i class="fas fa-cubes me-2 text-warning"></i>
+                                 Gestión Unidades
+                                 </button>
+                             </li>
+                             <li>
+                                 <button class="dropdown-item"
+                                         onclick="mostrarModalGestion('desistimiento','${p.id_proyecto}')">
+                                 <i class="fas fa-ban me-2 text-danger"></i>
+                                 Desistimiento
+                                 </button>
+                             </li>
+                             <li>
+                                 <button class="dropdown-item"
+                                         onclick="mostrarModalGestion('monto','${p.id_proyecto}')">
+                                 <i class="fas fa-coins me-2 text-success"></i>
+                                 Ampliación de Monto
+                                 </button>
+                             </li>
                             <li>
                                 <button class="dropdown-item"
-                                        onclick="mostrarModalGestion('nombre',${JSON.stringify(idProyecto)})">
-                                <i class="fas fa-signature me-2 text-info"></i>
-                                Cambio Nombre
-                                </button>
-                            </li>
-                            <li>
+                                        onclick="mostrarModalGestion('vigencia','${p.id_proyecto}')">
+                                 <i class="fas fa-calendar-day me-2 text-info"></i>
+                                 Ampliación de Vigencia
+                                 </button>
+                             </li>
+                             <li>
                                 <button class="dropdown-item"
-                                        onclick="mostrarModalGestion('unidades',${JSON.stringify(idProyecto)})">
-                                <i class="fas fa-cubes me-2 text-warning"></i>
-                                Gestión Unidades
-                                </button>
-                            </li>
-                            <li>
-                                <button class="dropdown-item"
-                                        onclick="mostrarModalGestion('desistimiento',${JSON.stringify(idProyecto)})">
-                                <i class="fas fa-ban me-2 text-danger"></i>
-                                Desistimiento
-                                </button>
-                            </li>
-                            <li>
-                                <button class="dropdown-item"
-                                        onclick="mostrarModalGestion('monto',${JSON.stringify(idProyecto)})">
-                                <i class="fas fa-coins me-2 text-success"></i>
-                                Ampliación de Monto
-                                </button>
-                            </li>
-                            <li>
-                                <button class="dropdown-item"
-                                        onclick="mostrarModalGestion('vigencia',${JSON.stringify(idProyecto)})">
-                                <i class="fas fa-calendar-day me-2 text-info"></i>
-                                Ampliación de Vigencia
-                                </button>
-                            </li>
-                            <li>
-                                <button class="dropdown-item"
-                                        onclick="mostrarModalGestion('plazo',${JSON.stringify(idProyecto)})">
-                                <i class="fas fa-clock me-2 text-warning"></i>
+                                         onclick="mostrarModalGestion('plazo','${p.id_proyecto}')">
+                                 <i class="fas fa-clock me-2 text-warning"></i>
                                 Ampliación de Plazo
-                                </button>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
+                                 </button>
+                             </li>
+                             <li><hr class="dropdown-divider"></li>
                             </ul>
-                        </div>
-                        ` : ''}
-                    </div>
+                         </div>
+                         ` : ''}
+                     </div>
                     </td>
                 </tr>
                 `;
