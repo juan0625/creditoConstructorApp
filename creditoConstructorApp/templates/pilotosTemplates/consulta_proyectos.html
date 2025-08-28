@@ -1688,31 +1688,27 @@
                 const id = String(document.getElementById('edit-id')?.value || '').trim();
                 if (!id) throw new Error('ID de proyecto no encontrado');
 
-                // Buscar indice usando normalizacion de id (soporta id_proyecto / proyectoId / id desde campos)
-                const idx = proyectos.findIndex(p => {
-                    const idCand = p?.id_proyecto ?? p?.proyectoId ?? p?.id ?? (p?.campos?.['ID PROYECTO']?.valor ?? p?.campos?.['ID_PROYECTO']?.valor);
-                    return normalizarIdProyecto(idCand) === normalizarIdProyecto(id);
-                });
+                const idx = proyectos.findIndex(p => p.id_proyecto === id);
                 if (idx === -1) throw new Error('Proyecto no existe en los registros');
 
-                // Recoger datos del formulario con validacion
-                const form = document.getElementById('form-editar') || document.getElementById('formEditar') || document.querySelector('#editarModal form');
+                const form = document.getElementById('form-editar');
                 if (!form) throw new Error('Formulario no encontrado');
 
-                const nombreVal = form.querySelector('#edit-nombre')?.value?.trim() || proyectos[idx].nombre_proyecto || proyectos[idx].nombre || '';
-                const titularVal = form.querySelector('#edit-titular')?.value?.trim() || proyectos[idx].titular_credito || '';
-                const nitVal = form.querySelector('#edit-nit')?.value?.trim() || proyectos[idx].nit_titular || proyectos[idx].nit || '';
-                let avanceVal = form.querySelector('#edit-avance')?.value;
-                avanceVal = avanceVal === undefined || avanceVal === null || avanceVal === '' ? (proyectos[idx].avance ?? proyectos[idx].avanceObra ?? 0) : Number(avanceVal);
-                if (isNaN(avanceVal)) avanceVal = 0;
-                avanceVal = Math.min(Math.max(avanceVal, 0), 100);
+                const updated = {
+                    ...proyectos[idx],
+                    nombre_proyecto: form.querySelector('#edit-nombre')?.value?.trim() || proyectos[idx].nombre_proyecto,
+                    titular_credito: form.querySelector('#edit-titular')?.value?.trim() || proyectos[idx].titular_credito,
+                    nit_titular: form.querySelector('#edit-nit')?.value?.trim() || proyectos[idx].nit_titular,
+                    avance: parseInt(form.querySelector('#edit-avance')?.value, 10) || proyectos[idx].avance || 0,
+                    avanceObra: parseInt(form.querySelector('#edit-avance')?.value, 10) || proyectos[idx].avanceObra || 0,
+                    participantes: []
+                };
 
-                // Recoger participantes con validacion
-                const participantes = [];
+                // Recoger participantes
                 document.querySelectorAll('.participante-item').forEach(item => {
                     const inputs = item.querySelectorAll('input');
                     if (inputs.length >= 3) {
-                        participantes.push({
+                        updated.participantes.push({
                             nombre: inputs[0]?.value?.trim() || '',
                             rol: inputs[1]?.value?.trim() || '',
                             participacion: parseInt(inputs[2]?.value, 10) || 0
@@ -1720,59 +1716,45 @@
                     }
                 });
 
-                // Construir objeto actualizado (mantener lo demas)
-                const updated = {
-                    ...proyectos[idx],
-                    nombre_proyecto: nombreVal,
-                    titular_credito: titularVal,
-                    nit_titular: nitVal,
-                    avance: avanceVal,
-                    avanceObra: avanceVal,
-                    participantes: participantes
-                };
-
-                // Guardar en localStorage.proyectos
+                // 1) Actualizar proyectos
                 proyectos[idx] = updated;
                 localStorage.setItem('proyectos', JSON.stringify(proyectos));
-                console.log('guardarCambios: proyecto actualizado en localStorage.proyectos', updated);
 
-                // Agregar registro en historialVisitas
+                // 2) --- NUEVO: actualizar historialVisitas ---
                 try {
                     const rawVis = localStorage.getItem('historialVisitas') || '[]';
-                    const visitasArr = Array.isArray(JSON.parse(rawVis)) ? JSON.parse(rawVis) : [];
-                    const usuario = obtenerUsuarioActual();
+                    const visitas = Array.isArray(JSON.parse(rawVis)) ? JSON.parse(rawVis) : [];
                     const now = new Date().toISOString();
 
                     const nuevoRegistro = {
                         proyectoId: id,
                         fecha: now,
                         fechaCarga: now,
-                        usuario: usuario,
-                        tipo: 'actualizacion_proyecto',
-                        comentarios: `Edicion desde modal - avance ${avanceVal}%`,
+                        usuario: 'usuario_local', // <-- si tienes login, cámbialo
+                        tipo: 'actualizacion_avance',
+                        comentarios: `Edicion desde modal - avance ${updated.avance}%`,
                         campos: {
-                            'AVANCE OBRA': avanceVal,
-                            'avance_obra': avanceVal,
-                            'avance': avanceVal
+                            'AVANCE OBRA': updated.avance,
+                            'avance_obra': updated.avance,
+                            'avance': updated.avance
                         }
                     };
 
-                    visitasArr.push(nuevoRegistro);
-                    localStorage.setItem('historialVisitas', JSON.stringify(visitasArr));
-                    console.log('guardarCambios: agregado registro a historialVisitas', nuevoRegistro);
+                    visitas.push(nuevoRegistro);
+                    localStorage.setItem('historialVisitas', JSON.stringify(visitas));
+                    console.log('guardarCambios: historialVisitas actualizado', nuevoRegistro);
                 } catch (err) {
                     console.warn('guardarCambios: no se pudo actualizar historialVisitas', err);
                 }
 
-                // Actualizar UI y cerrar modal
-                try { if (typeof cargarProyectos === 'function') cargarProyectos({}); } catch (e) { console.warn(e); }
-                try { bootstrap.Modal.getInstance(document.getElementById('editarModal'))?.hide(); } catch (e) { /* ignore */ }
+                // 3) Actualizar UI y cerrar modal
+                cargarProyectos({});
+                bootstrap.Modal.getInstance(document.getElementById('editarModal'))?.hide();
 
-                // Mensaje de exito
                 Swal.fire({
                     icon: 'success',
                     title: '¡Guardado!',
-                    text: 'Cambios actualizados correctamente y historial de visitas registrado',
+                    text: 'Cambios actualizados correctamente',
                     timer: 1500
                 });
 
@@ -1785,6 +1767,7 @@
                 });
             }
         }
+
 
         // Eliminar proyecto
         async function eliminarProyecto(id) {
