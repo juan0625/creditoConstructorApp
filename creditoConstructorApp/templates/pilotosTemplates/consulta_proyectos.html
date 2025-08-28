@@ -1681,31 +1681,38 @@
         // Guarda los cambios del formulario del modal
         function guardarCambios() {
             try {
-                const proyectos = JSON.parse(localStorage.getItem('proyectos') || []);
-                const id = document.getElementById('edit-id')?.value;
+                const proyectos = Array.isArray(JSON.parse(localStorage.getItem('proyectos') || '[]')) 
+                    ? JSON.parse(localStorage.getItem('proyectos') || '[]') 
+                    : [];
+
+                const id = String(document.getElementById('edit-id')?.value || '').trim();
                 if (!id) throw new Error('ID de proyecto no encontrado');
 
-                const idx = proyectos.findIndex(p => p.id_proyecto === id);
+                // Buscar indice usando normalizacion de id (soporta id_proyecto / proyectoId / id desde campos)
+                const idx = proyectos.findIndex(p => {
+                    const idCand = p?.id_proyecto ?? p?.proyectoId ?? p?.id ?? (p?.campos?.['ID PROYECTO']?.valor ?? p?.campos?.['ID_PROYECTO']?.valor);
+                    return normalizarIdProyecto(idCand) === normalizarIdProyecto(id);
+                });
                 if (idx === -1) throw new Error('Proyecto no existe en los registros');
 
-                // Recoger datos del formulario con validación
-                const form = document.getElementById('form-editar');
+                // Recoger datos del formulario con validacion
+                const form = document.getElementById('form-editar') || document.getElementById('formEditar') || document.querySelector('#editarModal form');
                 if (!form) throw new Error('Formulario no encontrado');
 
-                const updated = {
-                    ...proyectos[idx],
-                    nombre_proyecto: form.querySelector('#edit-nombre')?.value?.trim() || proyectos[idx].nombre_proyecto,
-                    titular_credito: form.querySelector('#edit-titular')?.value?.trim() || proyectos[idx].titular_credito,
-                    nit_titular: form.querySelector('#edit-nit')?.value?.trim() || proyectos[idx].nit_titular,
-                    avance: parseInt(form.querySelector('#edit-avance')?.value, 10) || proyectos[idx].avance || 0,
-                    participantes: []
-                };
+                const nombreVal = form.querySelector('#edit-nombre')?.value?.trim() || proyectos[idx].nombre_proyecto || proyectos[idx].nombre || '';
+                const titularVal = form.querySelector('#edit-titular')?.value?.trim() || proyectos[idx].titular_credito || '';
+                const nitVal = form.querySelector('#edit-nit')?.value?.trim() || proyectos[idx].nit_titular || proyectos[idx].nit || '';
+                let avanceVal = form.querySelector('#edit-avance')?.value;
+                avanceVal = avanceVal === undefined || avanceVal === null || avanceVal === '' ? (proyectos[idx].avance ?? proyectos[idx].avanceObra ?? 0) : Number(avanceVal);
+                if (isNaN(avanceVal)) avanceVal = 0;
+                avanceVal = Math.min(Math.max(avanceVal, 0), 100);
 
-                // Recoger participantes con validación
+                // Recoger participantes con validacion
+                const participantes = [];
                 document.querySelectorAll('.participante-item').forEach(item => {
                     const inputs = item.querySelectorAll('input');
                     if (inputs.length >= 3) {
-                        updated.participantes.push({
+                        participantes.push({
                             nombre: inputs[0]?.value?.trim() || '',
                             rol: inputs[1]?.value?.trim() || '',
                             participacion: parseInt(inputs[2]?.value, 10) || 0
@@ -1713,19 +1720,59 @@
                     }
                 });
 
-                // Actualizar y guardar
+                // Construir objeto actualizado (mantener lo demas)
+                const updated = {
+                    ...proyectos[idx],
+                    nombre_proyecto: nombreVal,
+                    titular_credito: titularVal,
+                    nit_titular: nitVal,
+                    avance: avanceVal,
+                    avanceObra: avanceVal,
+                    participantes: participantes
+                };
+
+                // Guardar en localStorage.proyectos
                 proyectos[idx] = updated;
                 localStorage.setItem('proyectos', JSON.stringify(proyectos));
-                
+                console.log('guardarCambios: proyecto actualizado en localStorage.proyectos', updated);
+
+                // Agregar registro en historialVisitas
+                try {
+                    const rawVis = localStorage.getItem('historialVisitas') || '[]';
+                    const visitasArr = Array.isArray(JSON.parse(rawVis)) ? JSON.parse(rawVis) : [];
+                    const usuario = obtenerUsuarioActual();
+                    const now = new Date().toISOString();
+
+                    const nuevoRegistro = {
+                        proyectoId: id,
+                        fecha: now,
+                        fechaCarga: now,
+                        usuario: usuario,
+                        tipo: 'actualizacion_proyecto',
+                        comentarios: `Edicion desde modal - avance ${avanceVal}%`,
+                        campos: {
+                            'AVANCE OBRA': avanceVal,
+                            'avance_obra': avanceVal,
+                            'avance': avanceVal
+                        }
+                    };
+
+                    visitasArr.push(nuevoRegistro);
+                    localStorage.setItem('historialVisitas', JSON.stringify(visitasArr));
+                    console.log('guardarCambios: agregado registro a historialVisitas', nuevoRegistro);
+                } catch (err) {
+                    console.warn('guardarCambios: no se pudo actualizar historialVisitas', err);
+                }
+
                 // Actualizar UI y cerrar modal
-                cargarProyectos({});
-                bootstrap.Modal.getInstance(document.getElementById('editarModal'))?.hide();
-                
-                // Feedback visual
+                try { if (typeof cargarProyectos === 'function') cargarProyectos({}); } catch (e) { console.warn(e); }
+                try { bootstrap.Modal.getInstance(document.getElementById('editarModal'))?.hide(); } catch (e) { /* ignore */ }
+
+                // Mensaje de exito
                 Swal.fire({
                     icon: 'success',
                     title: '¡Guardado!',
-                    text: 'Cambios actualizados correctamente',
+                    text: 'Cambios actualizados correctamente y historial de visitas registrado',
                     timer: 1500
                 });
 
