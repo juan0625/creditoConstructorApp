@@ -1699,7 +1699,7 @@
         
         
         // Guarda los cambios del formulario del modal
-        function guardarCambios() {
+        async function guardarCambios() {
             try {
                 const proyectos = Array.isArray(JSON.parse(localStorage.getItem('proyectos') || '[]')) 
                     ? JSON.parse(localStorage.getItem('proyectos') || '[]') 
@@ -1719,6 +1719,12 @@
                 if (isNaN(avanceVal)) avanceVal = proyectos[idx].avance ?? 0;
                 avanceVal = Math.min(Math.max(avanceVal, 0), 100);
 
+                // --- Estado ---
+                let nuevoEstado = proyectos[idx].estado || 'sin aprobar';
+                if (avanceVal > 98) {
+                    nuevoEstado = 'en escrituracion';
+                }
+
                 // Datos actualizados
                 const updated = {
                     ...proyectos[idx],
@@ -1727,6 +1733,7 @@
                     nit_titular: form.querySelector('#edit-nit')?.value?.trim() || proyectos[idx].nit_titular,
                     avance: avanceVal,
                     avanceObra: avanceVal,
+                    estado: nuevoEstado,
                     participantes: []
                 };
 
@@ -1742,7 +1749,7 @@
                     }
                 });
 
-                // 1) Actualizar proyectos
+                // 1) Actualizar proyectos en localStorage
                 proyectos[idx] = updated;
                 localStorage.setItem('proyectos', JSON.stringify(proyectos));
 
@@ -1773,7 +1780,24 @@
                     console.warn('guardarCambios: no se pudo actualizar historialVisitas', err);
                 }
 
-                // 3) Refrescar UI
+                // 3) Llamar backend para regenerar el Excel principal
+                try {
+                    const resp = await fetch('/exportar_excel', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ proyectos })
+                    });
+                    const data = await resp.json();
+                    if (!data.success) {
+                        console.warn('El backend no pudo exportar Excel:', data);
+                    } else {
+                        console.log('Excel regenerado en backend:', data.filepath || data);
+                    }
+                } catch (err) {
+                    console.error('Error enviando cambios al backend:', err);
+                }
+
+                // 4) Refrescar UI y cerrar modal
                 cargarProyectos({});
                 bootstrap.Modal.getInstance(document.getElementById('editarModal'))?.hide();
 
@@ -1793,7 +1817,6 @@
                 });
             }
         }
-
         // Eliminar proyecto
         async function eliminarProyecto(id) {
             if (confirm('¿Estás seguro de que deseas eliminar este proyecto?')) {
