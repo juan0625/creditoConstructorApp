@@ -1234,26 +1234,24 @@
         // Función para obtener datos del proyecto
         function obtenerDatosProyecto(idProyecto) {
             try {
-                // Buscar en historialDesembolsos
-                const historialDesembolsos = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]');
-                let desembolsosProyecto = Array.isArray(historialDesembolsos) ?
-                    historialDesembolsos.filter(item => item.proyectoId == idProyecto) : [];
+                const historial = JSON.parse(localStorage.getItem('historialDesembolsos') || '[]');
 
-                // Si no hay nada, buscar en historialDesembolsosDiarios
-                if (desembolsosProyecto.length === 0) {
-                    const diarios = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
-                    desembolsosProyecto = Array.isArray(diarios) ?
-                        diarios.filter(item => item.proyectoId == idProyecto) : [];
-                }
+                if (!Array.isArray(historial)) return null;
 
-                return desembolsosProyecto.length > 0 ?
-                    desembolsosProyecto.sort((a, b) => new Date(b.fechaCarga) - new Date(a.fechaCarga))[0] :
-                    null;
+                const desembolsosProyecto = historial.filter(item => item.proyectoId == idProyecto);
+
+                if (desembolsosProyecto.length === 0) return null;
+
+                // Tomar el ultimo registrado por fecha
+                return desembolsosProyecto.sort(
+                    (a, b) => new Date(b.fechaCarga) - new Date(a.fechaCarga)
+                )[0];
             } catch (e) {
-                console.error('Error al obtener datos del proyecto:', e);
+                console.error("Error al obtener desembolsos:", e);
                 return null;
             }
         }
+
 
 
         // Inicializar datos al cargar la página
