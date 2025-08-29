@@ -1920,10 +1920,8 @@
 
                 // 🔹 Override con datos de localStorage (si existen)
                 const proyectosLocal = JSON.parse(localStorage.getItem('proyectos') || '[]');
-                const override = proyectosLocal.find(p => p.id_proyecto === id);
-                if (override) {
-                    proyecto = { ...proyecto, ...override };
-                }
+                const override = proyectosLocal.find(p => _idEq(p.id_proyecto, id));
+                if (override) proyecto = { ...proyecto, ...override };
 
                 // 2. Obtener avance: primero historialVisitas, si no existe fallback a la propiedad en proyecto
                 const avanceDesdeVisitas = (typeof obtenerAvanceProyecto === 'function') ? obtenerAvanceProyecto(id) : null;
@@ -1931,22 +1929,25 @@
                 const avanceNumero = Number(avanceDesdeVisitas ?? avanceFallback) || 0;
                 const avanceNormalized = Math.min(Math.max(avanceNumero, 0), 100);
 
-                // 3. Construir contenido dinámico
+                // 3. Construir contenido dinámico (IMPORTANTE: no backticks anidados)
+                const proyectoIdSeguro = proyecto.id_proyecto ?? proyecto.proyectoId ?? proyecto.id ?? '';
                 const contenidoHTML = `
                     <div class="container-fluid">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h4>${proyecto.nombre_proyecto || 'Proyecto sin nombre'}</h4>
-                            <button class="btn btn-primary btn-sm" onclick="mostrarHistorial('${id}')">
+                            <!-- BOTON: sin onclick inline; usamos data-proyecto-id -->
+                            <button class="btn btn-primary btn-sm btn-ver-historial"
+                                    data-proyecto-id=${JSON.stringify(proyectoIdSeguro)}>
                                 <i class="fas fa-history me-2"></i>Ver Historial
                             </button>
                         </div>
                         
                         <div class="row">
                             <div class="col-md-6">
-                                <p><strong>ID Proyecto:</strong> ${proyecto.id_proyecto}</p>
+                                <p><strong>ID Proyecto:</strong> ${proyecto.id_proyecto || proyectoIdSeguro}</p>
                                 <p><strong>Titular:</strong> ${proyecto.titular_credito || 'No registrado'}</p>
                                 <p><strong>NIT:</strong> ${proyecto.nit_titular || proyecto.nit || 'Sin NIT'}</p>
-                                <p><strong>Vigencia:</strong> ${proyecto.vigencia_en_meses || 'No definida'} meses</p>
+                                <p><strong>Vigencia:</strong> ${proyecto.vigencia_en_meses ?? 'No definida'} meses</p>
                             </div>
                             <div class="col-md-6">
                                 <p><strong>Avance:</strong></p>
@@ -1958,19 +1959,17 @@
                                     </div>
                                 </div>
 
-                                <p class="mt-2"><strong>Estado:</strong> 
-                                    ${getBadgeEstado(proyecto.estado)}
-                                </p>
+                                <p class="mt-2"><strong>Estado:</strong> ${getBadgeEstado(proyecto.estado)}</p>
                             </div>
                         </div>
 
-                        ${proyecto.participantes?.length ? `...` : ''}
-                        ${proyecto.gestiones?.length ? `...` : ''}
+                        ${proyecto.participantes?.length ? '<!-- participantes -->' : ''}
+                        ${proyecto.gestiones?.length ? '<!-- gestiones -->' : ''}
                     </div>`;
 
                 // 4. Inyectar contenido y mostrar modal
                 const detalleContent = document.getElementById('detalle-content');
-                detalleContent.innerHTML = contenidoHTML;
+                if (detalleContent) detalleContent.innerHTML = contenidoHTML;
 
                 const detalleModalEl = document.getElementById('detalleModal');
                 if (detalleModalEl) {
@@ -2314,12 +2313,23 @@
         }
     }
 
-    // Funciones de historial
-    function cargarHistorialVentas(idProyecto) {
+    // cargarHistorialVentas(idProyecto, ventasDataOpt)
+    function cargarHistorialVentas(idProyecto, ventasDataOpt = null) {
         try {
-            const historial = JSON.parse(localStorage.getItem('historialVentas') || '[]');
-            const ventasProyecto = historial.filter(v => v.proyectoId === idProyecto);
+            const idStr = normalizarIdProyecto(idProyecto);
+
+            // Obtener array: preferir ventasDataOpt si es array, si no usar localStorage
+            let historial = Array.isArray(ventasDataOpt) ? ventasDataOpt :
+                JSON.parse(localStorage.getItem('historialVentas') || '[]');
+
+            if (!Array.isArray(historial)) historial = [];
+
+            const ventasProyecto = historial.filter(v => _idEq(v.proyectoId, idStr));
             const tbody = document.querySelector('#tabla-ventas tbody');
+            if (!tbody) {
+                console.warn('cargarHistorialVentas: #tabla-ventas tbody no encontrado');
+                return;
+            }
             tbody.innerHTML = '';
 
             if (ventasProyecto.length === 0) {
@@ -2328,38 +2338,54 @@
             }
 
             ventasProyecto.forEach((d, index) => {
-            const campos = d.campos || {};
-            tbody.innerHTML += `
+                const campos = d.campos || {};
+                // obtener porcentaje de forma segura; si viene en 0-1 lo convertimos a %
+                let pct = Number(getNestedValue(campos, '% PORCENTAJE DE VENTAS (unidades).valor')
+                            ?? getNestedValue(campos, 'PORCENTAJE DE VENTAS.valor')
+                            ?? 0);
+                if (!Number.isFinite(pct)) pct = 0;
+                if (Math.abs(pct) <= 1) pct = pct * 100; // si esta en 0..1 lo convertimos
+
+                const inmueblesVendidos = Number(getNestedValue(campos, 'INMUEBLES VENDIDOS (unidades).valor') ?? 0);
+                const valorInmueblesVendidos = Number(getNestedValue(campos, 'valor inmuebles vendidos.valor') ?? 0);
+                const carteraRecaudada = Number(getNestedValue(campos, 'cartera RECAUDADA.valor') ?? 0);
+
+                tbody.innerHTML += `
                     <tr>
-                        <td>${index + 1}</td> <!-- Columna enumeradora -->
+                        <td>${index + 1}</td>
                         <td>${formatFecha(d.fechaCarga)}</td>
                         <td>${d.usuario || 'N/A'}</td>
                         <td>${getNestedValue(campos, 'FECHA INICIO DE VENTAS.valor') || 'N/A'}</td>
-                        <td>${getNestedValue(campos, 'INMUEBLES VENDIDOS (unidades).valor') || 0}</td>
-                        <td>${(getNestedValue(campos, '% PORCENTAJE DE VENTAS (unidades).valor') || 0 * 100).toFixed(2)}%</td>
-                        <td>${formatCurrency(getNestedValue(campos, 'valor inmuebles vendidos.valor') || 0)}</td>
-                        <td>${formatCurrency(getNestedValue(campos, 'cartera RECAUDADA.valor') || 0)}</td>
+                        <td>${inmueblesVendidos}</td>
+                        <td>${pct.toFixed(2)}%</td>
+                        <td>${formatCurrency(valorInmueblesVendidos)}</td>
+                        <td>${formatCurrency(carteraRecaudada)}</td>
                     </tr>
                 `;
             });
         } catch (error) {
             console.error('Error cargando ventas:', error);
             const tbody = document.querySelector('#tabla-ventas tbody');
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar ventas</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar ventas</td></tr>';
         }
     }
 
-    // Función mejorada para cargar historial de visitas
-    function cargarHistorialVisitas(idProyecto) {
+    // cargarHistorialVisitas(idProyecto, visitasDataOpt)
+    function cargarHistorialVisitas(idProyecto, visitasDataOpt = null) {
         try {
-            // Obtener datos del localStorage con valor por defecto seguro
-            const historialData = localStorage.getItem('historialVisitas') || '[]';
-            const historial = JSON.parse(historialData);
-            
-            const visitasProyecto = Array.isArray(historial) ? 
-                historial.filter(v => v.proyectoId === idProyecto) : [];
-                
+            const idStr = normalizarIdProyecto(idProyecto);
+
+            let historial = Array.isArray(visitasDataOpt) ? visitasDataOpt :
+                JSON.parse(localStorage.getItem('historialVisitas') || '[]');
+
+            if (!Array.isArray(historial)) historial = [];
+
+            const visitasProyecto = historial.filter(v => _idEq(v.proyectoId, idStr));
             const tbody = document.querySelector('#tabla-visitas tbody');
+            if (!tbody) {
+                console.warn('cargarHistorialVisitas: #tabla-visitas tbody no encontrado');
+                return;
+            }
             tbody.innerHTML = '';
 
             if (visitasProyecto.length === 0) {
@@ -2368,32 +2394,64 @@
             }
 
             visitasProyecto.forEach((d, index) => {
-            const campos = d.campos || {};
-            tbody.innerHTML += `
+                const campos = d.campos || {};
+                const fechaVisita = getNestedValue(campos, 'FECHA VISITA.valor') || d.fecha || d.fechaCarga || 'N/A';
+                const numeroVisita = getNestedValue(campos, 'NUMERO VISITA.valor') ?? 'N/A';
+                const avanceObra = getNestedValue(campos, 'AVANCE OBRA.valor') ?? 'N/A';
+                let avanceEsperado = Number(getNestedValue(campos, 'AVANCE ESPERADO PORCENTAJE.valor') ?? 0);
+                if (!Number.isFinite(avanceEsperado)) avanceEsperado = 0;
+                if (Math.abs(avanceEsperado) <= 1) avanceEsperado = avanceEsperado * 100; // normalizar a %
+                const estadoEjecucion = getNestedValue(campos, 'ESTADO EJECUCIÓN OBRA.valor') ?? 'N/A';
+                const resumenAlerta = getNestedValue(campos, 'RESUMEN ALERTA DEL PROYECTO.valor') || 'Sin alertas';
+
+                tbody.innerHTML += `
                     <tr>
-                        <td>${index + 1}</td> <!-- Columna enumeradora -->
-                        <td>${formatFecha(getNestedValue(campos, 'FECHA VISITA.valor'))}</td>
+                        <td>${index + 1}</td>
+                        <td>${formatFecha(fechaVisita)}</td>
                         <td>${d.usuario || 'N/A'}</td>
-                        <td>${getNestedValue(campos, 'NUMERO VISITA.valor') || 'N/A'}</td>
-                        <td>${getNestedValue(campos, 'AVANCE OBRA.valor') || 'N/A'}</td>
-                        <td>${(getNestedValue(campos, 'AVANCE ESPERADO PORCENTAJE.valor') || 0).toFixed(2)}%</td>
-                        <td>${getNestedValue(campos, 'ESTADO EJECUCIÓN OBRA.valor') || 'N/A'}</td>
-                        <td>${getNestedValue(campos, 'RESUMEN ALERTA DEL PROYECTO.valor') || 'Sin alertas'}</td>
+                        <td>${numeroVisita}</td>
+                        <td>${avanceObra}</td>
+                        <td>${avanceEsperado.toFixed(2)}%</td>
+                        <td>${estadoEjecucion}</td>
+                        <td>${resumenAlerta}</td>
                     </tr>
                 `;
             });
         } catch (error) {
             console.error('Error cargando visitas:', error);
             const tbody = document.querySelector('#tabla-visitas tbody');
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar los datos de visitas</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar los datos de visitas</td></tr>';
         }
     }
 
-    /* ---------- HELPERS ---------- */
+    // --- Util: normaliza id para comparaciones ---
+    // ----------------- UTILIDADES (definir una sola vez, al inicio del archivo) -----------------
     function normalizarIdProyecto(id) {
-        return id === null || id === undefined ? '' : String(id).trim();
+        return String(id ?? '').trim()
+            .replace(/\s+/g, ' ')
+            .replace(/['"`<>\\]/g, '') // quitar comillas y caracteres que rompen HTML/JS
+            .toLowerCase();
+    }
+    function _idEq(a, b) {
+        return normalizarIdProyecto(a) === normalizarIdProyecto(b);
     }
 
+    // Event delegation para botones "Ver Historial" (definir solo una vez al inicializar la app)
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest && e.target.closest('.btn-ver-historial');
+        if (!btn) return;
+
+        const raw = btn.dataset.proyectoId;
+        let id;
+        try { id = raw ? JSON.parse(raw) : raw; } catch (err) { id = raw; }
+
+        try {
+            mostrarHistorial(id);
+        } catch (err) {
+            console.error('Error al abrir historial para', id, err);
+            Swal.fire('Error', 'No se pudo abrir el historial', 'error');
+        }
+    });
     /**
      * Intenta extraer un valor numerico a partir de un objeto `d` buscando
      * por varias llaves posibles dentro de `d.campos` o en `d` mismo.
@@ -2424,20 +2482,20 @@
         return null;
     }
 
-    function cargarHistorialDesembolsosDiarios(idProyecto) {
+   // cargarHistorialDesembolsosDiarios(idProyecto, desembolsosDataOpt)
+    function cargarHistorialDesembolsosDiarios(idProyecto, desembolsosDataOpt = null) {
         try {
             const idStr = normalizarIdProyecto(idProyecto);
-            const historialRaw = localStorage.getItem('historialDesembolsosDiarios') || '[]';
-            const historial = JSON.parse(historialRaw);
-            console.log('cargarHistorialDesembolsosDiarios -> id:', idStr, 'registros totales:', Array.isArray(historial) ? historial.length : 'no-array');
 
-            const desembolsosProyecto = Array.isArray(historial)
-                ? historial.filter(d => normalizarIdProyecto(d.proyectoId) === idStr)
-                : [];
+            let historial = Array.isArray(desembolsosDataOpt) ? desembolsosDataOpt :
+                JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
 
+            if (!Array.isArray(historial)) historial = [];
+
+            const desembolsosProyecto = historial.filter(d => _idEq(d.proyectoId, idStr));
             const tbody = document.querySelector('#tabla-desembolsos tbody');
             if (!tbody) {
-                console.warn('tabla-desembolsos tbody no encontrada');
+                console.warn('cargarHistorialDesembolsosDiarios: tabla-desembolsos tbody no encontrada');
                 return;
             }
             tbody.innerHTML = '';
@@ -2451,29 +2509,30 @@
             const keysValorEntregado = ['valorEntregado', 'valor_entregado', 'valorEntregadoCOP', 'valor_entregado_cop', 'valor'];
             const keysValorPorEntregar = ['valorPorEntregar', 'valor_por_entregar', 'valor_por_entrega', 'valorPendiente', 'valor_por_entregar'];
             const keysCobertura = ['cobertura', 'porcentajeCobertura', 'cobertura_porcentaje'];
-            const keysSuperavit = ['superavit', 'superávit', 'superavit_cop'];
+            const keysSuperavit = ['superavit', 'superavit_cop', 'superávit'];
 
             desembolsosProyecto.forEach((d, index) => {
-                const vEntregado = obtenerValorCampo(d, keysValorEntregado) ?? 0;
-                const vPorEntregar = obtenerValorCampo(d, keysValorPorEntregar) ?? 0;
+                const vEntregado = Number(obtenerValorCampo(d, keysValorEntregado) ?? 0);
+                const vPorEntregar = Number(obtenerValorCampo(d, keysValorPorEntregar) ?? 0);
                 let coberturaVal = obtenerValorCampo(d, keysCobertura);
-                if (coberturaVal === null) {
-                    // si no existe cobertura, intentar calcularla si hay totales disponibles
-                    // (evita mostrar NaN)
-                    coberturaVal = 0;
-                }
-                const superavitVal = obtenerValorCampo(d, keysSuperavit) ?? 0;
+                coberturaVal = Number(coberturaVal ?? 0);
+                const superavitVal = Number(obtenerValorCampo(d, keysSuperavit) ?? 0);
+
+                const fecha = d.fechaCarga || d.fecha || d.createdAt || null;
+                const usuario = d.usuario || d.usuarioCreacion || 'N/A';
+                const requiereVisto = (d.campos && (d.campos.requiereVistoBueno || d.campos.requiere_visto_bueno))
+                                    ? true : (d.requiereVistoBueno || d.requiere_visto_bueno ? true : false);
 
                 tbody.innerHTML += `
                     <tr>
                         <td>${index + 1}</td>
-                        <td>${formatFecha(d.fechaCarga || d.fecha || d.createdAt)}</td>
-                        <td>${d.usuario || d.usuarioCreacion || 'N/A'}</td>
+                        <td>${formatFecha(fecha)}</td>
+                        <td>${usuario}</td>
                         <td>${formatCurrency(vEntregado)}</td>
                         <td>${formatCurrency(vPorEntregar)}</td>
-                        <td>${(Number(coberturaVal) || 0).toFixed(2)}%</td>
+                        <td>${(Number.isFinite(coberturaVal) ? coberturaVal : 0).toFixed(2)}%</td>
                         <td>${formatCurrency(superavitVal)}</td>
-                        <td>${(d.campos && (d.campos.requiereVistoBueno || d.campos.requiere_visto_bueno)) ? 'Sí' : (d.requiereVistoBueno || d.requiere_visto_bueno ? 'Sí' : 'No')}</td>
+                        <td>${requiereVisto ? 'Sí' : 'No'}</td>
                     </tr>
                 `;
             });
@@ -2483,43 +2542,119 @@
             if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar desembolsos</td></tr>';
         }
     }
+    
+    // Obtiene appData del backend (usa /api/appData que mostraste)
+    async function obtenerAppData() {
+        try {
+            const res = await fetch('/api/appData', { method: 'GET' });
+            if (!res.ok) throw new Error('Respuesta no OK de /api/appData');
+            const json = await res.json();
 
+            return {
+                ventas: Array.isArray(json.historialVentas) ? json.historialVentas : (Array.isArray(json.historialventas) ? json.historialventas : []),
+                visitas: Array.isArray(json.historialVisitas) ? json.historialVisitas : (Array.isArray(json.historialvisitas) ? json.historialvisitas : []),
+                desembolsos: Array.isArray(json.historialDesembolsosDiarios) ? json.historialDesembolsosDiarios :
+                            (Array.isArray(json.historialDesembolsos) ? json.historialDesembolsos : [])
+            };
+        } catch (err) {
+            console.error('obtenerAppData error:', err);
+            // Lanzamos para que el caller decida (no hacer fallback automático)
+            throw err;
+        }
+    }
 
     // Función mejorada para mostrar el historial
-    function mostrarHistorial(idProyecto) {
+    /**
+     * mostrarHistorial: usa datos del backend por defecto.
+     * options:
+     *   - appData: { ventas, visitas, desembolsos }  (si ya los tienes en memoria)
+     *   - fallbackLocalStorage: boolean (false por defecto)
+     */
+    async function mostrarHistorial(idProyecto, options = {}) {
         try {
             const idStr = normalizarIdProyecto(idProyecto);
-            const historialVentas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
-            const historialVisitas = JSON.parse(localStorage.getItem('historialVisitas') || '[]');
-            const historialDesembolsos = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
 
-            const ventasProyecto = Array.isArray(historialVentas) ? historialVentas.filter(v => normalizarIdProyecto(v.proyectoId) === idStr) : [];
-            const visitasProyecto = Array.isArray(historialVisitas) ? historialVisitas.filter(v => normalizarIdProyecto(v.proyectoId) === idStr) : [];
-            const desembolsosProyecto = Array.isArray(historialDesembolsos) ? historialDesembolsos.filter(d => normalizarIdProyecto(d.proyectoId) === idStr) : [];
+            // 1) obtener appData: preferir options.appData si la pasan
+            let ventas = [], visitas = [], desembolsos = [];
+            if (options && options.appData) {
+                const a = options.appData;
+                ventas = Array.isArray(a.ventas) ? a.ventas : [];
+                visitas = Array.isArray(a.visitas) ? a.visitas : [];
+                desembolsos = Array.isArray(a.desembolsos) ? a.desembolsos : [];
+            } else {
+                // pedir al backend
+                try {
+                    const a = await obtenerAppData();
+                    ventas = a.ventas;
+                    visitas = a.visitas;
+                    desembolsos = a.desembolsos;
+                } catch (err) {
+                    // si fallo y el caller pidió fallback, lo intentamos; si no, mostramos error
+                    if (options && options.fallbackLocalStorage) {
+                        console.warn('obtenerAppData fallo, usando localStorage por fallback');
+                        try {
+                            ventas = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+                            visitas = JSON.parse(localStorage.getItem('historialVisitas') || '[]');
+                            desembolsos = JSON.parse(localStorage.getItem('historialDesembolsosDiarios') || '[]');
+                        } catch (e) {
+                            ventas = visitas = desembolsos = [];
+                        }
+                    } else {
+                        console.error('No se pudo obtener appData y fallbackLocalStorage no activado:', err);
+                        Swal.fire('Error', 'No se pudo cargar el historial desde el servidor', 'error');
+                        return;
+                    }
+                }
+            }
 
+            // 2) Filtrar por idProyecto (usamos normalizacion robusta)
+            const ventasProyecto = Array.isArray(ventas) ? ventas.filter(v => _idEq(v.proyectoId, idStr)) : [];
+            const visitasProyecto = Array.isArray(visitas) ? visitas.filter(v => _idEq(v.proyectoId, idStr)) : [];
+            const desembolsosProyecto = Array.isArray(desembolsos) ? desembolsos.filter(d => _idEq(d.proyectoId, idStr)) : [];
+
+            // 3) Si no hay datos desde backend -> mensaje (no depender de localStorage por defecto)
             if (ventasProyecto.length === 0 && visitasProyecto.length === 0 && desembolsosProyecto.length === 0) {
                 Swal.fire({ title: 'Historial vacío', text: 'No hay historial disponible para este proyecto', icon: 'info' });
                 return;
             }
 
-            // Ocultar contenidos y elegir que mostrar por prioridad (ventas>visitas>desembolsos)
+            // 4) Ocultar contenidos y activar la pestaña correspondiente (ventas>visitas>desembolsos)
             document.querySelectorAll('.historial-contenido').forEach(c => c.style.display = 'none');
             document.querySelectorAll('[data-tipo]').forEach(b => b.classList.remove('active'));
 
             if (ventasProyecto.length > 0) {
-                cargarHistorialVentas(idProyecto);
-                document.querySelector('[data-tipo="ventas"]').classList.add('active');
-                document.getElementById('contenido-ventas').style.display = 'block';
+                if (typeof cargarHistorialVentas === 'function') {
+                    cargarHistorialVentas(idProyecto, ventasProyecto);
+                } else {
+                    console.warn('cargarHistorialVentas no definida');
+                }
+                const boton = document.querySelector('[data-tipo="ventas"]');
+                if (boton) boton.classList.add('active');
+                const cont = document.getElementById('contenido-ventas');
+                if (cont) cont.style.display = 'block';
             } else if (visitasProyecto.length > 0) {
-                cargarHistorialVisitas(idProyecto);
-                document.querySelector('[data-tipo="visitas"]').classList.add('active');
-                document.getElementById('contenido-visitas').style.display = 'block';
+                if (typeof cargarHistorialVisitas === 'function') {
+                    cargarHistorialVisitas(idProyecto, visitasProyecto);
+                } else {
+                    console.warn('cargarHistorialVisitas no definida');
+                }
+                const boton = document.querySelector('[data-tipo="visitas"]');
+                if (boton) boton.classList.add('active');
+                const cont = document.getElementById('contenido-visitas');
+                if (cont) cont.style.display = 'block';
             } else {
-                cargarHistorialDesembolsosDiarios(idProyecto);
-                document.querySelector('[data-tipo="desembolsos"]').classList.add('active');
-                document.getElementById('contenido-desembolsos').style.display = 'block';
+                if (typeof cargarHistorialDesembolsosDiarios === 'function') {
+                    cargarHistorialDesembolsosDiarios(idProyecto, desembolsosProyecto);
+                } else {
+                    console.warn('cargarHistorialDesembolsosDiarios no definida');
+                }
+                const boton = document.querySelector('[data-tipo="desembolsos"]');
+                if (boton) boton.classList.add('active');
+                const cont = document.getElementById('contenido-desembolsos');
+                if (cont) cont.style.display = 'block';
             }
 
+            // 5) Mostrar modal y asignar dataset
             const modal = document.getElementById('historialModal');
             if (modal) {
                 modal.dataset.proyectoId = idProyecto;
