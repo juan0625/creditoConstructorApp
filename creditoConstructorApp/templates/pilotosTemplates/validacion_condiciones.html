@@ -190,6 +190,142 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-calc@0.7.0/lib/xlsx-calc.js"></script>
     
+
+<!-- INICIO: sincronizacion localStorage <-> backend (proyectos, appData, idProyectoSeleccionado) -->
+<script>
+(function(){
+  const originalSet = Storage.prototype.setItem;
+  const originalRemove = Storage.prototype.removeItem;
+
+  async function fetchAndSetProyectos(){
+    try {
+      const res = await fetch('/api/proyectos');
+      if (!res.ok) return;
+      const data = await res.json();
+      try { originalSet.apply(localStorage, ['proyectos', JSON.stringify(data)]); } catch(e){}
+    } catch (e) {
+      console.warn('Error cargando proyectos desde servidor', e);
+    }
+  }
+
+  async function fetchAndSetAppData(){
+    try {
+      const res = await fetch('/api/appData');
+      if (!res.ok) return;
+      const data = await res.json();
+      try { originalSet.apply(localStorage, ['appData', JSON.stringify(data)]); } catch(e){}
+    } catch (e) {
+      // ignore if endpoint not present
+    }
+  }
+
+  // Sync logic for 'proyectos' value: post each project (upsert)
+  function trySyncProyectosValue(value){
+    try {
+      const parsed = JSON.parse(value);
+      if (!Array.isArray(parsed)) return;
+      parsed.forEach(async (proj) => {
+        try {
+          await fetch('/api/proyectos', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(proj)
+          });
+        } catch (e) {
+          console.warn('Sync proyecto failed', e, proj && proj.id_proyecto);
+        }
+      });
+    } catch (e) {
+      // ignore non-json
+    }
+  }
+
+  // When proyectos removed -> delete all on server
+  async function tryRemoveAllProyectos(){
+    try {
+      const res = await fetch('/api/proyectos');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!Array.isArray(data)) return;
+      data.forEach(async (p) => {
+        try {
+          if (p && p.id_proyecto != null) {
+            await fetch('/api/proyectos/' + encodeURIComponent(p.id_proyecto), { method: 'DELETE' });
+          }
+        } catch (e) {
+          console.warn('Failed deleting proyecto', e, p && p.id_proyecto);
+        }
+      });
+    } catch (e) {
+      console.warn('Error removing proyectos from server', e);
+    }
+  }
+
+  // Sync for appData -> PUT whole appData to server if endpoint exists
+  async function trySyncAppDataValue(value){
+    try {
+      await fetch('/api/appData', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: value
+      });
+    } catch (e) {
+      // ignore errors
+    }
+  }
+
+  // When idProyectoSeleccionado set, also sync to appData on server
+  function trySyncSelectedProject(value){
+    try {
+      // store in appData.selectedProject
+      trySyncAppDataValue(JSON.stringify({ selectedProject: value }));
+    } catch(e){}
+  }
+
+  Storage.prototype.setItem = function(key, value) {
+    try { originalSet.apply(this, [key, value]); } catch(e){}
+    try {
+      if (key === 'proyectos') {
+        trySyncProyectosValue(value);
+      } else if (key === 'appData') {
+        trySyncAppDataValue(value);
+      } else if (key === 'idProyectoSeleccionado') {
+        trySyncSelectedProject(value);
+      }
+    } catch (e) {
+      console.warn('Error en setItem sync hook', e);
+    }
+  };
+
+  Storage.prototype.removeItem = function(key) {
+    try { originalRemove.apply(this, [key]); } catch(e){}
+    try {
+      if (key === 'proyectos') {
+        tryRemoveAllProyectos();
+      } else if (key === 'appData') {
+        trySyncAppDataValue(JSON.stringify({}));
+      } else if (key === 'idProyectoSeleccionado') {
+        trySyncSelectedProject('');
+      }
+    } catch (e) {
+      console.warn('Error en removeItem sync hook', e);
+    }
+  };
+
+  // Initialize from server on load
+  function inicializar() {
+    fetchAndSetProyectos();
+    fetchAndSetAppData();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inicializar, {once:true});
+  } else {
+    inicializar();
+  }
+})();
+</script>
+<!-- FIN: sincronizacion localStorage <-> backend -->
 </head>
 <body>
      <!-- Header con logo y usuario -->
