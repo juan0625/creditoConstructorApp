@@ -2710,164 +2710,179 @@
         });
     });
         
-        let isGeneratingPDF = false;
+    let isGeneratingPDF = false;
 
-        async function exportarAPDF(tipo) {
-            if (isGeneratingPDF) return;
-            isGeneratingPDF = true;
+    async function exportarAPDF(tipo) {
+        if (isGeneratingPDF) return;
+        isGeneratingPDF = true;
 
-            try {
-                Swal.fire({
-                    title: 'Generando PDF',
-                    html: 'Preparando documento...',
-                    allowOutsideClick: false,
-                    didOpen: () => Swal.showLoading()
-                });
+        try {
+            Swal.fire({
+                title: 'Generando PDF',
+                html: 'Preparando documento...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
 
-                const modal = document.getElementById('historialModal');
-                const activeTabContent = modal.querySelector(`#contenido-${tipo}`);
+            const modal = document.getElementById('historialModal');
+            const activeTabContent = modal.querySelector(`#contenido-${tipo}`);
 
-                if (!activeTabContent) {
-                    throw new Error(`No se encontró el contenido para ${tipo}`);
-                }
-
-                const contentClone = activeTabContent.cloneNode(true);
-
-                const elementsToHide = contentClone.querySelectorAll('.btn, .no-print');
-                elementsToHide.forEach(el => el.style.display = 'none');
-
-                const printStyles = `
-                    <style>
-                        * {
-                            box-sizing: border-box;
-                        }
-                        body {
-                            font-family: Arial, sans-serif;
-                            font-size: 11px;
-                            margin: 0;
-                            padding: 0;
-                        }
-                        .pdf-content {
-                            padding: 20px 45px 30px 55px; /* Aumentado el padding izquierdo a 55px */
-                            max-width: 100%;
-                            width: 100%;
-                        }
-                        table {
-                            width: 100%;
-                            border-collapse: collapse;
-                            margin-top: 15px;
-                            table-layout: fixed;
-                            word-wrap: break-word;
-                            font-size: 10px;
-                        }
-                        th, td {
-                            padding: 6px;
-                            border: 1px solid #ddd;
-                            text-align: left;
-                            word-break: break-word;
-                            font-size: 9.5px;
-                        }
-                        th {
-                            background-color: #004884;
-                            color: white;
-                        }
-                        .text-center {
-                            text-align: center;
-                        }
-                        .text-right {
-                            text-align: right;
-                        }
-                        h1 {
-                            color: #004884;
-                            text-align: center;
-                            margin-bottom: 5px;
-                            font-size: 16px;
-                        }
-                        h2 {
-                            text-align: center;
-                            margin-top: 0;
-                            margin-bottom: 15px;
-                            font-size: 14px;
-                        }
-                        .footer {
-                            text-align: right;
-                            margin-top: 30px;
-                            font-size: 0.8em;
-                            color: #666;
-                        }
-                    </style>
-                `;
-
-                const proyectoId = modal.dataset.proyectoId;
-                const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
-                const proyecto = proyectos.find(p => p.id_proyecto === proyectoId) || {};
-
-                const header = `
-                    <h1>Historial de ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}</h1>
-                    <h2>${proyecto.nombre_proyecto || 'Proyecto no encontrado'}</h2>
-                `;
-
-                const footer = `
-                    <div class="footer">
-                        Generado el ${new Date().toLocaleDateString('es-CO', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        })}
-                    </div>
-                `;
-
-                const pdfContainer = document.createElement('div');
-                pdfContainer.innerHTML = `
-                    ${printStyles}
-                    <div class="pdf-content">
-                        ${header}
-                        ${contentClone.innerHTML}
-                        ${footer}
-                    </div>
-                `;
-                document.body.appendChild(pdfContainer);
-
-                await new Promise(resolve => setTimeout(resolve, 300));
-
-                const options = {
-                    margin: 0,
-                    filename: `Historial_${tipo}_${proyecto.nombre_proyecto || 'proyecto'}.pdf`,
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: {
-                        scale: 2,
-                        useCORS: true,
-                        allowTaint: true,
-                        scrollX: 0,
-                        scrollY: 0,
-                        windowWidth: 2000, // aumentamos mas el viewport simulado
-                        letterRendering: true
-                    },
-                    jsPDF: {
-                        unit: 'mm',
-                        format: [330, 216],
-                        orientation: 'landscape'
-                    }
-                };
-
-                await html2pdf().set(options).from(pdfContainer).save();
-
-                document.body.removeChild(pdfContainer);
-                Swal.close();
-
-            } catch (error) {
-                console.error('Error al generar PDF:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: `No se pudo generar el PDF: ${error.message}`
-                });
-            } finally {
-                isGeneratingPDF = false;
+            if (!activeTabContent) {
+                throw new Error(`No se encontró el contenido para ${tipo}`);
             }
+
+            // Crear clon del contenido
+            const contentClone = activeTabContent.cloneNode(true);
+
+            // Ocultar elementos no deseados
+            const elementsToHide = contentClone.querySelectorAll('.btn, .no-print');
+            elementsToHide.forEach(el => el.style.display = 'none');
+
+            // Asegurar que la tabla ocupe todo el ancho disponible
+            const tables = contentClone.querySelectorAll('table');
+            tables.forEach(table => {
+                table.style.width = '100%';
+                table.style.maxWidth = 'none';
+            });
+
+            const printStyles = `
+                <style>
+                    * {
+                        box-sizing: border-box;
+                    }
+                    body {
+                        font-family: Arial, sans-serif;
+                        font-size: 10px;
+                        margin: 0;
+                        padding: 0;
+                    }
+                    .pdf-content {
+                        padding: 10px 15px;
+                        width: 100%;
+                    }
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-top: 10px;
+                        table-layout: auto;
+                        word-wrap: break-word;
+                        font-size: 9px;
+                    }
+                    th, td {
+                        padding: 4px;
+                        border: 1px solid #ddd;
+                        text-align: left;
+                        word-break: break-word;
+                    }
+                    th {
+                        background-color: #004884;
+                        color: white;
+                    }
+                    .text-center {
+                        text-align: center;
+                    }
+                    .text-right {
+                        text-align: right;
+                    }
+                    h1 {
+                        color: #004884;
+                        text-align: center;
+                        margin-bottom: 5px;
+                        font-size: 16px;
+                    }
+                    h2 {
+                        text-align: center;
+                        margin-top: 0;
+                        margin-bottom: 10px;
+                        font-size: 14px;
+                    }
+                    .footer {
+                        text-align: right;
+                        margin-top: 20px;
+                        font-size: 0.8em;
+                        color: #666;
+                    }
+                </style>
+            `;
+
+            const proyectoId = modal.dataset.proyectoId;
+            const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+            const proyecto = proyectos.find(p => p.id_proyecto === proyectoId) || {};
+
+            const header = `
+                <h1>Historial de ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}</h1>
+                <h2>${proyecto.nombre_proyecto || 'Proyecto no encontrado'}</h2>
+            `;
+
+            const footer = `
+                <div class="footer">
+                    Generado el ${new Date().toLocaleDateString('es-CO', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })}
+                </div>
+            `;
+
+            const pdfContainer = document.createElement('div');
+            pdfContainer.innerHTML = `
+                ${printStyles}
+                <div class="pdf-content">
+                    ${header}
+                    ${contentClone.innerHTML}
+                    ${footer}
+                </div>
+            `;
+            
+            // Aplicar estilos para asegurar que todo el contenido sea visible
+            pdfContainer.style.width = '100%';
+            pdfContainer.style.overflow = 'visible';
+            
+            document.body.appendChild(pdfContainer);
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const options = {
+                margin: [5, 5, 5, 5], // Márgenes reducidos: [top, right, bottom, left]
+                filename: `Historial_${tipo}_${proyecto.nombre_proyecto || 'proyecto'}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    scrollX: 0,
+                    scrollY: 0,
+                    width: pdfContainer.scrollWidth,
+                    height: pdfContainer.scrollHeight,
+                    windowWidth: pdfContainer.scrollWidth,
+                    letterRendering: true,
+                    logging: false // Desactivar logs para mejor rendimiento
+                },
+                jsPDF: {
+                    unit: 'mm',
+                    format: 'a4',
+                    orientation: 'landscape'
+                }
+            };
+
+            await html2pdf().set(options).from(pdfContainer).save();
+
+            document.body.removeChild(pdfContainer);
+            Swal.close();
+
+        } catch (error) {
+            console.error('Error al generar PDF:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: `No se pudo generar el PDF: ${error.message}`
+            });
+        } finally {
+            isGeneratingPDF = false;
         }
+    }
         
         // Event listener mejorado
         document.addEventListener('DOMContentLoaded', function() {
