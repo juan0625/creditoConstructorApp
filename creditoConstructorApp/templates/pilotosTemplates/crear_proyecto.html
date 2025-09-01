@@ -1257,6 +1257,15 @@
                             <i class="fas fa-cloud-upload-alt me-2"></i>Subir a Base Principal
                         </button>
                     </div>
+                    <!-- Nuevo: Cambiar estados a proyectos migrados (admin only) -->
+                    <button type="button" class="btn btn-outline-warning me-2" id="btn-cambiar-estados-migrados">
+                        <i class="fas fa-exchange-alt me-2"></i>Cambiar estados a proyectos migrados
+                    </button>
+
+                    <!-- Nuevo: Subir cancelados (admin only) -->
+                    <button type="button" class="btn btn-outline-danger" id="btn-subir-cancelados">
+                        <i class="fas fa-ban me-2"></i>Subir cancelados
+                    </button>
                     {% endif %}
                     <div>
                         <button type="reset" class="btn btn-outline-secondary me-3">
@@ -1300,6 +1309,50 @@
                         </div>
                     </div>
                 </div>
+                <!-- Modal: Cambiar estados a proyectos migrados -->
+                <div class="modal fade" id="modalCambiarEstados" tabindex="-1">
+                    <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                        <h5 class="modal-title">Cambiar estados a proyectos migrados</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                        <div class="alert alert-info">
+                            El Excel debe contener exactamente (o equivalente, mayus/minus/espacios/guiones): <strong>ID PROYECTO</strong>, <strong>NOMBRE PROYECTO</strong>, <strong>ESTADO</strong>.
+                        </div>
+                        <input type="file" id="fileCambiarEstados" class="form-control" accept=".xlsx,.xls,.csv">
+                        </div>
+                        <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" id="btn-confirm-cambiar-estados" class="btn btn-warning">Procesar y Cambiar Estados</button>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+                
+                <!-- Modal: Subir cancelados -->
+                <div class="modal fade" id="modalSubirCancelados" tabindex="-1">
+                    <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                        <h5 class="modal-title">Subir proyectos cancelados</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                        <div class="alert alert-info">
+                            El Excel debe contener al menos: <strong>ID PROYECTO</strong> y <strong>NOMBRE PROYECTO</strong>.
+                            <br>Se marcarán esos proyectos como cancelados y se generará un archivo con: ID PROYECTO, NOMBRE PROYECTO, FECHA CREACIÓN, FECHA CANCELACIÓN.
+                        </div>
+                        <input type="file" id="fileSubirCancelados" class="form-control" accept=".xlsx,.xls,.csv">
+                        </div>
+                        <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" id="btn-confirm-subir-cancelados" class="btn btn-danger">Procesar Cancelados</button>
+                        </div>
+                    </div>
+                    </div>
+                </div>  
                 
                 <!-- Modal para importar -->
                 <div class="modal fade" id="importModal" tabindex="-1">
@@ -3830,6 +3883,191 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
     // Manejar clic en el nuevo botón
     document.getElementById('btn-subir-base').addEventListener('click', function() {
         new bootstrap.Modal(document.getElementById('subirBaseModal')).show();
+    });
+
+    /* Helpers para normalizar cabeceras (acepta variantes como 'ID_PROYECTO', 'id proyecto', 'IdProyecto', etc.) */
+    function normalizeHeader(h) {
+        if (!h && h !== 0) return '';
+        return String(h).trim().toLowerCase().replace(/[\s\-_]+/g, '');
+    }
+
+    /* Extrae JSON desde la primera hoja utilizable del archivo */
+    function parseFileToJson(file, callback, errorCallback) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const wb = XLSX.read(data, { type: 'array' });
+                const sheetName = wb.SheetNames[0];
+                const sheet = wb.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                callback(json);
+            } catch (err) {
+                errorCallback && errorCallback(err);
+            }
+        };
+        reader.onerror = function(err) {
+            errorCallback && errorCallback(err);
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    /* Mostrar modal al hacer click en cada boton */
+    document.getElementById('btn-cambiar-estados-migrados')?.addEventListener('click', () => {
+        new bootstrap.Modal(document.getElementById('modalCambiarEstados')).show();
+    });
+    document.getElementById('btn-subir-cancelados')?.addEventListener('click', () => {
+        new bootstrap.Modal(document.getElementById('modalSubirCancelados')).show();
+    });
+
+    /* Acción: Cambiar estados (admin) */
+    document.getElementById('btn-confirm-cambiar-estados')?.addEventListener('click', async () => {
+        const file = document.getElementById('fileCambiarEstados').files[0];
+        if (!file) return Swal.fire('Error', 'Seleccione un archivo Excel', 'error');
+
+        Swal.fire({ title: 'Procesando...', html: 'Validando archivo', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        parseFileToJson(file, async (rows) => {
+            try {
+                if (!rows || rows.length === 0) throw new Error('Archivo sin filas');
+
+                // Normalizar headers y detectar columnas
+                const headers = Object.keys(rows[0]).map(normalizeHeader);
+                const required = ['idproyecto', 'nombreproyecto', 'estado'];
+                const missing = required.filter(r => !headers.includes(r));
+                if (missing.length) throw new Error('Faltan columnas requeridas: ' + missing.join(', '));
+
+                // Mapear filas a formato {id_proyecto, nombre_proyecto, estado}
+                const payload = rows.map(r => {
+                    const mapped = {};
+                    for (const k of Object.keys(r)) {
+                        const nk = normalizeHeader(k);
+                        mapped[nk] = r[k];
+                    }
+                    return {
+                        id_proyecto: String(mapped.idproyecto).trim(),
+                        nombre_proyecto: String(mapped.nombreproyecto).trim(),
+                        estado: String(mapped.estado).trim()
+                    };
+                }).filter(r => r.id_proyecto);
+
+                // Enviar al backend para persistencia
+                const resp = await fetch('/api/cambiar_estados', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ proyectos: payload })
+                });
+                const data = await resp.json();
+
+                if (data.success) {
+                    // Actualizar localStorage en el cliente para mantener UI sincronizada
+                    try {
+                        const proyectosLS = JSON.parse(localStorage.getItem('proyectos') || '[]');
+                        const mapa = {};
+                        proyectosLS.forEach(p => { mapa[String(p.id_proyecto || p.id || '').trim()] = p; });
+
+                        payload.forEach(r => {
+                            if (mapa[r.id_proyecto]) {
+                                mapa[r.id_proyecto].estado = r.estado;
+                            } else {
+                                // crear registro mínimo si no existe en localStorage
+                                mapa[r.id_proyecto] = { id_proyecto: r.id_proyecto, nombre_proyecto: r.nombre_proyecto, estado: r.estado };
+                            }
+                        });
+                        localStorage.setItem('proyectos', JSON.stringify(Object.values(mapa)));
+                    } catch (e) { console.warn('No se pudo actualizar localStorage:', e); }
+
+                    Swal.close();
+                    Swal.fire('OK', `${data.actualizados || 0} actualizados, ${data.no_encontrados || 0} no encontrados`, 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('modalCambiarEstados'))?.hide();
+                } else {
+                    throw new Error(data.message || 'Error en servidor');
+                }
+            } catch (err) {
+                Swal.close();
+                console.error(err);
+                Swal.fire('Error', err.message || 'Error procesando archivo', 'error');
+            }
+        }, (err) => {
+            Swal.close();
+            console.error(err);
+            Swal.fire('Error', 'No se pudo leer el archivo', 'error');
+        });
+    });
+
+    /* Acción: Subir cancelados (admin) */
+    document.getElementById('btn-confirm-subir-cancelados')?.addEventListener('click', async () => {
+        const file = document.getElementById('fileSubirCancelados').files[0];
+        if (!file) return Swal.fire('Error', 'Seleccione un archivo Excel', 'error');
+
+        Swal.fire({ title: 'Procesando...', html: 'Validando archivo', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+        parseFileToJson(file, async (rows) => {
+            try {
+                if (!rows || rows.length === 0) throw new Error('Archivo sin filas');
+
+                const headers = Object.keys(rows[0]).map(normalizeHeader);
+                const required = ['idproyecto', 'nombreproyecto'];
+                const missing = required.filter(r => !headers.includes(r));
+                if (missing.length) throw new Error('Faltan columnas requeridas: ' + missing.join(', '));
+
+                const payload = rows.map(r => {
+                    const mapped = {};
+                    for (const k of Object.keys(r)) {
+                        const nk = normalizeHeader(k);
+                        mapped[nk] = r[k];
+                    }
+                    return {
+                        id_proyecto: String(mapped.idproyecto).trim(),
+                        nombre_proyecto: String(mapped.nombreproyecto).trim()
+                    };
+                }).filter(r => r.id_proyecto);
+
+                const resp = await fetch('/api/subir_cancelados', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ proyectos: payload })
+                });
+                const data = await resp.json();
+
+                if (data.success) {
+                    // Actualizar localStorage en cliente
+                    try {
+                        const proyectosLS = JSON.parse(localStorage.getItem('proyectos') || '[]');
+                        const mapa = {};
+                        proyectosLS.forEach(p => { mapa[String(p.id_proyecto || p.id || '').trim()] = p; });
+
+                        (data.cancelados || []).forEach(c => {
+                            if (mapa[c.id_proyecto]) {
+                                mapa[c.id_proyecto].estado = 'CANCELADO';
+                                mapa[c.id_proyecto].fecha_cancelacion = c.fecha_cancelacion;
+                            } else {
+                                mapa[c.id_proyecto] = { id_proyecto: c.id_proyecto, nombre_proyecto: c.nombre_proyecto, estado: 'CANCELADO', fecha_cancelacion: c.fecha_cancelacion };
+                            }
+                        });
+
+                        localStorage.setItem('proyectos', JSON.stringify(Object.values(mapa)));
+                    } catch (e) { console.warn('No se pudo actualizar localStorage:', e); }
+
+                    Swal.close();
+                    const url = data.download_url ? data.download_url : null;
+                    let msg = `Se marcaron ${data.cancelados_count || 0} proyectos como cancelados.`;
+                    if (url) msg += `<br><a href="${url}" target="_blank">Descargar Base_proyectos_cancelados</a>`;
+                    Swal.fire({ title: 'OK', html: msg, icon: 'success' });
+                    bootstrap.Modal.getInstance(document.getElementById('modalSubirCancelados'))?.hide();
+                } else {
+                    throw new Error(data.message || 'Error en servidor');
+                }
+            } catch (err) {
+                Swal.close();
+                console.error(err);
+                Swal.fire('Error', err.message || 'Error procesando archivo', 'error');
+            }
+        }, (err) => {
+            Swal.close();
+            console.error(err);
+            Swal.fire('Error', 'No se pudo leer el archivo', 'error');
+        });
     });
 
     // Confirmar subida de base principal
