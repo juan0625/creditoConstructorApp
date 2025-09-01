@@ -1164,7 +1164,10 @@
     <!-- Script para manejar la búsqueda -->
 
     <script>
-         // Función para formatear valores monetarios
+        
+        const USUARIO_NOMBRE = '{{ session.usuario.nombre }}'; // Nueva variable
+        
+        // Función para formatear valores monetarios
          function formatearMoneda(valor) {
             if (valor === null || valor === undefined) return '$ 0';
             return '$ ' + valor.toLocaleString('es-CO', {maximumFractionDigits: 0});
@@ -1696,115 +1699,233 @@
                 </li>
             `;
         }
-        
-        
-        // Guarda los cambios del formulario del modal
+
+        // [REMOVED DUPLICATED FUNCTION]
+
+
+        function ensureCampoObject(campoOrVal) {
+            // Si ya tiene estructura {valor:..., tipo:..., fuente:..., celda:...} la devolvemos tal cual.
+            if (campoOrVal && typeof campoOrVal === 'object' && ('valor' in campoOrVal)) return campoOrVal;
+            // Si viene primitivo, lo convertimos a { valor: X, tipo: inferido }
+            const tipo = (typeof campoOrVal === 'number') ? 'entero' : (campoOrVal instanceof Date ? 'fecha' : 'texto');
+            return { valor: campoOrVal, tipo };
+        }
+
+        // [REMOVED DUPLICATED FUNCTION]
+
+
+        // ---------------------------
+        // pushVisitaRegistro (corregido)
+        // - preserva tipo/fuente/celda originales y solo cambia valor cuando corresponde
+        // - setea FECHA VISITA y NUMERO VISITA manteniendo metadata si existia
+        // ---------------------------
+        function pushVisitaRegistro(proyectoId, usuario, camposEntrada, opciones = {}) {
+            try {
+                const raw = localStorage.getItem('historialVisitas') || '[]';
+                const visitas = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : [];
+
+                const idStr = String(proyectoId ?? '').replace(/\s+/g, '').toLowerCase();
+
+                const visitasProyecto = visitas.filter(v => String(v.proyectoId ?? '').replace(/\s+/g, '').toLowerCase() === idStr);
+
+                // sacar los numeros existentes desde campos["NUMERO VISITA"].valor
+                const numerosExistentes = visitasProyecto
+                    .map(v => {
+                        const n = v?.campos?.['NUMERO VISITA']?.valor;
+                        return Number.isFinite(Number(n)) ? Number(n) : null;
+                    })
+                    .filter(n => n !== null);
+                const maxExistente = numerosExistentes.length ? Math.max(...numerosExistentes) : 0;
+                const numeroSiguiente = maxExistente + 1;
+
+                // primer cargue (registro mas antiguo) si se necesita
+                let primerCargue = null;
+                if (visitasProyecto.length) {
+                    const ordenadas = visitasProyecto.slice().sort((a,b) => {
+                        const fa = new Date(a.fechaCarga || a.fecha || 0).getTime();
+                        const fb = new Date(b.fechaCarga || b.fecha || 0).getTime();
+                        return fa - fb;
+                    });
+                    primerCargue = ordenadas[0];
+                }
+
+                // Normalizar camposEntrada manteniendo estructura si ya existe
+                const camposNormalized = {};
+                const entrada = camposEntrada || {};
+                for (const key of Object.keys(entrada)) {
+                    const val = entrada[key];
+                    if (val && typeof val === 'object' && ('valor' in val)) {
+                        // clonamos para evitar mutaciones
+                        camposNormalized[key] = { ...val };
+                    } else {
+                        // lo envolvemos con metadatos por defecto si viene primitivo
+                        const tipoInferido = (typeof val === 'number') ? 'entero' : 'texto';
+                        camposNormalized[key] = { valor: val, tipo: tipoInferido, fuente: 'directo' };
+                    }
+                }
+
+                const nowIso = new Date().toISOString();
+
+                // FECHA VISITA: mantener tipo/fuente/celda si ya existian, solo setear valor
+                const fechaVisitaIso = opciones.fechaVisitaOverride ? new Date(opciones.fechaVisitaOverride).toISOString() : nowIso;
+                if (!camposNormalized['FECHA VISITA']) camposNormalized['FECHA VISITA'] = { valor: fechaVisitaIso, tipo: 'fecha', fuente: 'sistema' };
+                else camposNormalized['FECHA VISITA'].valor = fechaVisitaIso, camposNormalized['FECHA VISITA'].tipo = camposNormalized['FECHA VISITA'].tipo || 'fecha';
+
+                // NUMERO VISITA: escribir numeroSiguiente respetando metadata si existe
+                if (!camposNormalized['NUMERO VISITA']) camposNormalized['NUMERO VISITA'] = { valor: numeroSiguiente, tipo: 'entero', fuente: 'sistema' };
+                else camposNormalized['NUMERO VISITA'].valor = numeroSiguiente, camposNormalized['NUMERO VISITA'].tipo = camposNormalized['NUMERO VISITA'].tipo || 'entero';
+
+                // AVANCE OBRA: si se pasa override, solo actualizar valor y tipo (preservar celda/fuente si existe)
+                if (typeof opciones.avanceOverride !== 'undefined') {
+                    if (!camposNormalized['AVANCE OBRA']) camposNormalized['AVANCE OBRA'] = { valor: opciones.avanceOverride, tipo: 'porcentaje', fuente: 'directo' };
+                    else {
+                        camposNormalized['AVANCE OBRA'].valor = opciones.avanceOverride;
+                        camposNormalized['AVANCE OBRA'].tipo = camposNormalized['AVANCE OBRA'].tipo || 'porcentaje';
+                        camposNormalized['AVANCE OBRA'].fuente = camposNormalized['AVANCE OBRA'].fuente || 'directo';
+                    }
+                }
+
+                // ESTADO EJECUCIÓN OBRA: override si viene, preservando tipo/fuente/celda
+                if (typeof opciones.estadoOverride !== 'undefined') {
+                    if (!camposNormalized['ESTADO EJECUCIÓN OBRA']) {
+                        camposNormalized['ESTADO EJECUCIÓN OBRA'] = { valor: opciones.estadoOverride, tipo: 'texto', fuente: 'directo' };
+                    } else {
+                        camposNormalized['ESTADO EJECUCIÓN OBRA'].valor = opciones.estadoOverride;
+                        camposNormalized['ESTADO EJECUCIÓN OBRA'].tipo = camposNormalized['ESTADO EJECUCIÓN OBRA'].tipo || 'texto';
+                        camposNormalized['ESTADO EJECUCIÓN OBRA'].fuente = camposNormalized['ESTADO EJECUCIÓN OBRA'].fuente || 'directo';
+                        // conservar .celda si existia
+                    }
+                }
+
+                const nuevoRegistro = {
+                    proyectoId: String(proyectoId),
+                    campos: camposNormalized,
+                    usuario: usuario || (window?.SESSION_USUARIO || 'Sistema'),
+                    fechaCarga: nowIso
+                };
+
+                visitas.push(nuevoRegistro);
+                localStorage.setItem('historialVisitas', JSON.stringify(visitas));
+
+                console.log('pushVisitaRegistro -> agregado registro:', nuevoRegistro, { primerCargue, numeroSiguiente });
+                return { nuevoRegistro, primerCargue, numeroSiguiente };
+            } catch (err) {
+                console.error('pushVisitaRegistro error:', err);
+                return null;
+            }
+        }
+
+
+        // ---------------------------
+        // guardarCambios (corrigido)
+        // - actualiza proyecto en localStorage
+        // - llama a pushVisitaRegistro preservando la metadata original
+        // - actualiza proyectos[idx].estado con el valor de campos['ESTADO EJECUCIÓN OBRA']
+        // - vuelve a llamar al backend para regenerar el Excel principal
+        // ---------------------------
         async function guardarCambios() {
             try {
-                const proyectos = Array.isArray(JSON.parse(localStorage.getItem('proyectos') || '[]')) 
-                    ? JSON.parse(localStorage.getItem('proyectos') || '[]') 
+                const proyectos = Array.isArray(JSON.parse(localStorage.getItem('proyectos') || '[]'))
+                    ? JSON.parse(localStorage.getItem('proyectos') || '[]')
                     : [];
 
                 const id = String(document.getElementById('edit-id')?.value || '').trim();
                 if (!id) throw new Error('ID de proyecto no encontrado');
 
-                const idx = proyectos.findIndex(p => p.id_proyecto === id);
+                const idx = proyectos.findIndex(p => String(p.id_proyecto ?? '').replace(/\s+/g, '').toLowerCase() === String(id).replace(/\s+/g, '').toLowerCase());
                 if (idx === -1) throw new Error('Proyecto no existe en los registros');
 
                 const form = document.getElementById('form-editar');
                 if (!form) throw new Error('Formulario no encontrado');
 
-                // --- Avance con soporte para 0 ---
-                let avanceVal = parseInt(form.querySelector('#edit-avance')?.value, 10);
-                if (isNaN(avanceVal)) avanceVal = proyectos[idx].avance ?? 0;
-                avanceVal = Math.min(Math.max(avanceVal, 0), 100);
-
-                // --- Estado ---
-                let nuevoEstado = proyectos[idx].estado || 'sin aprobar';
-                if (avanceVal >= 98) {
-                    nuevoEstado = 'en escrituración';
+                // obtener avance desde input o desde el proyecto existente
+                let avanceVal = parseFloat(form.querySelector('#edit-avance')?.value);
+                if (isNaN(avanceVal)) {
+                    avanceVal = proyectos[idx].avance ?? proyectos[idx].avanceObra ?? null;
+                }
+                if (typeof avanceVal === 'number') {
+                    avanceVal = Math.min(Math.max(Math.round(avanceVal * 100)/100, 0), 100);
                 }
 
-                // Datos actualizados
+                // calcular nuevo estado simple
+                let nuevoEstado = proyectos[idx].estado || proyectos[idx].estadoEjecucion || 'sin definir';
+                if (typeof avanceVal === 'number' && avanceVal >= 98) nuevoEstado = 'en escrituración';
+
+                // Actualizamos campos del proyecto sin borrar metadata
                 const updated = {
                     ...proyectos[idx],
-                    nombre_proyecto: form.querySelector('#edit-nombre')?.value?.trim() || proyectos[idx].nombre_proyecto,
-                    titular_credito: form.querySelector('#edit-titular')?.value?.trim() || proyectos[idx].titular_credito,
-                    nit_titular: form.querySelector('#edit-nit')?.value?.trim() || proyectos[idx].nit_titular,
                     avance: avanceVal,
                     avanceObra: avanceVal,
-                    estado: nuevoEstado,
-                    participantes: []
+                    // NO sobrescribimos estado aun, lo actualizaremos despues con lo que quede en campos (si aplica)
+                    ultimaModificacion: new Date().toISOString(),
+                    usuarioModificacion: typeof USUARIO_NOMBRE !== 'undefined' ? USUARIO_NOMBRE : (window?.SESSION_USUARIO || 'Sistema')
                 };
 
-                // Participantes
-                document.querySelectorAll('.participante-item').forEach(item => {
-                    const inputs = item.querySelectorAll('input');
-                    if (inputs.length >= 3) {
-                        updated.participantes.push({
-                            nombre: inputs[0]?.value?.trim() || '',
-                            rol: inputs[1]?.value?.trim() || '',
-                            participacion: parseInt(inputs[2]?.value, 10) || 0
-                        });
-                    }
-                });
-
-                // 1) Actualizar proyectos en localStorage
                 proyectos[idx] = updated;
                 localStorage.setItem('proyectos', JSON.stringify(proyectos));
 
-                // 2) Actualizar historialVisitas
-                try {
-                    const rawVis = localStorage.getItem('historialVisitas') || '[]';
-                    const visitas = Array.isArray(JSON.parse(rawVis)) ? JSON.parse(rawVis) : [];
-                    const now = new Date().toISOString();
-
-                    const nuevoRegistro = {
-                        proyectoId: id,
-                        fecha: now,
-                        fechaCarga: now,
-                        usuario: 'usuario_local',
-                        tipo: 'actualizacion_avance',
-                        comentarios: `Edicion desde modal - avance ${avanceVal}%`,
-                        campos: {
-                            'AVANCE OBRA': avanceVal,
-                            'avance_obra': avanceVal,
-                            'avance': avanceVal
-                        }
+                // Preparar camposBase: tomar primer cargue si existe para conservar metadatos del excel original
+                const historialRaw = Array.isArray(JSON.parse(localStorage.getItem('historialVisitas') || '[]')) ? JSON.parse(localStorage.getItem('historialVisitas') || '[]') : [];
+                const visitasProyecto = (historialRaw || []).filter(v => String(v.proyectoId ?? '').replace(/\s+/g, '').toLowerCase() === String(id).replace(/\s+/g, '').toLowerCase());
+                let camposBase = {};
+                if (visitasProyecto.length) {
+                    const ordenadas = visitasProyecto.slice().sort((a,b) => {
+                        const fa = new Date(a.fechaCarga || a.fecha || 0).getTime();
+                        const fb = new Date(b.fechaCarga || b.fecha || 0).getTime();
+                        return fa - fb;
+                    });
+                    camposBase = ordenadas[0].campos || {};
+                } else {
+                    camposBase = {
+                        'ID PROYECTO': { valor: updated.id_proyecto || id, tipo: 'entero', fuente: 'directo' }
                     };
-
-                    visitas.push(nuevoRegistro);
-                    localStorage.setItem('historialVisitas', JSON.stringify(visitas));
-                    console.log('guardarCambios: historialVisitas actualizado', nuevoRegistro);
-                } catch (err) {
-                    console.warn('guardarCambios: no se pudo actualizar historialVisitas', err);
                 }
 
-                // 3) Llamar backend para regenerar el Excel principal
+                // Llamar helper para insertar el nuevo registro. El helper preserva celda/tipo/fuente
+                const usuario = updated.usuarioModificacion || window?.SESSION_USUARIO || 'Sistema';
+                const resultado = pushVisitaRegistro(id, usuario, camposBase, {
+                    fechaVisitaOverride: new Date().toISOString(),
+                    avanceOverride: typeof avanceVal === 'number' ? avanceVal : undefined,
+                    estadoOverride: nuevoEstado
+                });
+
+                // Si push devolvio nuevo registro, actualizamos el estado del proyecto a partir del campo preciso
+                if (resultado && resultado.nuevoRegistro) {
+                    const estadoCampo = resultado.nuevoRegistro.campos?.['ESTADO EJECUCIÓN OBRA'] || resultado.nuevoRegistro.campos?.['ESTADO OBRA'];
+                    const estadoValor = estadoCampo ? estadoCampo.valor : undefined;
+                    if (typeof estadoValor !== 'undefined' && estadoValor !== null) {
+                        proyectos[idx].estado = estadoValor;
+                        // tambien guardamos metadata si quieres (no cambian estructuras de proyecto existentes)
+                        localStorage.setItem('proyectos', JSON.stringify(proyectos));
+                    }
+                }
+
+                // ---- REGENERA EXCEL PRINCIPAL en backend (se vuelve a llamar al endpoint)
                 try {
                     const resp = await fetch('/exportar_excel', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ proyectos })
                     });
-                    const data = await resp.json();
-                    if (!data.success) {
-                        console.warn('El backend no pudo exportar Excel:', data);
+                    if (resp.ok) {
+                        const data = await resp.json().catch(() => null);
+                        console.log('Excel regenerado en backend:', data || 'OK');
                     } else {
-                        console.log('Excel regenerado en backend:', data.filepath || data);
+                        console.warn('Exportar Excel fallo. status:', resp.status);
                     }
                 } catch (err) {
-                    console.error('Error enviando cambios al backend:', err);
+                    console.error('Error enviando cambios al backend para exportar Excel:', err);
                 }
+                // ---- fin export
 
-                // 4) Refrescar UI y cerrar modal
+                // refrescar UI y cerrar modal
                 cargarProyectos({});
                 bootstrap.Modal.getInstance(document.getElementById('editarModal'))?.hide();
 
                 Swal.fire({
                     icon: 'success',
                     title: '¡Guardado!',
-                    text: 'Cambios actualizados correctamente',
+                    text: 'Cambios actualizados correctamente y Excel regenerado',
                     timer: 1500
                 });
 
@@ -1817,6 +1938,7 @@
                 });
             }
         }
+
         // Eliminar proyecto
         async function eliminarProyecto(id) {
             if (confirm('¿Estás seguro de que deseas eliminar este proyecto?')) {
@@ -2305,13 +2427,8 @@
         }).format(value);
     }
 
-    function getNestedValue(obj, path) {
-        try {
-            return path.split('.').reduce((o, p) => o[p], obj);
-        } catch (e) {
-            return null;
-        }
-    }
+    // [REMOVED DUPLICATED FUNCTION]
+
 
     // cargarHistorialVentas(idProyecto, ventasDataOpt)
     function cargarHistorialVentas(idProyecto, ventasDataOpt = null) {
@@ -2409,7 +2526,6 @@
                         <td>${index + 1}</td>
                         <td>${formatFecha(fechaVisita)}</td>
                         <td>${d.usuario || 'N/A'}</td>
-                        <td>${numeroVisita}</td>
                         <td>${avanceObra}</td>
                         <td>${avanceEsperado.toFixed(2)}%</td>
                         <td>${estadoEjecucion}</td>
@@ -2426,12 +2542,8 @@
 
     // --- Util: normaliza id para comparaciones ---
     // ----------------- UTILIDADES (definir una sola vez, al inicio del archivo) -----------------
-    function normalizarIdProyecto(id) {
-        return String(id ?? '').trim()
-            .replace(/\s+/g, ' ')
-            .replace(/['"`<>\\]/g, '') // quitar comillas y caracteres que rompen HTML/JS
-            .toLowerCase();
-    }
+    // [REMOVED DUPLICATED FUNCTION]
+
     function _idEq(a, b) {
         return normalizarIdProyecto(a) === normalizarIdProyecto(b);
     }
@@ -4034,7 +4146,7 @@
                                         <th>N°</th>
                                         <th>Fecha Visita</th>
                                         <th>Usuario</th>
-                                        <th>N° Visita</th>
+                                        <!-- <th>N° Visita</th> -->
                                         <th>Avance Obra</th>
                                         <th>% Ejecución</th>
                                         <th>Estado Obra</th>
@@ -4088,5 +4200,274 @@
             </p>
         </div>
     </div>
+
+<!-- Consolidated helpers and unified functions inserted by assistant -->
+<script>
+/* Utilities */
+function safeParseJSON(raw) {
+  try { return JSON.parse(raw || '[]'); } catch (e) { console.warn('safeParseJSON failed', e); return []; }
+}
+function normalizarIdProyecto(id) {
+  return String(id ?? '').replace(/\s+/g, '').toLowerCase();
+}
+function stripKeyForCompare(k) {
+  if (typeof k !== 'string') return '';
+  return k.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '').toUpperCase();
+}
+function findCampoKey(camposObj, possibleKeys) {
+  if (!camposObj || typeof camposObj !== 'object') return null;
+  const map = {};
+  for (const k of Object.keys(camposObj)) {
+    map[stripKeyForCompare(k)] = k;
+  }
+  for (const candidate of (possibleKeys || ['ESTADO EJECUCIÓN OBRA','ESTADO OBRA'])) {
+    const nk = stripKeyForCompare(candidate);
+    if (nk in map) return map[nk];
+  }
+  return null;
+}
+function getNestedValue(obj, path) {
+  if (!obj || !path) return undefined;
+  const parts = path.split('.');
+  let cur = obj;
+  for (const p of parts) {
+    if (cur && Object.prototype.hasOwnProperty.call(cur, p)) cur = cur[p];
+    else return undefined;
+  }
+  return cur;
+}
+
+/* pushVisitaRegistro: insert a visit record preserving metadata */
+function pushVisitaRegistro(proyectoId, usuario, camposEntrada, opciones = {}) {
+  try {
+    const raw = localStorage.getItem('historialVisitas') || '[]';
+    const visitas = Array.isArray(safeParseJSON(raw)) ? safeParseJSON(raw) : [];
+
+    const idStr = normalizarIdProyecto(proyectoId);
+    const visitasProyecto = visitas.filter(v => normalizarIdProyecto(v.proyectoId) === idStr);
+
+    const numerosExistentes = visitasProyecto
+      .map(v => {
+        const n = getNestedValue(v, 'campos.NUMERO VISITA.valor');
+        return Number.isFinite(Number(n)) ? Number(n) : null;
+      })
+      .filter(n => n !== null);
+    const maxExistente = numerosExistentes.length ? Math.max(...numerosExistentes) : 0;
+    const numeroSiguiente = maxExistente + 1;
+
+    let primerCargue = null;
+    if (visitasProyecto.length) {
+      const ordenadas = visitasProyecto.slice().sort((a,b) => new Date(a.fechaCarga || a.fecha || 0) - new Date(b.fechaCarga || b.fecha || 0));
+      primerCargue = ordenadas[0];
+    }
+
+    const entrada = camposEntrada || {};
+    const camposNormalized = {};
+    for (const key of Object.keys(entrada)) {
+      const val = entrada[key];
+      if (val && typeof val === 'object' && ('valor' in val)) {
+        camposNormalized[key] = Object.assign({}, val);
+      } else {
+        const tipoInferido = (typeof val === 'number') ? 'entero' : 'texto';
+        camposNormalized[key] = { valor: val, tipo: tipoInferido, fuente: 'directo' };
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const fechaVisitaIso = opciones.fechaVisitaOverride ? new Date(opciones.fechaVisitaOverride).toISOString() : nowIso;
+
+    // FECHA VISITA
+    if (!camposNormalized['FECHA VISITA']) {
+      camposNormalized['FECHA VISITA'] = { valor: fechaVisitaIso, tipo: 'fecha', fuente: 'sistema' };
+    } else {
+      camposNormalized['FECHA VISITA'].valor = fechaVisitaIso;
+      camposNormalized['FECHA VISITA'].tipo = camposNormalized['FECHA VISITA'].tipo || 'fecha';
+    }
+
+    // NUMERO VISITA
+    if (!camposNormalized['NUMERO VISITA']) {
+      camposNormalized['NUMERO VISITA'] = { valor: numeroSiguiente, tipo: 'entero', fuente: 'sistema' };
+    } else {
+      camposNormalized['NUMERO VISITA'].valor = numeroSiguiente;
+      camposNormalized['NUMERO VISITA'].tipo = camposNormalized['NUMERO VISITA'].tipo || 'entero';
+    }
+
+    // AVANCE OBRA
+    if (typeof opciones.avanceOverride !== 'undefined') {
+      if (!camposNormalized['AVANCE OBRA']) {
+        camposNormalized['AVANCE OBRA'] = { valor: opciones.avanceOverride, tipo: 'porcentaje', fuente: 'directo' };
+      } else {
+        camposNormalized['AVANCE OBRA'].valor = opciones.avanceOverride;
+        camposNormalized['AVANCE OBRA'].tipo = camposNormalized['AVANCE OBRA'].tipo || 'porcentaje';
+        camposNormalized['AVANCE OBRA'].fuente = camposNormalized['AVANCE OBRA'].fuente || 'directo';
+      }
+    }
+
+    // ESTADO EJECUCIÓN OBRA
+    if (typeof opciones.estadoOverride !== 'undefined') {
+      const kExist = findCampoKey(camposNormalized, ['ESTADO EJECUCIÓN OBRA', 'ESTADO OBRA']);
+      if (!kExist) {
+        camposNormalized['ESTADO EJECUCIÓN OBRA'] = { valor: opciones.estadoOverride, tipo: 'texto', fuente: 'directo' };
+      } else {
+        camposNormalized[kExist].valor = opciones.estadoOverride;
+        camposNormalized[kExist].tipo = camposNormalized[kExist].tipo || 'texto';
+        camposNormalized[kExist].fuente = camposNormalized[kExist].fuente || 'directo';
+      }
+    }
+
+    const nuevoRegistro = {
+      proyectoId: String(proyectoId),
+      campos: camposNormalized,
+      usuario: usuario || (window?.SESSION_USUARIO || 'Sistema'),
+      fechaCarga: nowIso
+    };
+
+    visitas.push(nuevoRegistro);
+    localStorage.setItem('historialVisitas', JSON.stringify(visitas));
+
+    const keyEstadoEncontrada = findCampoKey(camposNormalized, ['ESTADO EJECUCIÓN OBRA', 'ESTADO OBRA']);
+    const estadoValor = keyEstadoEncontrada ? (camposNormalized[keyEstadoEncontrada]?.valor) : undefined;
+
+    console.log('pushVisitaRegistro -> registro agregado', { nuevoRegistro, primerCargue, numeroSiguiente, estadoValor });
+    return { nuevoRegistro, primerCargue, numeroSiguiente, estadoValor };
+  } catch (err) {
+    console.error('pushVisitaRegistro error:', err);
+    return null;
+  }
+}
+
+/* buildExportPayload: ensure exact key "ESTADO EJECUCIÓN OBRA" with full metadata and remove variants */
+function buildExportPayload(proyectosLocal) {
+  const payload = JSON.parse(JSON.stringify(proyectosLocal || []));
+  const historial = Array.isArray(safeParseJSON(localStorage.getItem('historialVisitas') || '[]')) ? safeParseJSON(localStorage.getItem('historialVisitas') || '[]') : [];
+  const norm = id => String(id ?? '').replace(/\s+/g, '').toLowerCase();
+
+  for (const p of payload) {
+    try {
+      delete p['estado_ejecución_obra'];
+      delete p['estado_ejecucion_obra'];
+      delete p['estadoEjecucionObra'];
+
+      const visitas = historial.filter(v => norm(v.proyectoId) === norm(p.id_proyecto || p.proyectoId || p.id));
+      let estadoCampoObj = null;
+      if (visitas.length) {
+        const ult = visitas.slice().sort((a,b) => new Date(b.fechaCarga || b.fecha || 0) - new Date(a.fechaCarga || a.fecha || 0))[0];
+        const k = findCampoKey(ult.campos || {});
+        if (k) estadoCampoObj = ult.campos[k];
+      }
+      if (!estadoCampoObj && typeof p.estado !== 'undefined' && p.estado !== null) {
+        estadoCampoObj = { valor: p.estado, tipo: 'texto', fuente: 'directo' };
+      }
+      if (estadoCampoObj) {
+        p['ESTADO EJECUCIÓN OBRA'] = estadoCampoObj;
+      }
+    } catch (err) {
+      console.warn('buildExportPayload error for', p?.id_proyecto || p?.proyectoId, err);
+    }
+  }
+  return payload;
+}
+
+/* guardarCambios: unified and robust */
+async function guardarCambios() {
+  try {
+    const proyectos = Array.isArray(safeParseJSON(localStorage.getItem('proyectos') || '[]')) ? safeParseJSON(localStorage.getItem('proyectos') || '[]') : [];
+    const id = String(document.getElementById('edit-id')?.value || '').trim();
+    if (!id) throw new Error('ID de proyecto no encontrado');
+
+    const idx = proyectos.findIndex(p => normalizarIdProyecto(p.id_proyecto) === normalizarIdProyecto(id));
+    if (idx === -1) throw new Error('Proyecto no existe en los registros');
+
+    const form = document.getElementById('form-editar');
+    if (!form) throw new Error('Formulario no encontrado');
+
+    let avanceVal = parseFloat(form.querySelector('#edit-avance')?.value);
+    if (isNaN(avanceVal)) avanceVal = proyectos[idx].avance ?? proyectos[idx].avanceObra ?? null;
+    if (typeof avanceVal === 'number') avanceVal = Math.min(Math.max(Math.round(avanceVal*100)/100, 0), 100);
+
+    let nuevoEstado = proyectos[idx].estado || proyectos[idx].estadoEjecucion || 'sin definir';
+    if (typeof avanceVal === 'number' && avanceVal >= 98) nuevoEstado = 'en escrituración';
+
+    const updated = {
+      ...proyectos[idx],
+      avance: avanceVal,
+      avanceObra: avanceVal,
+      ultimaModificacion: new Date().toISOString(),
+      usuarioModificacion: typeof USUARIO_NOMBRE !== 'undefined' ? USUARIO_NOMBRE : (window?.SESSION_USUARIO || 'Sistema')
+    };
+    proyectos[idx] = updated;
+    localStorage.setItem('proyectos', JSON.stringify(proyectos));
+
+    const historialRaw = Array.isArray(safeParseJSON(localStorage.getItem('historialVisitas') || '[]')) ? safeParseJSON(localStorage.getItem('historialVisitas') || '[]') : [];
+    const visitasProyecto = (historialRaw || []).filter(v => normalizarIdProyecto(v.proyectoId) === normalizarIdProyecto(id));
+    let camposBase = {};
+    if (visitasProyecto.length) {
+      const ordenadas = visitasProyecto.slice().sort((a,b) => new Date(a.fechaCarga || a.fecha || 0) - new Date(b.fechaCarga || b.fecha || 0));
+      camposBase = ordenadas[0].campos || {};
+    } else {
+      camposBase = { 'ID PROYECTO': { valor: updated.id_proyecto || id, tipo: 'entero', fuente: 'directo' } };
+    }
+
+    const usuario = updated.usuarioModificacion || window?.SESSION_USUARIO || 'Sistema';
+    const resultado = pushVisitaRegistro(id, usuario, camposBase, {
+      fechaVisitaOverride: new Date().toISOString(),
+      avanceOverride: typeof avanceVal === 'number' ? avanceVal : undefined,
+      estadoOverride: nuevoEstado
+    });
+
+    if (resultado && resultado.nuevoRegistro) {
+      const estadoValor = resultado.estadoValor;
+      if (typeof estadoValor !== 'undefined' && estadoValor !== null) {
+        proyectos[idx].estado = estadoValor;
+        localStorage.setItem('proyectos', JSON.stringify(proyectos));
+      } else {
+        console.warn('guardarCambios: no se encontro valor para ESTADO EJECUCIÓN OBRA en el registro creado.');
+      }
+    }
+
+    // Regenerar Excel principal usando payload normalizado
+    try {
+      const exportPayload = buildExportPayload(proyectos);
+      const resp = await fetch('/exportar_excel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proyectos: exportPayload })
+      });
+      if (resp.ok) {
+        const data = await resp.json().catch(()=>null);
+        console.log('Excel regenerado en backend:', data || 'OK');
+      } else {
+        console.warn('Exportar Excel fallo. status:', resp.status);
+      }
+    } catch (err) {
+      console.error('Error exportando Excel:', err);
+    }
+
+    // refrescar UI y cerrar modal
+    if (typeof cargarProyectos === 'function') {
+      try { cargarProyectos({}); } catch(e){ console.warn('cargarProyectos fallo', e); }
+    }
+    const modalEl = document.getElementById('editarModal');
+    if (modalEl && bootstrap && bootstrap.Modal) {
+      try { bootstrap.Modal.getInstance(modalEl)?.hide(); } catch(e){}
+    }
+
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({ icon:'success', title:'¡Guardado!', text:'Cambios actualizados correctamente y Excel regenerado', timer:1500 });
+    } else {
+      console.log('Guardado OK');
+    }
+
+  } catch (error) {
+    console.error('Error al guardar:', error);
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({ icon:'error', title:'Error', text: error.message || 'No se pudieron guardar los cambios' });
+    } else {
+      alert(error.message || 'No se pudieron guardar los cambios');
+    }
+  }
+}
+</script>
+<!-- End consolidated script -->
 </body>
 </html>
