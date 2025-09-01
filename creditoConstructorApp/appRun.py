@@ -15,6 +15,7 @@ import json
 from openpyxl.styles import Alignment
 import numpy as np
 from collections import Counter
+from openpyxl.styles.protection import Protection
 
 
 app = Flask(__name__)
@@ -1594,7 +1595,165 @@ def actualizar_estado_proyecto(proyecto_id):
     except Exception as e:
         app.logger.exception("Error actualizando estado proyecto")
         return jsonify({'success': False, 'error': str(e)}), 500
-      
+
+@app.route('/api/cambiar_estados', methods=['POST'])
+def api_cambiar_estados():
+    """
+    Espera JSON: { proyectos: [ { id_proyecto, nombre_proyecto, estado }, ... ] }
+    Actualiza local JSON (LOCAL_STORAGE_PATH) y regenera (opcional) Excel base.
+    """
+    try:
+        payload = request.get_json(force=True)
+        rows = payload.get('proyectos', []) if isinstance(payload, dict) else []
+        if not rows:
+            return jsonify({'success': False, 'message': 'No se recibieron proyectos'}), 400
+
+        datos = leer_datos_completos()
+        proyectos = datos.get('proyectos', [])
+
+        updated = 0
+        no_encontrados = 0
+        mapa = { str(p.get('id_proyecto') or p.get('id') or '').strip(): p for p in proyectos if isinstance(p, dict) }
+
+        for r in rows:
+            pid = str(r.get('id_proyecto') or '').strip()
+            nuevo_estado = r.get('estado', '').strip()
+            if not pid:
+                continue
+            if pid in mapa:
+                mapa[pid]['estado'] = nuevo_estado
+                updated += 1
+            else:
+                # opcional: no crear nuevos proyectos automáticamente
+                no_encontrados += 1
+
+        # Volver a lista y guardar
+        proyectos_nuevos = list(mapa.values())
+        guardar_datos_completos({'proyectos': proyectos_nuevos, 'appData': datos.get('appData', {})})
+
+        # Intentar regenerar Excel principal para reflejar estados (si EXCEL_PATH es utilizable)
+        try:
+            df = pd.DataFrame(proyectos_nuevos)
+            # Usamos columnas comunes si existen, para no romper otras hojas
+            cols = ['id_proyecto', 'nombre_proyecto', 'estado', 'fecha_creacion']
+            cols_present = [c for c in cols if c in df.columns]
+            if not cols_present:
+                # si no están esas columnas, al menos guardamos todo
+                df_to_save = df
+            else:
+                df_to_save = df[cols_present]
+
+            # Guardar como xlsx en EXCEL_PATH (sobrescribe la hoja principal)
+            df_to_save.to_excel(EXCEL_PATH, index=False)
+        except Exception as e:
+            app.logger.warning(f'No se pudo regenerar EXCEL_PATH: {e}')
+
+        return jsonify({'success': True, 'actualizados': updated, 'no_encontrados': no_encontrados}), 200
+
+    except Exception as e:
+        app.logger.exception("Error en api_cambiar_estados")
+        return jsonify({'success': False, 'message': str(e)}), 500
+    
+@app.route('/api/subir_cancelados', methods=['POST'])
+def api_subir_cancelados():
+    """
+    Espera JSON: { proyectos: [ { id_proyecto, nombre_proyecto }, ... ] }
+    Marca los proyectos como CANCELADO en local storage y genera un Excel protegido
+    en C:\CreditosConstructor llamado Base_proyectos_cancelados.xlsx
+    """
+    try:
+        payload = request.get_json(force=True)
+        rows = payload.get('proyectos', []) if isinstance(payload, dict) else []
+        if not rows:
+            return jsonify({'success': False, 'message': 'No se recibieron proyectos'}), 400
+
+        datos = leer_datos_completos()
+        proyectos = datos.get('proyectos', [])
+        mapa = {str(p.get('id_proyecto') or p.get('id') or '').strip(): p
+                for p in proyectos if isinstance(p, dict)}
+
+        cancelados = []
+        hoy = datetime.now().strftime('%Y-%m-%d')
+
+        for r in rows:
+            pid = str(r.get('id_proyecto') or '').strip()
+            nombre = r.get('nombre_proyecto') or r.get('nombre') or ''
+            if not pid:
+                continue
+
+            if pid in mapa:
+                p = mapa[pid]
+                p['estado'] = 'CANCELADO'
+                p['fecha_cancelacion'] = hoy
+                fecha_creacion = p.get('fecha_creacion') or p.get('fechaCreacion') or ''
+                cancelados.append({
+                    'id_proyecto': pid,
+                    'nombre_proyecto': p.get('nombre_proyecto') or p.get('nombre') or nombre,
+                    'fecha_creacion': fecha_creacion,
+                    'fecha_cancelacion': hoy
+                })
+            else:
+                cancelados.append({
+                    'id_proyecto': pid,
+                    'nombre_proyecto': nombre,
+                    'fecha_creacion': '',
+                    'fecha_cancelacion': hoy
+                })
+
+        # Guardar cambios en localStorage (archivo principal)
+        proyectos_nuevos = list(mapa.values())
+        guardar_datos_completos({'proyectos': proyectos_nuevos, 'appData': datos.get('appData', {})})
+
+        # Generar Excel protegido en la ruta solicitada
+        try:
+            df_cancel = pd.DataFrame(cancelados)
+            filename_xlsx = os.path.join(EXPORTAR_RUTA, 'Base_proyectos_cancelados.xlsx')
+            df_cancel.to_excel(filename_xlsx, index=False)
+
+            # Abrir con openpyxl para aplicar proteccion y congelar encabezado
+            wb = load_workbook(filename_xlsx)
+            ws = wb.active
+
+            # Bloquear todas las celdas
+            for row in ws.iter_rows():
+                for cell in row:
+                    cell.protection = Protection(locked=True)
+
+            # Congelar la primera fila
+            ws.freeze_panes = 'A2'
+
+            # Proteger la hoja con clave
+            ws.protection.sheet = True
+            ws.protection.password = 'RiesgosCancelados2025*'
+
+            wb.save(filename_xlsx)
+
+            # Crear copia .xls (renombrado, no protegido realmente)
+            filename_xls = os.path.join(EXPORTAR_RUTA, 'Base_proyectos_cancelados.xls')
+            try:
+                with open(filename_xlsx, 'rb') as fr, open(filename_xls, 'wb') as fw:
+                    fw.write(fr.read())
+            except Exception as e:
+                app.logger.warning(f"No se pudo crear copia .xls: {e}")
+
+            # Descargar siempre el .xlsx protegido
+            download_url = url_for('download_export', filename=os.path.basename(filename_xlsx))
+
+        except Exception as e:
+            app.logger.exception('Error generando Excel de cancelados')
+            download_url = None
+
+        return jsonify({
+            'success': True,
+            'cancelados_count': len(cancelados),
+            'cancelados': cancelados,
+            'download_url': download_url
+        }), 200
+
+    except Exception as e:
+        app.logger.exception("Error en api_subir_cancelados")
+        return jsonify({'success': False, 'message': str(e)}), 500
+          
     
 if __name__ == "__main__":
      app.run(host="0.0.0.0", port=5000)
