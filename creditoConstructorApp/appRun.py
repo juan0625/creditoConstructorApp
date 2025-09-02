@@ -16,6 +16,7 @@ from openpyxl.styles import Alignment
 import numpy as np
 from collections import Counter
 from openpyxl.styles.protection import Protection
+from openpyxl.worksheet.protection import SheetProtection
 
 
 app = Flask(__name__)
@@ -1658,8 +1659,11 @@ def api_cambiar_estados():
 def api_subir_cancelados():
     """
     Espera JSON: { proyectos: [ { id_proyecto, nombre_proyecto }, ... ] }
-    Marca los proyectos como CANCELADO en local storage y genera un Excel protegido
-    en C:\CreditosConstructor llamado Base_proyectos_cancelados.xlsx
+    Marca los proyectos como CANCELADO en la base principal y genera un Excel protegido
+    en EXPORTAR_RUTA (C:\CreditosConstructor) llamado Base_proyectos_cancelados.xlsx.
+    Protecciones: bloqueo de celdas, no permitir insertar/eliminar filas/columnas,
+    no permitir ordenar/autoFilter/pivotTables. Fila 1 congelada.
+    Respuesta JSON simple: success, message, files, cancelados_count.
     """
     try:
         payload = request.get_json(force=True)
@@ -1667,14 +1671,28 @@ def api_subir_cancelados():
         if not rows:
             return jsonify({'success': False, 'message': 'No se recibieron proyectos'}), 400
 
+        # Leer la base principal existente
         datos = leer_datos_completos()
         proyectos = datos.get('proyectos', [])
         mapa = {str(p.get('id_proyecto') or p.get('id') or '').strip(): p
                 for p in proyectos if isinstance(p, dict)}
 
-        cancelados = []
-        hoy = datetime.now().strftime('%Y-%m-%d')
+        cancelados_rows = []
+        hoy_dt = datetime.now()
+        hoy_iso = hoy_dt.strftime('%Y-%m-%d')
+        meses_es = ["ENERO","FEBRERO","MARZO","ABRIL","MAYO","JUNIO",
+                    "JULIO","AGOSTO","SEPTIEMBRE","OCTUBRE","NOVIEMBRE","DICIEMBRE"]
+        mes_ano = f"{meses_es[hoy_dt.month - 1]} {hoy_dt.year}"
 
+        # Recolectar columnas base para respetar orden
+        columnas_base = []
+        for p in proyectos:
+            if isinstance(p, dict):
+                for k in p.keys():
+                    if k not in columnas_base:
+                        columnas_base.append(k)
+
+        # Procesar filas recibidas: traer todos los campos desde la base si existe, sino crear mínimo
         for r in rows:
             pid = str(r.get('id_proyecto') or '').strip()
             nombre = r.get('nombre_proyecto') or r.get('nombre') or ''
@@ -1682,72 +1700,109 @@ def api_subir_cancelados():
                 continue
 
             if pid in mapa:
-                p = mapa[pid]
-                p['estado'] = 'CANCELADO'
-                p['fecha_cancelacion'] = hoy
-                fecha_creacion = p.get('fecha_creacion') or p.get('fechaCreacion') or ''
-                cancelados.append({
-                    'id_proyecto': pid,
-                    'nombre_proyecto': p.get('nombre_proyecto') or p.get('nombre') or nombre,
-                    'fecha_creacion': fecha_creacion,
-                    'fecha_cancelacion': hoy
-                })
+                original = dict(mapa[pid])  # copia de los datos originales
+                original['estado'] = 'CANCELADO'
+                original['fecha_cancelacion'] = hoy_iso
+                original['id_proyecto'] = pid
+                if not original.get('nombre_proyecto'):
+                    original['nombre_proyecto'] = nombre
+                original['mes_cancelacion'] = mes_ano
+                cancelados_rows.append(original)
             else:
-                cancelados.append({
+                fila_min = {
                     'id_proyecto': pid,
                     'nombre_proyecto': nombre,
+                    'estado': 'CANCELADO',
                     'fecha_creacion': '',
-                    'fecha_cancelacion': hoy
-                })
+                    'fecha_cancelacion': hoy_iso,
+                    'mes_cancelacion': mes_ano
+                }
+                cancelados_rows.append(fila_min)
 
-        # Guardar cambios en localStorage (archivo principal)
+        # Actualizar la base principal (guardar estado y fecha_cancelacion)
+        for item in cancelados_rows:
+            pid = str(item.get('id_proyecto') or '').strip()
+            if not pid:
+                continue
+            if pid in mapa:
+                mapa[pid].update(item)
+            else:
+                mapa[pid] = item
+
         proyectos_nuevos = list(mapa.values())
         guardar_datos_completos({'proyectos': proyectos_nuevos, 'appData': datos.get('appData', {})})
 
-        # Generar Excel protegido en la ruta solicitada
-        try:
-            df_cancel = pd.DataFrame(cancelados)
-            filename_xlsx = os.path.join(EXPORTAR_RUTA, 'Base_proyectos_cancelados.xlsx')
-            df_cancel.to_excel(filename_xlsx, index=False)
+        # Preparar DataFrame con orden de columnas:
+        columnas_orden = ['id_proyecto', 'mes_cancelacion']
+        for c in columnas_base:
+            if c not in columnas_orden:
+                columnas_orden.append(c)
+        for req in ['nombre_proyecto', 'fecha_creacion', 'fecha_cancelacion', 'estado']:
+            if req not in columnas_orden:
+                columnas_orden.append(req)
 
-            # Abrir con openpyxl para aplicar proteccion y congelar encabezado
+        df_cancel = pd.DataFrame(cancelados_rows)
+        columnas_finales = [c for c in columnas_orden if c in df_cancel.columns]
+        if df_cancel.empty:
+            df_cancel = pd.DataFrame(columns=columnas_finales)
+        else:
+            df_cancel = df_cancel[columnas_finales]
+
+        # Guardar en la ruta solicitada (EXPORTAR_RUTA)
+        filename_xlsx = os.path.join(EXPORTAR_RUTA, 'Base_proyectos_cancelados.xlsx')
+        df_cancel.to_excel(filename_xlsx, index=False)
+
+        # Aplicar proteccion y freeze panes con openpyxl
+        try:
             wb = load_workbook(filename_xlsx)
             ws = wb.active
 
-            # Bloquear todas las celdas
+            # Bloquear todas las celdas explícitamente
             for row in ws.iter_rows():
                 for cell in row:
                     cell.protection = Protection(locked=True)
 
-            # Congelar la primera fila
+            # Congelar la primera fila (encabezados)
             ws.freeze_panes = 'A2'
 
-            # Proteger la hoja con clave
-            ws.protection.sheet = True
+            # Configurar proteccion avanzada de la hoja
+            # Evitar editar, insertar o eliminar filas/columnas, ordenar, autoFilter, pivotTables, insertar hipervínculos
+            protection = SheetProtection(
+                sheet=True,
+                password='RiesgosCancelados2025*',
+                formatCells=False,
+                formatColumns=False,
+                formatRows=False,
+                insertColumns=False,
+                insertRows=False,
+                insertHyperlinks=False,
+                deleteColumns=False,
+                deleteRows=False,
+                sort=False,
+                autoFilter=False,
+                pivotTables=False
+            )
+            # Asignar la proteccion al worksheet
+            ws.protection = protection
+
+            # Asegurar que la proteccion requiere contraseña (openpyxl maneja el hash internamente)
             ws.protection.password = 'RiesgosCancelados2025*'
 
             wb.save(filename_xlsx)
-
-            # Crear copia .xls (renombrado, no protegido realmente)
-            filename_xls = os.path.join(EXPORTAR_RUTA, 'Base_proyectos_cancelados.xls')
-            try:
-                with open(filename_xlsx, 'rb') as fr, open(filename_xls, 'wb') as fw:
-                    fw.write(fr.read())
-            except Exception as e:
-                app.logger.warning(f"No se pudo crear copia .xls: {e}")
-
-            # Descargar siempre el .xlsx protegido
-            download_url = url_for('download_export', filename=os.path.basename(filename_xlsx))
-
         except Exception as e:
-            app.logger.exception('Error generando Excel de cancelados')
-            download_url = None
+            app.logger.exception(f"No se pudo aplicar proteccion/freeze con openpyxl: {e}")
+            # Si falla la proteccion, seguimos (archivo ya fue guardado sin proteccion) y notificamos en respuesta
+
+        # Responder SÓLO con mensaje y nombre del archivo (sin URLs ni descargas)
+        files_saved = []
+        if os.path.exists(filename_xlsx):
+            files_saved.append(os.path.basename(filename_xlsx))
 
         return jsonify({
             'success': True,
-            'cancelados_count': len(cancelados),
-            'cancelados': cancelados,
-            'download_url': download_url
+            'message': f'Se marcaron {len(cancelados_rows)} proyectos como cancelados y se guardo el archivo en el servidor.',
+            'files': files_saved,
+            'cancelados_count': len(cancelados_rows)
         }), 200
 
     except Exception as e:
