@@ -4041,8 +4041,16 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
                             if (mapa[c.id_proyecto]) {
                                 mapa[c.id_proyecto].estado = 'CANCELADO';
                                 mapa[c.id_proyecto].fecha_cancelacion = c.fecha_cancelacion;
+                                // si tu base principal tiene mes_cancelacion puedes agregarlo tambien
+                                if (c.mes_cancelacion) mapa[c.id_proyecto].mes_cancelacion = c.mes_cancelacion;
                             } else {
-                                mapa[c.id_proyecto] = { id_proyecto: c.id_proyecto, nombre_proyecto: c.nombre_proyecto, estado: 'CANCELADO', fecha_cancelacion: c.fecha_cancelacion };
+                                mapa[c.id_proyecto] = {
+                                    id_proyecto: c.id_proyecto,
+                                    nombre_proyecto: c.nombre_proyecto,
+                                    estado: 'CANCELADO',
+                                    fecha_cancelacion: c.fecha_cancelacion,
+                                    mes_cancelacion: c.mes_cancelacion || ''
+                                };
                             }
                         });
 
@@ -4050,10 +4058,8 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
                     } catch (e) { console.warn('No se pudo actualizar localStorage:', e); }
 
                     Swal.close();
-                    const url = data.download_url ? data.download_url : null;
-                    let msg = `Se marcaron ${data.cancelados_count || 0} proyectos como cancelados.`;
-                    if (url) msg += `<br><a href="${url}" target="_blank">Descargar Base_proyectos_cancelados</a>`;
-                    Swal.fire({ title: 'OK', html: msg, icon: 'success' });
+                    // Mensaje simple sin link de descarga
+                    Swal.fire({ title: 'OK', html: `Se marcaron ${data.cancelados_count || 0} proyectos como cancelados. El archivo se guardó en el servidor en C:\\CreditosConstructor.`, icon: 'success' });
                     bootstrap.Modal.getInstance(document.getElementById('modalSubirCancelados'))?.hide();
                 } else {
                     throw new Error(data.message || 'Error en servidor');
@@ -4069,6 +4075,7 @@ document.querySelector('.btn-add-subgrupo').addEventListener('click', function()
             Swal.fire('Error', 'No se pudo leer el archivo', 'error');
         });
     });
+
 
     // Confirmar subida de base principal
     document.getElementById('btn-confirm-subir').addEventListener('click', function() {

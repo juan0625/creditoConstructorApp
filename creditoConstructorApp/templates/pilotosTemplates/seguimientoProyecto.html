@@ -1065,8 +1065,17 @@ function safeArray(arr) {
                 viejo: "B69",
                 tipo: "moneda"
             },
+
             "INVERSION DEL PROYECTO": {
-                nuevo: "C113",
+                nuevo: {
+                    logica: (hoja) => {
+                        const c113 = cleanNumber(hoja["C113"]?.v || 0);
+                        const c135 = cleanNumber(hoja["C135"]?.v || 0);
+                        const h135 = cleanNumber(hoja["H135"]?.v || 0);
+                        const l135 = cleanNumber(hoja["L135"]?.v || 0);
+                        return c113 + c135 + h135 + l135;
+                    }
+                },
                 viejo: "E69",
                 tipo: "moneda"
             },
@@ -1213,6 +1222,17 @@ function safeArray(arr) {
                 tipo: "texto"
             }
         };
+
+        function obtenerValor(sheet, celda) {
+            return Number(sheet[celda]?.v || 0);
+        }
+
+        function calcularValor(sheet, definicion) {
+            if (Array.isArray(definicion.nuevo)) {
+                return definicion.nuevo.reduce((suma, celda) => suma + obtenerValor(sheet, celda), 0);
+            }
+            return obtenerValor(sheet, definicion.nuevo);
+        }
     
         const form = document.getElementById('form-nuevo-seguimiento');
         const campos = {
@@ -1742,33 +1762,84 @@ function safeArray(arr) {
             document.getElementById('formCargaDesembolsos').style.display = 'none';
         }
 
+        // =========================
+        // procesarArchivo (Ventas)
+        // =========================
         async function procesarArchivo() {
+            const archivo = document.getElementById('archivoVentas').files[0];
+            if (!archivo) {
+                mostrarErrorModal("Seleccione un archivo válido");
+                return;
+            }
 
-            mostrarModalCarga(async () => {
+            try {
+                // Leer y obtener hoja RESUMEN
+                const data = await leerExcel(archivo);
+                const hojaResumen = data['RESUMEN'];
 
-                const archivo = document.getElementById('archivoVentas').files[0];
-                if (!archivo) {
-                    mostrarErrorModal("Seleccione un archivo válido");
+                // Validar estructura ANTES de abrir cualquier modal
+                if (!validarEstructura(hojaResumen)) {
                     return;
                 }
 
-                try {
-                    const data = await leerExcel(archivo);
-                    const hojaResumen = data['RESUMEN'];
-                     
-                    if (!validarEstructura(hojaResumen)) {
-                        return;
-                    }
+                // Extraer datos y preparar función helper para leer valores (compatible con datos.campos)
+                const datosProcesados = extraerDatos(hojaResumen);
 
-                    const datosProcesados = extraerDatos(hojaResumen);
-                    
-                    // Solo mostrar confirmación, NO guardar todavía
-                    mostrarConfirmacionCarga(datosProcesados);
-                            
-                } catch (error) {
-                    mostrarErrorModal(`Error: ${error.message}`);
+                const obtenerValor = (datos, clave) => {
+                    if (!datos) return 0;
+                    // Preferir rawValue (si existe), luego valor de datos.campos, luego campo suelto (por compatibilidad)
+                    const campo = datos.campos && datos.campos[clave];
+                    if (campo) {
+                        const raw = campo.rawValue !== undefined ? campo.rawValue : campo.valor;
+                        return cleanNumber(raw || 0);
+                    }
+                    // Compatibilidad con formatos antiguos
+                    if (datos[clave] !== undefined) return cleanNumber(datos[clave]);
+                    return 0;
+                };
+
+                // Valores requeridos para las nuevas validaciones
+                const carteraRecaudada       = obtenerValor(datosProcesados, "cartera RECAUDADA");
+                const carteraPorRecaudar     = obtenerValor(datosProcesados, "cartera POR RECAUDAR");
+                const valorEnCanje           = obtenerValor(datosProcesados, "valor canjes");
+                const valorInmueblesVendidos = obtenerValor(datosProcesados, "valor inmuebles vendidos");
+                const valorPorVender         = obtenerValor(datosProcesados, "VALOR POR VENDER");
+                const totalEsperadoVentas    = obtenerValor(datosProcesados, "TOTAL ESPERADO VENTAS");
+
+                const errores = [];
+
+                // Regla 1: Cartera recaudada + cartera por recaudar + valor en canje = valor inmuebles vendidos
+                if (Math.abs((carteraRecaudada + carteraPorRecaudar + valorEnCanje) - valorInmueblesVendidos) > 1) {
+                    errores.push("La suma (cartera recaudada + cartera por recaudar + valor en canje) debe ser igual al valor de inmuebles vendidos.");
                 }
-            });    
+
+                // Regla 2: valor inmuebles vendidos + valor inmuebles por vender = valor total de ventas
+                if (Math.abs((valorInmueblesVendidos + valorPorVender) - totalEsperadoVentas) > 1) {
+                    errores.push("Valor inmuebles vendidos + valor por vender debe ser igual al valor total esperado de ventas.");
+                }
+
+                // Si hay errores, mostrar antes de cualquier modal de confirmación/carga
+                if (errores.length > 0) {
+                    const contenidoHTML = `
+                        <h5>Errores de validación</h5>
+                        <ul class="mb-0">
+                            ${errores.map(e => `<li>${e}</li>`).join('')}
+                        </ul>
+                        <p class="mt-3">No se puede continuar debido a inconsistencias en el informe de ventas.</p>
+                    `;
+                    mostrarErrorModal(contenidoHTML);
+                    return;
+                }
+
+                // ✅ Si pasa todas las validaciones → abrir modal de carga y luego confirmación
+                mostrarModalCarga(() => {
+                    // callback del modal de carga: llamar al modal de confirmación con los datos
+                    mostrarConfirmacionCarga(datosProcesados);
+                });
+
+            } catch (error) {
+                mostrarErrorModal(`Error: ${error.message}`);
+            }
         }
 
         async function leerExcel(archivo) {
@@ -2823,6 +2894,8 @@ btnConfirmar.onclick = async function() {
                             usuario: 'Sistema (Regenerado)'
                         });
                     }
+
+                    const inversionDelProyecto = calcularValor(sheet, definiciones["INVERSION DEL PROYECTO"]);
                     
                     // Extraer información de visitas si existe
                     if (proyecto.fecha_visita || proyecto.avance_obra) {
@@ -2831,7 +2904,7 @@ btnConfirmar.onclick = async function() {
                             proyectoNombre: proyecto.nombre_proyecto,
                             fechaVisita: proyecto.fecha_visita,
                             avanceObra: proyecto.avance_obra,
-                            valorInvertido: proyecto.inversion_del_proyecto,
+                            valorInvertido: inversionDelProyecto,
                             fechaCarga: new Date().toISOString(),
                             usuario: 'Sistema (Regenerado)'
                         });
@@ -3231,121 +3304,134 @@ btnConfirmar.onclick = async function() {
             return workbook.Sheets[workbook.SheetNames[0]];
         }
 
-
-        // Función principal para procesar archivo de visitas
+        // =======================================
+        // procesarArchivoVisitas (Validaciones visitas)
+        // =======================================
         async function procesarArchivoVisitas() {
+            const archivo = document.getElementById('archivoVisitas').files[0];
+            if (!archivo) {
+                mostrarErrorModal("Seleccione un archivo de visitas válido");
+                return;
+            }
 
-            mostrarModalCarga(async () => {
-
-                const archivo = document.getElementById('archivoVisitas').files[0];
-                if (!archivo) {
-                    mostrarErrorModal("Seleccione un archivo de visitas válido");
+            try {
+                // Obtener datos del proyecto seleccionado
+                const proyectoSeleccionado = document.getElementById('selectorProyecto');
+                const opcionSeleccionada = proyectoSeleccionado.options[proyectoSeleccionado.selectedIndex];
+                
+                if (!opcionSeleccionada?.value) {
+                    mostrarErrorModal("Seleccione un proyecto válido");
                     return;
                 }
 
-                try {
-                    // Obtener datos del proyecto seleccionado
-                    const proyectoSeleccionado = document.getElementById('selectorProyecto');
-                    const opcionSeleccionada = proyectoSeleccionado.options[proyectoSeleccionado.selectedIndex];
-                    
-                    if (!opcionSeleccionada?.value) {
-                        mostrarErrorModal("Seleccione un proyecto válido");
-                        return;
-                    }
+                const idProyecto = opcionSeleccionada.value;
+                const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
+                const proyecto = proyectos.find(p => p.id_proyecto == idProyecto);
+                
+                if (!proyecto) {
+                    mostrarErrorModal("No se encontraron datos del proyecto en el sistema");
+                    return;
+                }
 
-                    const idProyecto = opcionSeleccionada.value;
-                    const proyectos = JSON.parse(localStorage.getItem('proyectos')) || [];
-                    const proyecto = proyectos.find(p => p.id_proyecto == idProyecto);
-                    
-                    if (!proyecto) {
-                        mostrarErrorModal("No se encontraron datos del proyecto en el sistema");
-                        return;
-                    }
+                // Leer archivo Excel (maneja archivos protegidos)
+                const workbook = await leerExcelVisitas(archivo);
+                
+                // Detectar formato y obtener hoja correcta
+                const formato = detectarFormatoVisita(workbook);
+                const hojaVisitas = obtenerHojaVisita(workbook, formato);
+                
+                if (!hojaVisitas) {
+                    mostrarErrorModal("No se encontraron datos válidos en el archivo");
+                    return;
+                }
 
-                    // Leer archivo Excel (maneja archivos protegidos)
-                    const workbook = await leerExcelVisitas(archivo);
-                    
-                    // Detectar formato y obtener hoja correcta
-                    const formato = detectarFormatoVisita(workbook);
-                    const hojaVisitas = obtenerHojaVisita(workbook, formato);
-                    
-                    if (!hojaVisitas) {
-                        mostrarErrorModal("No se encontraron datos válidos en el archivo");
-                        return;
-                    }
+                // ==========================
+                // 🔹 Extraer datos unificados
+                // ==========================
+                const datosValidacion = {
+                    idProyectoExcel: formato === 'nuevo' ? hojaVisitas['C13']?.v : hojaVisitas['C3']?.v,
+                    costosFinanciablesExcel: formato === 'nuevo' ? hojaVisitas['H37']?.v : hojaVisitas['H14']?.v,
+                    peritoExcel: formato === 'nuevo' ? hojaVisitas['P9']?.v : hojaVisitas['H68']?.v,
+                    fechaVisitaExcel: formato === 'nuevo' ? hojaVisitas['C7']?.v : hojaVisitas['I4']?.v,
+                    avanceObraExcel: formato === 'nuevo' ? hojaVisitas['P63']?.v : hojaVisitas['F66']?.v,
+                    avanceEsperadoExcel: formato === 'nuevo' ? hojaVisitas['P65']?.v : hojaVisitas['L32']?.v,
+                    inversionProyectoExcel: formato === 'nuevo'
+                        ? (cleanNumber(hojaVisitas['C113']?.v || 0) +
+                        cleanNumber(hojaVisitas['C135']?.v || 0) +
+                        cleanNumber(hojaVisitas['H135']?.v || 0) +
+                        cleanNumber(hojaVisitas['L135']?.v || 0))
+                        : cleanNumber(hojaVisitas['E69']?.v || 0),
+                    valorAnticiposExcel: cleanNumber(formato === 'nuevo' ? hojaVisitas['C117']?.v : hojaVisitas['K25']?.v || 0),
+                    valorAlmacenExcel: cleanNumber(formato === 'nuevo' ? hojaVisitas['C115']?.v : hojaVisitas['K26']?.v || 0)
+                };
 
-                    // Extraer datos para validación crítica según formato
-                    const datosValidacion = {
-                        idProyectoExcel: formato === 'nuevo' ? 
-                            hojaVisitas['C13']?.v : 
-                            hojaVisitas['C3']?.v,
-                        costosFinanciablesExcel: formato === 'nuevo' ? 
-                            hojaVisitas['H37']?.v : 
-                            hojaVisitas['H14']?.v,
-                        peritoExcel: formato === 'nuevo' ? 
-                            hojaVisitas['P9']?.v : 
-                            hojaVisitas['H68']?.v,
-                        fechaVisita: formato === 'nuevo' ? 
-                            hojaVisitas['C7']?.v : 
-                            hojaVisitas['I4']?.v,
-                        avanceObra: formato === 'nuevo' ? 
-                            hojaVisitas['P63']?.v : 
-                            hojaVisitas['F66']?.v
-                    };
+                // ==========================
+                // 🔹 Validaciones
+                // ==========================
+                const errores = [];
 
-                    // Validar datos críticos con el sistema
-                    const errores = [];
+                // 1. Validar ID del proyecto
+                if (String(proyecto.id_proyecto) !== String(datosValidacion.idProyectoExcel)) {
+                    errores.push(`ID del proyecto no coincide: Sistema (${proyecto.id_proyecto}) vs Excel (${datosValidacion.idProyectoExcel})`);
+                }
 
-                    // 1. Validar ID del proyecto
-                    if (String(proyecto.id_proyecto) !== String(datosValidacion.idProyectoExcel)) {
-                        errores.push(`ID del proyecto no coincide: Sistema (${proyecto.id_proyecto}) vs Excel (${datosValidacion.idProyectoExcel})`);
-                    }
+                // 2. Validar costos financiables
+                const costosSistema = cleanNumber(proyecto.costos_financiables || 0);
+                const costosExcel = cleanNumber(datosValidacion.costosFinanciablesExcel || 0);
+                if (Math.abs(costosSistema - costosExcel) > 1) {
+                    errores.push(`Costos financiables no coinciden: Sistema (${costosSistema.toLocaleString()}) vs Excel (${costosExcel.toLocaleString()})`);
+                }
 
-                    // 2. Validar costos financiables (con tolerancia numérica)
-                    const costosSistema = cleanNumber(proyecto.costos_financiables || 0);
-                    const costosExcel = cleanNumber(datosValidacion.costosFinanciablesExcel || 0);
-                    const diferenciaCostos = Math.abs(costosSistema - costosExcel);
-                    
-                    if (diferenciaCostos > 1) {
-                        errores.push(`Costos financiables no coinciden: Sistema (${costosSistema.toLocaleString()}) vs Excel (${costosExcel.toLocaleString()}) - Diferencia: ${diferenciaCostos.toLocaleString()}`);
-                    }
+                // 3. Validar perito (conversión segura a String)
+                const peritoSistema = String(proyecto.perito || '').trim().toLowerCase();
+                const peritoExcel = String(datosValidacion.peritoExcel || '').trim().toLowerCase();
+                if (peritoSistema !== peritoExcel) {
+                    errores.push(`Perito no coincide: Sistema (${proyecto.perito}) vs Excel (${datosValidacion.peritoExcel})`);
+                }
 
-                    // 3. Validar perito (ignorar mayúsculas y espacios)
-                    const peritoSistema = (proyecto.perito || '').trim().toLowerCase();
-                    const peritoExcel = (datosValidacion.peritoExcel || '').trim().toLowerCase();
-                    
-                    if (peritoSistema !== peritoExcel) {
-                        errores.push(`Perito no coincide: Sistema (${proyecto.perito}) vs Excel (${datosValidacion.peritoExcel})`);
-                    }
+                // 4. Avance esperado ≤ 100%
+                let avanceEsperado = cleanNumber(datosValidacion.avanceEsperadoExcel || 0);
+                if (avanceEsperado > 1 && avanceEsperado <= 100) {
+                    avanceEsperado = avanceEsperado / 100; // normalizar
+                }
+                if (avanceEsperado > 1) {
+                    errores.push(`El avance esperado no puede ser mayor a 100%. Valor actual: ${datosValidacion.avanceEsperadoExcel}`);
+                }
 
-                    // Mostrar errores si existen
-                    if (errores.length > 0) {
-                        // Limpiar cada mensaje de error quitando etiquetas HTML
-                        const erroresLimpios = errores.map(error => {
-                            return error.replace(/<\/?[^>]+(>|$)/g, "");
-                        });
+                // 5. (Inversión + anticipos + almacén) ≤ costos financiables (con tolerancia)
+                const sumaInversiones = datosValidacion.inversionProyectoExcel +
+                                        datosValidacion.valorAnticiposExcel +
+                                        datosValidacion.valorAlmacenExcel;
 
-                        // Construir el contenido HTML con formato adecuado
-                        const contenidoHTML = `
-                            <h5>Errores de validación crítica</h5>
-                            <ul class="mb-0">
-                                ${erroresLimpios.map(e => `<li>${e}</li>`).join('')}
-                            </ul>
-                            <p class="mt-3">No se puede cargar la visita debido a inconsistencias con los datos del sistema.</p>
-                        `;
+                if (sumaInversiones - costosExcel > 1) { // tolerancia de 1 peso
+                    errores.push(`La suma (inversión del proyecto + valor anticipos + valor almacén) supera los costos financiables.
+                    Suma: ${sumaInversiones.toLocaleString()} vs Costos: ${costosExcel.toLocaleString()}`);
+                }
 
-                        mostrarErrorModal(contenidoHTML);
-                        return;
-                    }
+                // ==========================
+                // 🔹 Mostrar errores
+                // ==========================
+                if (errores.length > 0) {
+                    const contenidoHTML = `
+                        <h5>Errores de validación crítica</h5>
+                        <ul class="mb-0">
+                            ${errores.map(e => `<li>${e}</li>`).join('')}
+                        </ul>
+                        <p class="mt-3">No se puede cargar la visita debido a inconsistencias con los datos del sistema.</p>
+                    `;
+                    mostrarErrorModal(contenidoHTML);
+                    return;
+                }
 
-                    // Extraer y mostrar datos completos
+                // ✅ Si todo bien → mostrar modal de carga
+                mostrarModalCarga(() => {
                     const datosProcesados = extraerDatosVisitasCompleto(hojaVisitas, proyecto, formato);
                     mostrarConfirmacionDatosVisita(proyecto, datosValidacion, hojaVisitas, formato, datosProcesados);
-                            
-                } catch (error) {
-                    mostrarErrorModal(`Error al procesar visitas: ${error.message}`);
-                }
-        });
+                });
+
+            } catch (error) {
+                mostrarErrorModal(`Error al procesar visitas: ${error.message}`);
+            }
         }
 
         // Función para validar estructura del archivo de visitas
@@ -4849,16 +4935,17 @@ btnConfirmar.onclick = async function() {
                 }
             }
 
-            // Función para mostrar errores
+            // Función para mostrar errores con soporte HTML
             function mostrarErrorModal(mensaje) {
                 const errorMensaje = document.getElementById('errorMensaje');
                 if (errorMensaje) {
-                    errorMensaje.textContent = mensaje;
+                    errorMensaje.innerHTML = mensaje; // ✅ Renderiza HTML
                 }
                 
                 const modal = new bootstrap.Modal(document.getElementById('errorModal'));
                 modal.show();
             }
+
 
 
             // Helper: intentar extraer metrics del proyecto
