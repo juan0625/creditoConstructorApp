@@ -4130,8 +4130,10 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    {% if session.usuario.rol == 'admin' or session.usuario.rol == 'arquitecto' %}
                     <button type="button" class="btn btn-primary" onclick="guardarObservacion()">Guardar
                         Cambios</button>
+                    {% endif %}    
                 </div>
             </div>
         </div>

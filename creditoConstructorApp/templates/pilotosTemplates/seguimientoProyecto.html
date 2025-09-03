@@ -619,7 +619,7 @@
                 </button>
 
                 <!-- Nuevo botón para Comentarios de Arquitecto (solo visible para arquitectos) -->
-                {% if session.usuario.rol == 'arquitecto' %}
+                {% if session.usuario.rol == 'admin' or session.usuario.rol == 'arquitecto' %}
                 <div class="d-flex justify-content-end mt-3 mb-4" id="comentarioContainer" style="display: none;">
                     <button class="btn btn-comentario" onclick="mostrarModalComentario()">
                         <i class="fas fa-comment me-2"></i>Agregar Observación Control
