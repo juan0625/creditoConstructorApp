@@ -1808,7 +1808,109 @@ def api_subir_cancelados():
     except Exception as e:
         app.logger.exception("Error en api_subir_cancelados")
         return jsonify({'success': False, 'message': str(e)}), 500
-          
     
+@app.route('/guardar_observacion', methods=['POST'])
+def guardar_observacion():
+    try:
+        data = request.json
+        id_proyecto = str(data.get('id_proyecto', '')).strip()
+        observacion = str(data.get('observacion', '')).strip()
+        usuario = str(data.get('usuario', '')).strip()
+
+        if not id_proyecto or not observacion or not usuario:
+            return jsonify({'success': False, 'message': 'Faltan datos requeridos'}), 400
+
+        base_path = os.path.join(EXPORTAR_RUTA, 'Base_principal_proyectos.xlsx')
+        if not os.path.exists(base_path):
+            return jsonify({'success': False, 'message': 'No existe archivo base'}), 400
+
+        # Leer Excel existente
+        df = pd.read_excel(base_path, sheet_name='Proyectos', dtype=str).fillna('')
+
+        if 'id_proyecto' not in df.columns:
+            return jsonify({'success': False, 'message': 'El archivo no tiene columna id_proyecto'}), 400
+
+        # Normalizar id_proyecto y buscar fila
+        df['id_proyecto'] = df['id_proyecto'].astype(str).str.strip()
+        mask = df['id_proyecto'] == id_proyecto
+        if not mask.any():
+            return jsonify({'success': False, 'message': f'No se encontró proyecto con id {id_proyecto}'}), 404
+
+        # Asegurar columnas nuevas
+        new_cols = ['observacion_desembolso', 'fecha_observacion_desembolso', 'usuario_observacion_desembolso']
+        for col in new_cols:
+            if col not in df.columns:
+                df[col] = ''
+
+        # Actualizar fila del proyecto
+        hoy = datetime.now().strftime('%d/%m/%Y')
+        df.loc[mask, 'observacion_desembolso'] = observacion
+        df.loc[mask, 'fecha_observacion_desembolso'] = hoy
+        df.loc[mask, 'usuario_observacion_desembolso'] = usuario
+
+        # Mantener orden: todas las columnas existentes + nuevas al final
+        cols_existentes = list(df.columns)
+        for col in new_cols:
+            if col not in cols_existentes:
+                cols_existentes.append(col)
+        df = df[cols_existentes]
+
+        # Sanitizar
+        df_for_excel = sanitize_dataframe_for_excel(df, date_format='%d/%m/%Y')
+
+        # Guardar en Excel
+        with pd.ExcelWriter(base_path, engine='openpyxl', mode='w') as writer:
+            df_for_excel.to_excel(writer, index=False, sheet_name='Proyectos')
+            worksheet = writer.sheets['Proyectos']
+
+            # Proteger
+            worksheet.protection.sheet = True
+            worksheet.protection.set_password('Riesgos2025*')
+            worksheet.protection.autoFilter = True
+            worksheet.protection.sort = False
+            worksheet.protection.insertRows = False
+            worksheet.protection.deleteRows = False
+
+            # Ajustar anchos
+            for column in worksheet.columns:
+                try:
+                    max_length = max(len(str(cell.value)) if cell.value else 0 for cell in column)
+                    worksheet.column_dimensions[column[0].column_letter].width = min(max_length + 2, 150)
+                except Exception:
+                    pass
+
+            # Congelar encabezados
+            worksheet.freeze_panes = "A2"
+
+        # 🔹 Actualizar también LOCAL_STORAGE_PATH
+        try:
+            datos_completos = leer_datos_completos()
+            proyectos_existentes = datos_completos.get('proyectos', [])
+            app_data_existente = datos_completos.get('appData', {})
+
+            # Actualizar en la lista de proyectos
+            for p in proyectos_existentes:
+                if str(p.get('id_proyecto', '')).strip() == id_proyecto:
+                    p['observacion_desembolso'] = observacion
+                    p['fecha_observacion_desembolso'] = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+                    p['usuario_observacion_desembolso'] = usuario
+
+            # Guardar de nuevo
+            contenido_completo = {
+                'proyectos': proyectos_existentes,
+                'appData': app_data_existente
+            }
+            guardar_datos_completos(contenido_completo)
+
+        except Exception as e:
+            print(f"Advertencia: no se pudo actualizar LOCAL_STORAGE_PATH: {e}")
+            traceback.print_exc()
+
+        return jsonify({'success': True, 'message': 'Observación guardada en Excel y datos locales actualizados'})
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+          
 if __name__ == "__main__":
      app.run(host="0.0.0.0", port=5000)
