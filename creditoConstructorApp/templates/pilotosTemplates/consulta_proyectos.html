@@ -4117,11 +4117,13 @@
                     </div>
 
                     <!-- Observación -->
+                    {% if session.usuario.rol == 'admin' or session.usuario.rol == 'arquitecto' %}
                     <div class="mt-4">
                         <label class="form-label">Observación del Desembolso</label>
                         <textarea class="form-control" id="observacionDesembolso" rows="3"
                             placeholder="Escriba aquí la observación..."></textarea>
                     </div>
+                    {% endif %} 
                     <!-- Historial de observaciones -->
                     <div class="mt-4">
                         <h6><i class="fas fa-history me-2"></i>Historial de Observaciones</h6>
