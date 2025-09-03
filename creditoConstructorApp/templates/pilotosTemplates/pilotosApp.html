@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,19 +12,19 @@
     <style>
         :root {
             /* ===== Colores principales (grises equivalentes) ===== */
-            --bancolombia-blue: #2C2A29;        
-            --bancolombia-light-blue: #5A5A5A;   
-            --bancolombia-green: #707070;       
-            --bancolombia-yellow: #D9D9D9;       
+            --bancolombia-blue: #2C2A29;
+            --bancolombia-light-blue: #5A5A5A;
+            --bancolombia-green: #707070;
+            --bancolombia-yellow: #D9D9D9;
 
             /* ===== Neutrales ===== */
-            --bancolombia-gray: #F5F5F5;         
-            --bancolombia-dark-gray: #1E1E1E;     
-            --text-secondary: #5A5A5A;            
-            --border-light: #E0E0E0;             
-            --pure-white: #FFFFFF;               
+            --bancolombia-gray: #F5F5F5;
+            --bancolombia-dark-gray: #1E1E1E;
+            --text-secondary: #5A5A5A;
+            --border-light: #E0E0E0;
+            --pure-white: #FFFFFF;
         }
-        
+
         body {
             font-family: "Cambria", serif;
             font-size: 18px;
@@ -44,23 +45,26 @@
             cursor: pointer;
             transition: background 0.3s;
         }
+
         .btn-primary:hover {
-            background-color: #1E1E1E; /* 10% más oscuro al hover */
+            background-color: #1E1E1E;
+            /* 10% más oscuro al hover */
         }
 
-        html, body {
+        html,
+        body {
             height: 100%;
             margin: 0;
             padding: 0;
         }
-        
+
         .header {
             background-color: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             padding: 10px 0;
             margin-bottom: 20px;
         }
-        
+
         .logo-container {
             text-align: center;
             padding: 10px 0;
@@ -70,24 +74,24 @@
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .logo-container img {
             height: 50px;
             width: auto;
         }
-        
+
         .breadcrumb {
             background-color: transparent;
             padding: 0;
             margin: 0;
             font-size: 0.9rem;
         }
-        
+
         .breadcrumb-item.active {
             color: var(--bancolombia-blue);
             font-weight: 600;
         }
-        
+
         .module-container {
             flex: 1;
             display: flex;
@@ -95,7 +99,7 @@
             justify-content: flex-start;
             padding: 20px 0;
         }
-        
+
         .module-title {
             color: var(--bancolombia-blue);
             font-weight: 700;
@@ -106,12 +110,12 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         .module-title i {
             margin-right: 15px;
             font-size: 1.5rem;
         }
-        
+
         .module-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -121,12 +125,12 @@
             margin: 0 auto;
             padding: 0 20px;
         }
-        
+
         .module-card {
             background: white;
             border-radius: 10px;
             overflow: hidden;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
             border: none;
             text-align: center;
@@ -134,12 +138,12 @@
             display: flex;
             flex-direction: column;
         }
-        
+
         .module-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
         }
-        
+
         .module-card .card-header {
             background-color: var(--bancolombia-light-blue);
             color: white;
@@ -147,26 +151,26 @@
             padding: 15px;
             font-weight: 600;
         }
-        
+
         .module-card .card-body {
             padding: 25px;
             flex: 1;
             display: flex;
             flex-direction: column;
         }
-        
+
         .module-card .card-list {
             text-align: left;
             margin-bottom: 20px;
             flex: 1;
         }
-        
+
         .module-card .card-list-item {
             margin-bottom: 10px;
             padding-left: 25px;
             position: relative;
         }
-        
+
         .module-card .card-list-item:before {
             content: "•";
             color: var(--bancolombia-light-blue);
@@ -174,13 +178,13 @@
             position: absolute;
             left: 10px;
         }
-        
+
         .module-card .btn-group {
             display: flex;
             gap: 10px;
             justify-content: center;
         }
-        
+
         .module-card .btn {
             border: none;
             border-radius: 5px;
@@ -188,19 +192,19 @@
             font-weight: 600;
             min-width: 100px;
         }
-        
+
         .btn-success {
             background-color: var(--bancolombia-green);
         }
-        
+
         .btn-warning {
             background-color: var(--bancolombia-orange);
         }
-        
+
         .btn-danger {
             background-color: var(--bancolombia-red);
         }
-        
+
         .footer {
             background-color: var(--bancolombia-blue);
             color: white;
@@ -211,7 +215,7 @@
             position: sticky;
             top: 100%;
         }
-        
+
         .user-info {
             text-align: right;
             padding: 10px 20px;
@@ -222,13 +226,14 @@
             margin: 0 auto;
             width: 100%;
         }
-        
+
         .container-aligned {
             max-width: 1400px;
             margin: 0 auto;
             padding: 0 20px;
             width: 100%;
         }
+
         .skeleton {
             background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
             background-size: 200% 100%;
@@ -240,6 +245,7 @@
             0% {
                 background-position: 200% 0;
             }
+
             100% {
                 background-position: -200% 0;
             }
@@ -247,6 +253,7 @@
     </style>
     <link rel="shortcut icon" href="{{ url_for('static', filename='LogoBancolombia.ico') }}">
 </head>
+
 <body>
     <!-- Header con logo y usuario -->
     <div class="header">
@@ -257,19 +264,21 @@
                 | <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
             </div>
             <div class="logo-container">
-                <img src="https://www.uam.edu.co/wp-content/uploads/2022/09/logo-bancolombia1.png" 
-                     alt="Bancolombia">
+                <img src="https://www.uam.edu.co/wp-content/uploads/2022/09/logo-bancolombia1.png" alt="Bancolombia">
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{{ url_for('menu_principal') }}"><i class="fas fa-home"></i> Menú Principal</a></li>
-                        <li class="breadcrumb-item active" aria-current="page"><i class="fas fa-user-tie"></i> Módulo Pilotos</li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('menu_principal') }}"><i
+                                    class="fas fa-home"></i> Menú Principal</a></li>
+                        <li class="breadcrumb-item active" aria-current="page"><i class="fas fa-user-tie"></i> Módulo
+                            Pilotos</li>
                     </ol>
                 </nav>
             </div>
         </div>
     </div>
     <!-- Loader con skeleton -->
-    <div id="loader" style="min-height: 100vh; background-color: #f5f5f5; position: fixed; width: 100%; top: 0; left: 0; z-index: 9999;">
+    <div id="loader"
+        style="min-height: 100vh; background-color: #f5f5f5; position: fixed; width: 100%; top: 0; left: 0; z-index: 9999;">
         <div class="d-flex flex-column align-items-center py-5">
             <h5 class="mb-4 text-secondary">Cargando módulo de pilotos...</h5>
             <div class="module-grid">
@@ -316,7 +325,7 @@
                 <h1 class="module-title">
                     <i class="fas fa-user-tie"></i> Módulo de Pilotos
                 </h1>
-                
+
                 <div class="module-grid">
                     <!-- Gestión de Proyectos -->
                     <div class="module-card">
@@ -336,15 +345,15 @@
                                 <a href="{{ url_for('consulta_proyectos') }}" class="btn btn-primary">Consulta</a>
                                 <a href="{{ url_for('crear_proyecto') }}" class="btn btn-success">
                                     {% if session.usuario.rol == 'auxiliar' %}
-                                        Continuar proceso
+                                    Continuar proceso
                                     {% else %}
-                                        Nuevo
+                                    Nuevo
                                     {% endif %}
                                 </a>
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Roles y Usuarios -->
                     {% if session.usuario.rol == 'admin' %}
                     <div class="module-card">
@@ -366,7 +375,7 @@
                         </div>
                     </div>
                     {% endif %}
-                    
+
                     <!-- Seguimiento -->
                     {% if session.usuario.rol in ['admin', 'arquitecto', 'auxiliar'] %}
                     <div class="module-card">
@@ -383,12 +392,13 @@
                                 <div class="card-list-item">Cumplimiento condiciones</div>
                             </div>
                             <div class="btn-group">
-                                <a href="{{ url_for('seguimiento_Proyecto') }}" class="btn btn-success">Nuevo Seguimiento</a>
+                                <a href="{{ url_for('seguimiento_Proyecto') }}" class="btn btn-success">Nuevo
+                                    Seguimiento</a>
                             </div>
                         </div>
                     </div>
                     {% endif %}
-                    
+
                     <!-- Históricos -->
                     {% if session.usuario.rol in ['admin', 'arquitecto'] %}
                     <!-- <div class="module-card">
@@ -409,7 +419,7 @@
                         </div>
                     </div> -->
                     {% endif %}
-                    
+
                     <!-- Mantenimientos -->
                     <!-- <div class="module-card">
                         <div class="card-header" style="background-color: var(--bancolombia-red);">
@@ -430,7 +440,7 @@
                             </div>
                         </div>
                     </div> -->
-                    
+
                     <!-- Configuración -->
                     {% if session.usuario.rol == 'admin' %}
                     <div class="module-card">
@@ -461,12 +471,12 @@
         <div class="container-aligned">
             <p>© 2025 Bancolombia. Todos los derechos reservados.</p>
             <p>
-                <a href="#">Términos y condiciones</a> | 
-                <a href="#">Política de privacidad</a> | 
+                <a href="#">Términos y condiciones</a> |
+                <a href="#">Política de privacidad</a> |
                 <a href="#">Ayuda</a>
             </p>
             <p>
-                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 | 
+                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 |
                 <i class="fas fa-map-marker-alt"></i> Sede principal: Medellín, Colombia
             </p>
         </div>
@@ -482,4 +492,5 @@
         });
     </script>
 </body>
+
 </html>

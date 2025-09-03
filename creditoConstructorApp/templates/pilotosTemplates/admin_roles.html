@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,19 +10,19 @@
     <style>
         :root {
             /* ===== Colores principales (grises equivalentes) ===== */
-            --bancolombia-blue: #2C2A29;        
-            --bancolombia-light-blue: #5A5A5A;   
-            --bancolombia-green: #707070;       
-            --bancolombia-yellow: #D9D9D9;       
+            --bancolombia-blue: #2C2A29;
+            --bancolombia-light-blue: #5A5A5A;
+            --bancolombia-green: #707070;
+            --bancolombia-yellow: #D9D9D9;
 
             /* ===== Neutrales ===== */
-            --bancolombia-gray: #F5F5F5;         
-            --bancolombia-dark-gray: #1E1E1E;     
-            --text-secondary: #5A5A5A;            
-            --border-light: #E0E0E0;             
-            --pure-white: #FFFFFF;               
+            --bancolombia-gray: #F5F5F5;
+            --bancolombia-dark-gray: #1E1E1E;
+            --text-secondary: #5A5A5A;
+            --border-light: #E0E0E0;
+            --pure-white: #FFFFFF;
         }
-        
+
         body {
             font-family: "Cambria", serif;
             font-size: 18px;
@@ -42,24 +43,26 @@
             cursor: pointer;
             transition: background 0.3s;
         }
+
         .btn-primary:hover {
-            background-color: #1E1E1E; /* 10% más oscuro al hover */
+            background-color: #1E1E1E;
+            /* 10% más oscuro al hover */
         }
-        
+
         .admin-container {
             background: white;
             border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             padding: 2rem;
             margin: 2rem auto;
             max-width: 1200px;
         }
-        
+
         .permisos-list {
             column-count: 2;
             column-gap: 2rem;
         }
-        
+
         .role-badge {
             background-color: var(--bancolombia-light-blue);
             color: white;
@@ -67,19 +70,19 @@
             border-radius: 15px;
             font-size: 0.9rem;
         }
-        
+
         .badge-architect {
             background-color: #8e44ad;
         }
-        
+
         .badge-manager {
             background-color: #e67e22;
         }
-        
+
         .badge-builder {
             background-color: #16a085;
         }
-        
+
         .user-avatar {
             width: 40px;
             height: 40px;
@@ -90,7 +93,7 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         .logo-container {
             text-align: center;
             padding: 10px 0;
@@ -100,16 +103,16 @@
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .logo-container img:hover {
             transform: scale(1.05);
             transition: transform 0.3s ease;
         }
-        
+
         .logo-container img {
             height: 50px;
         }
-        
+
         .footer {
             background-color: var(--bancolombia-blue);
             color: white;
@@ -118,23 +121,23 @@
             font-size: 0.9rem;
             margin-top: 40px;
         }
-        
+
         .footer a {
             color: var(--bancolombia-yellow);
             text-decoration: none;
         }
-        
+
         .footer a:hover {
             text-decoration: underline;
         }
-        
+
         .header {
             background-color: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             padding: 15px 0;
             margin-bottom: 20px;
         }
-        
+
         .user-info {
             text-align: right;
             padding: 10px 20px;
@@ -145,65 +148,65 @@
             margin: 0 auto;
             width: 100%;
         }
-        
+
         .permission-section {
             margin-bottom: 1.5rem;
             padding: 1rem;
             border-radius: 5px;
             background-color: #f8f9fa;
         }
-        
+
         .permission-section h6 {
             border-bottom: 1px solid #dee2e6;
             padding-bottom: 0.5rem;
             margin-bottom: 1rem;
         }
-        
+
         .disabled-permission {
             opacity: 0.6;
             pointer-events: none;
         }
-        
+
         .editable-field {
             cursor: pointer;
             border-bottom: 1px dashed #999;
         }
-        
+
         .editable-field:hover {
             background-color: #f0f0f0;
         }
-        
+
         .custom-modal-icon {
             font-size: 2.5rem;
             margin-bottom: 1rem;
         }
-        
+
         .modal-success .modal-header {
             background-color: var(--bancolombia-green);
             color: white;
         }
-        
+
         .modal-warning .modal-header {
             background-color: var(--bancolombia-yellow);
             color: var(--bancolombia-dark-gray);
         }
-        
+
         .modal-error .modal-header {
             background-color: var(--bancolombia-red);
             color: white;
         }
-        
+
         .modal-info .modal-header {
             background-color: var(--bancolombia-blue);
             color: white;
         }
-        
+
         .modal-success .btn-close,
         .modal-error .btn-close,
         .modal-info .btn-close {
             filter: invert(1);
         }
-        
+
         .no-permission {
             opacity: 0.5;
             cursor: not-allowed;
@@ -211,20 +214,23 @@
     </style>
     <link rel="shortcut icon" href="{{ url_for('static', filename='LogoBancolombia.ico') }}">
 </head>
+
 <body>
     <div class="header">
         <div class="container-aligned">
             <div class="user-info">
                 <span class="role-badge me-3" id="currentUserRole">Administrador</span>
-                <i class="fas fa-user-circle"></i> Bienvenido, <span id="currentUserName">Admin</span> | 
+                <i class="fas fa-user-circle"></i> Bienvenido, <span id="currentUserName">Admin</span> |
                 <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
             </div>
             <div class="logo-container">
                 <img src="https://www.uam.edu.co/wp-content/uploads/2022/09/logo-bancolombia1.png" alt="Bancolombia">
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{{ url_for('menu_principal') }}"><i class="fas fa-home"></i> Menú Principal</a></li>
-                        <li class="breadcrumb-item active" aria-current="page"><i class="fas fa-users-cog"></i> Administración</li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('menu_principal') }}"><i
+                                    class="fas fa-home"></i> Menú Principal</a></li>
+                        <li class="breadcrumb-item active" aria-current="page"><i class="fas fa-users-cog"></i>
+                            Administración</li>
                     </ol>
                 </nav>
             </div>
@@ -233,13 +239,13 @@
 
     <div class="admin-container">
         <h1 class="module-title mb-4"><i class="fas fa-users-cog me-3"></i>Administración de Roles y Usuarios</h1>
-        
+
         <div class="d-flex justify-content-between align-items-center mb-4">
             <a href="{{ url_for('modulo_pilotos') }}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i>Volver
             </a>
         </div>
-        
+
         <div class="row mb-4">
             <div class="col-md-6">
                 <div class="card">
@@ -262,7 +268,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="row">
             <div class="col-md-6 mb-4">
                 <div class="card h-100">
@@ -275,130 +281,162 @@
                                 <label class="form-label">Nombre del Rol</label>
                                 <input type="text" class="form-control" id="roleName" required>
                             </div>
-                            
+
                             <div class="permission-section">
                                 <h6><i class="fas fa-project-diagram me-2"></i>Gestión de Proyectos</h6>
                                 <div class="permisos-list">
                                     <div class="form-check">
-                                        <input class="form-check-input project-permission" type="checkbox" id="p-create-project" value="create-project">
-                                        <label class="form-check-label" for="p-create-project">Crear nuevo proyecto</label>
+                                        <input class="form-check-input project-permission" type="checkbox"
+                                            id="p-create-project" value="create-project">
+                                        <label class="form-check-label" for="p-create-project">Crear nuevo
+                                            proyecto</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input project-permission" type="checkbox" id="p-edit-project" value="edit-project">
-                                        <label class="form-check-label" for="p-edit-project">Modificar proyecto existente</label>
+                                        <input class="form-check-input project-permission" type="checkbox"
+                                            id="p-edit-project" value="edit-project">
+                                        <label class="form-check-label" for="p-edit-project">Modificar proyecto
+                                            existente</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input project-permission" type="checkbox" id="p-view-project" value="view-project">
+                                        <input class="form-check-input project-permission" type="checkbox"
+                                            id="p-view-project" value="view-project">
                                         <label class="form-check-label" for="p-view-project">Consultar proyectos</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input project-permission" type="checkbox" id="p-filters" value="advanced-filters">
+                                        <input class="form-check-input project-permission" type="checkbox"
+                                            id="p-filters" value="advanced-filters">
                                         <label class="form-check-label" for="p-filters">Filtros avanzados</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input project-permission" type="checkbox" id="p-general-data" value="general-data">
+                                        <input class="form-check-input project-permission" type="checkbox"
+                                            id="p-general-data" value="general-data">
                                         <label class="form-check-label" for="p-general-data">Datos generales</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input project-permission" type="checkbox" id="p-project-card" value="project-card">
+                                        <input class="form-check-input project-permission" type="checkbox"
+                                            id="p-project-card" value="project-card">
                                         <label class="form-check-label" for="p-project-card">Ficha de proyecto</label>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="permission-section">
                                 <h6><i class="fas fa-users me-2"></i>Roles y Usuarios</h6>
                                 <div class="permisos-list">
                                     <div class="form-check">
-                                        <input class="form-check-input user-permission" type="checkbox" id="p-identify-users" value="identify-users">
-                                        <label class="form-check-label" for="p-identify-users">Identificación de usuarios</label>
+                                        <input class="form-check-input user-permission" type="checkbox"
+                                            id="p-identify-users" value="identify-users">
+                                        <label class="form-check-label" for="p-identify-users">Identificación de
+                                            usuarios</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input user-permission" type="checkbox" id="p-assign-roles" value="assign-roles">
+                                        <input class="form-check-input user-permission" type="checkbox"
+                                            id="p-assign-roles" value="assign-roles">
                                         <label class="form-check-label" for="p-assign-roles">Asignación de roles</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input user-permission" type="checkbox" id="p-roles-matrix" value="roles-matrix">
+                                        <input class="form-check-input user-permission" type="checkbox"
+                                            id="p-roles-matrix" value="roles-matrix">
                                         <label class="form-check-label" for="p-roles-matrix">Matriz de roles</label>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="permission-section">
                                 <h6><i class="fas fa-cog me-2"></i>Acceder</h6>
                                 <div class="permisos-list">
                                     <div class="form-check">
-                                        <input class="form-check-input access-permission" type="checkbox" id="p-configuration" value="configuration">
+                                        <input class="form-check-input access-permission" type="checkbox"
+                                            id="p-configuration" value="configuration">
                                         <label class="form-check-label" for="p-configuration">Configuración</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input access-permission" type="checkbox" id="p-identify-fields" value="identify-fields">
-                                        <label class="form-check-label" for="p-identify-fields">Identificar campos</label>
+                                        <input class="form-check-input access-permission" type="checkbox"
+                                            id="p-identify-fields" value="identify-fields">
+                                        <label class="form-check-label" for="p-identify-fields">Identificar
+                                            campos</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input access-permission" type="checkbox" id="p-data-types" value="data-types">
+                                        <input class="form-check-input access-permission" type="checkbox"
+                                            id="p-data-types" value="data-types">
                                         <label class="form-check-label" for="p-data-types">Tipos de datos</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input access-permission" type="checkbox" id="p-validations" value="validations">
+                                        <input class="form-check-input access-permission" type="checkbox"
+                                            id="p-validations" value="validations">
                                         <label class="form-check-label" for="p-validations">Validaciones</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input access-permission" type="checkbox" id="p-forms" value="forms">
+                                        <input class="form-check-input access-permission" type="checkbox" id="p-forms"
+                                            value="forms">
                                         <label class="form-check-label" for="p-forms">Formularios</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input access-permission" type="checkbox" id="p-canceled-projects" value="canceled-projects">
-                                        <label class="form-check-label" for="p-canceled-projects">Proyectos cancelados</label>
+                                        <input class="form-check-input access-permission" type="checkbox"
+                                            id="p-canceled-projects" value="canceled-projects">
+                                        <label class="form-check-label" for="p-canceled-projects">Proyectos
+                                            cancelados</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input access-permission" type="checkbox" id="p-database" value="database">
+                                        <input class="form-check-input access-permission" type="checkbox"
+                                            id="p-database" value="database">
                                         <label class="form-check-label" for="p-database">Base de datos</label>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="permission-section">
                                 <h6><i class="fas fa-history me-2"></i>Históricos</h6>
                                 <div class="permisos-list">
                                     <div class="form-check">
-                                        <input class="form-check-input history-permission" type="checkbox" id="p-work-progress" value="work-progress">
-                                        <label class="form-check-label" for="p-work-progress">Histórico avances de obra</label>
+                                        <input class="form-check-input history-permission" type="checkbox"
+                                            id="p-work-progress" value="work-progress">
+                                        <label class="form-check-label" for="p-work-progress">Histórico avances de
+                                            obra</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input history-permission" type="checkbox" id="p-sales-reports" value="sales-reports">
-                                        <label class="form-check-label" for="p-sales-reports">Histórico informes de ventas</label>
+                                        <input class="form-check-input history-permission" type="checkbox"
+                                            id="p-sales-reports" value="sales-reports">
+                                        <label class="form-check-label" for="p-sales-reports">Histórico informes de
+                                            ventas</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input history-permission" type="checkbox" id="p-disbursements" value="disbursements">
-                                        <label class="form-check-label" for="p-disbursements">Histórico desembolsos</label>
+                                        <input class="form-check-input history-permission" type="checkbox"
+                                            id="p-disbursements" value="disbursements">
+                                        <label class="form-check-label" for="p-disbursements">Histórico
+                                            desembolsos</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input history-permission" type="checkbox" id="p-modifications" value="modifications">
-                                        <label class="form-check-label" for="p-modifications">Histórico modificaciones</label>
+                                        <input class="form-check-input history-permission" type="checkbox"
+                                            id="p-modifications" value="modifications">
+                                        <label class="form-check-label" for="p-modifications">Histórico
+                                            modificaciones</label>
                                     </div>
                                     <div class="form-check">
-                                        <input class="form-check-input history-permission" type="checkbox" id="p-history-formats" value="history-formats">
-                                        <label class="form-check-label" for="p-history-formats">Formatos históricos</label>
+                                        <input class="form-check-input history-permission" type="checkbox"
+                                            id="p-history-formats" value="history-formats">
+                                        <label class="form-check-label" for="p-history-formats">Formatos
+                                            históricos</label>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="permission-section">
                                 <h6><i class="fas fa-search me-2"></i>Nuevo Seguimiento</h6>
                                 <div class="form-check">
-                                    <input class="form-check-input tracking-permission" type="checkbox" id="p-consult-tracking" value="consult-tracking">
+                                    <input class="form-check-input tracking-permission" type="checkbox"
+                                        id="p-consult-tracking" value="consult-tracking">
                                     <label class="form-check-label" for="p-consult-tracking">Consultar</label>
                                 </div>
                             </div>
-                            
+
                             <button type="submit" class="btn btn-primary" id="createRoleBtn">
                                 <i class="fas fa-plus-circle me-2"></i>Crear Rol
                             </button>
                         </form>
-                        
+
                         <hr class="my-4">
-                        
+
                         <h6><i class="fas fa-list me-2"></i>Roles Existentes</h6>
                         <div class="list-group" id="rolesList"></div>
                     </div>
@@ -416,12 +454,12 @@
                                 <label class="form-label">Nombre Completo</label>
                                 <input type="text" class="form-control" id="userFullName" required>
                             </div>
-                            
+
                             <div class="mb-3">
                                 <label class="form-label">Correo Electrónico</label>
                                 <input type="email" class="form-control" id="userEmail" required>
                             </div>
-                            
+
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label">Rol</label>
@@ -441,14 +479,14 @@
                                     </select>
                                 </div>
                             </div>
-                            
+
                             <button type="submit" class="btn btn-primary" id="createUserBtn">
                                 <i class="fas fa-user-plus me-2"></i>Crear Usuario
                             </button>
                         </form>
-                        
+
                         <hr class="my-4">
-                        
+
                         <h6><i class="fas fa-users me-2"></i>Usuarios Registrados</h6>
                         <div class="list-group" id="usersList"></div>
                     </div>
@@ -477,12 +515,12 @@
         <div class="container-aligned">
             <p>© 2025 Bancolombia. Todos los derechos reservados.</p>
             <p>
-                <a href="#">Términos y condiciones</a> | 
-                <a href="#">Política de privacidad</a> | 
+                <a href="#">Términos y condiciones</a> |
+                <a href="#">Política de privacidad</a> |
                 <a href="#">Ayuda</a>
             </p>
             <p>
-                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 | 
+                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 |
                 <i class="fas fa-map-marker-alt"></i> Sede principal: Medellín, Colombia
             </p>
         </div>
@@ -617,32 +655,32 @@
         function showModal(title, message, type = 'info', confirmCallback = null) {
             const modalElement = document.getElementById('customModal');
             const modal = new bootstrap.Modal(modalElement);
-            
+
             modalElement.querySelector('.modal-header').className = `modal-header modal-${type}`;
             modalElement.querySelector('#modalTitle').textContent = title;
             modalElement.querySelector('#modalBody').innerHTML = message;
-            
+
             const confirmBtn = modalElement.querySelector('#modalConfirmBtn');
             confirmBtn.style.display = confirmCallback ? 'block' : 'none';
             confirmBtn.onclick = () => {
                 if (confirmCallback) confirmCallback();
                 modal.hide();
             };
-            
+
             modal.show();
         }
 
         function renderRoles() {
             const rolesList = document.getElementById('rolesList');
             rolesList.innerHTML = '';
-            
+
             Object.keys(allRoles).forEach(roleKey => {
                 const role = allRoles[roleKey];
                 const isPredefined = defaultRoles[roleKey] !== undefined;
-                
+
                 const item = document.createElement('div');
                 item.className = 'list-group-item d-flex justify-content-between align-items-center';
-                
+
                 const buttons = `
                     ${isAdmin() ? `
                     <div>
@@ -672,27 +710,27 @@
 
         function editRole(roleKey) {
             if (!isAdmin()) return;
-            
+
             const role = allRoles[roleKey];
             document.getElementById('roleName').value = role.name;
-            
+
             Object.entries(role.permissions).forEach(([permission, enabled]) => {
                 const checkbox = document.getElementById(`p-${permission}`);
                 if (checkbox) checkbox.checked = enabled;
             });
-            
+
             document.getElementById('createRoleBtn').innerHTML = '<i class="fas fa-save me-2"></i>Guardar Cambios';
             window.editingRole = roleKey;
         }
 
         function deleteRole(roleKey) {
             if (!isAdmin()) return;
-            
+
             if (users.some(u => u.role === roleKey)) {
                 showModal('Error', 'No se puede eliminar un rol en uso', 'error');
                 return;
             }
-            
+
             if (defaultRoles[roleKey]) {
                 delete customRoles[roleKey]; // Eliminar modificaciones
             } else {
@@ -708,7 +746,7 @@
                 .filter(([_, enabled]) => enabled)
                 .map(([permission]) => `<li>${permissionNames[permission]}</li>`)
                 .join('');
-            
+
             showModal(
                 `Detalles de ${role.name}`,
                 `<ul>${permissions}</ul>`,
@@ -718,15 +756,15 @@
 
         document.getElementById('formRol').onsubmit = e => {
             e.preventDefault();
-            
+
             const roleName = document.getElementById('roleName').value.trim();
             if (!roleName) return;
-            
+
             const permissions = {};
             document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
                 permissions[checkbox.value] = checkbox.checked;
             });
-            
+
             if (window.editingRole) {
                 // Editar rol existente
                 const roleKey = window.editingRole;
@@ -739,7 +777,7 @@
                 customRoles[roleKey] = { name: roleName, permissions };
                 allRoles[roleKey] = customRoles[roleKey];
             }
-            
+
             document.getElementById('formRol').reset();
             document.getElementById('createRoleBtn').innerHTML = '<i class="fas fa-plus-circle me-2"></i>Crear Rol';
             saveData();
@@ -748,12 +786,12 @@
         function renderUsers() {
             const usersList = document.getElementById('usersList');
             usersList.innerHTML = '';
-            
+
             users.forEach(user => {
                 const role = allRoles[user.role] || { name: 'Sin rol' };
                 const item = document.createElement('div');
                 item.className = 'list-group-item d-flex align-items-center';
-                
+
                 item.innerHTML = `
                     <div class="user-avatar me-3">${user.initials}</div>
                     <div class="flex-grow-1">
@@ -778,28 +816,28 @@
 
         document.getElementById('formUsuario').onsubmit = e => {
             e.preventDefault();
-            
+
             const fullName = document.getElementById('userFullName').value.trim();
             const email = document.getElementById('userEmail').value.trim();
             const role = document.getElementById('userRole').value;
             const status = document.getElementById('userStatus').value;
-            
+
             if (!fullName || !email || !role) return;
-            
+
             if (users.some(u => u.email === email)) {
                 showModal('Error', 'El correo ya está registrado', 'error');
                 return;
             }
-            
+
             const newUser = {
                 id: `user-${Date.now()}`,
                 name: fullName,
                 email: email,
                 role: role,
                 status: status,
-                initials: fullName.split(' ').map(n => n[0]).join('').substr(0,2).toUpperCase()
+                initials: fullName.split(' ').map(n => n[0]).join('').substr(0, 2).toUpperCase()
             };
-            
+
             users.push(newUser);
             document.getElementById('formUsuario').reset();
             saveData();
@@ -807,22 +845,22 @@
 
         function editUser(userId) {
             if (!isAdmin()) return;
-            
+
             const user = users.find(u => u.id === userId);
             if (!user) return;
-            
+
             document.getElementById('userFullName').value = user.name;
             document.getElementById('userEmail').value = user.email;
             document.getElementById('userRole').value = user.role;
             document.getElementById('userStatus').value = user.status;
-            
+
             users = users.filter(u => u.id !== userId);
             saveData();
         }
 
         function deleteUser(userId) {
             if (!isAdmin()) return;
-            
+
             showModal(
                 'Confirmar eliminación',
                 '¿Estás seguro de eliminar este usuario?',
@@ -838,7 +876,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             renderRoles();
             renderUsers();
-            
+
             document.getElementById('applyRoleView').addEventListener('click', () => {
                 const role = document.getElementById('roleViewSelector').value;
                 applyRolePermissions(role);
@@ -848,7 +886,7 @@
         function applyRolePermissions(roleKey) {
             const role = allRoles[roleKey];
             if (!role) return;
-            
+
             document.getElementById('currentUserRole').textContent = role.name;
             document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
                 const permission = checkbox.value;
@@ -858,4 +896,5 @@
         }
     </script>
 </body>
+
 </html>

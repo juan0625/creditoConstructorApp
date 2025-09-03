@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,19 +10,19 @@
     <style>
         :root {
             /* ===== Colores principales (grises equivalentes) ===== */
-            --bancolombia-blue: #2C2A29;        
-            --bancolombia-light-blue: #5A5A5A;   
-            --bancolombia-green: #707070;       
-            --bancolombia-yellow: #D9D9D9;       
+            --bancolombia-blue: #2C2A29;
+            --bancolombia-light-blue: #5A5A5A;
+            --bancolombia-green: #707070;
+            --bancolombia-yellow: #D9D9D9;
 
             /* ===== Neutrales ===== */
-            --bancolombia-gray: #F5F5F5;         
-            --bancolombia-dark-gray: #1E1E1E;     
-            --text-secondary: #5A5A5A;            
-            --border-light: #E0E0E0;             
-            --pure-white: #FFFFFF;               
+            --bancolombia-gray: #F5F5F5;
+            --bancolombia-dark-gray: #1E1E1E;
+            --text-secondary: #5A5A5A;
+            --border-light: #E0E0E0;
+            --pure-white: #FFFFFF;
         }
-        
+
         body {
             font-family: "Cambria", serif;
             font-size: 18px;
@@ -42,14 +43,16 @@
             cursor: pointer;
             transition: background 0.3s;
         }
+
         .btn-primary:hover {
-            background-color: #1E1E1E; /* 10% más oscuro al hover */
+            background-color: #1E1E1E;
+            /* 10% más oscuro al hover */
         }
 
         .modificacion-card {
             border: 2px solid var(--bancolombia-blue);
             border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
 
         .list-group-modificacion .list-group-item {
@@ -71,6 +74,7 @@
     </style>
     <link rel="shortcut icon" href="{{ url_for('static', filename='LogoBancolombia.ico') }}">
 </head>
+
 <body>
     <!-- Header igual al ejemplo -->
     <div class="header">
@@ -83,37 +87,37 @@
             <div class="card-header bg-primary text-white">
                 <h4 class="mb-0"><i class="fas fa-edit me-2"></i>Módulo de Modificaciones</h4>
             </div>
-            
+
             <div class="card-body">
                 <div class="list-group list-group-modificacion">
                     <!-- Cada ítem abre su modal correspondiente -->
-                    <a href="#" class="list-group-item list-group-item-action" 
-                       data-bs-toggle="modal" data-bs-target="#modalCambioTitular">
+                    <a href="#" class="list-group-item list-group-item-action" data-bs-toggle="modal"
+                        data-bs-target="#modalCambioTitular">
                         <i class="fas fa-user-tag me-2"></i>Cambio de Titular
                     </a>
-                    
-                    <a href="#" class="list-group-item list-group-item-action" 
-                       data-bs-toggle="modal" data-bs-target="#modalCambioNombre">
+
+                    <a href="#" class="list-group-item list-group-item-action" data-bs-toggle="modal"
+                        data-bs-target="#modalCambioNombre">
                         <i class="fas fa-signature me-2"></i>Cambio de Nombre
                     </a>
-                    
-                    <a href="#" class="list-group-item list-group-item-action" 
-                       data-bs-toggle="modal" data-bs-target="#modalCambioUnidades">
+
+                    <a href="#" class="list-group-item list-group-item-action" data-bs-toggle="modal"
+                        data-bs-target="#modalCambioUnidades">
                         <i class="fas fa-cubes me-2"></i>Cambio de Unidades
                     </a>
-                    
-                    <a href="#" class="list-group-item list-group-item-action" 
-                       data-bs-toggle="modal" data-bs-target="#modalDesistimiento">
+
+                    <a href="#" class="list-group-item list-group-item-action" data-bs-toggle="modal"
+                        data-bs-target="#modalDesistimiento">
                         <i class="fas fa-ban me-2"></i>Desistimientos
                     </a>
-                    
-                    <a href="#" class="list-group-item list-group-item-action" 
-                       data-bs-toggle="modal" data-bs-target="#modalAmpliacionMonto">
+
+                    <a href="#" class="list-group-item list-group-item-action" data-bs-toggle="modal"
+                        data-bs-target="#modalAmpliacionMonto">
                         <i class="fas fa-coins me-2"></i>Ampliaciones de Monto
                     </a>
-                    
-                    <a href="#" class="list-group-item list-group-item-action" 
-                       data-bs-toggle="modal" data-bs-target="#modalAmpliacionPlazo">
+
+                    <a href="#" class="list-group-item list-group-item-action" data-bs-toggle="modal"
+                        data-bs-target="#modalAmpliacionPlazo">
                         <i class="fas fa-calendar-plus me-2"></i>Ampliaciones de Plazo
                     </a>
                 </div>
@@ -191,17 +195,17 @@
     </div>
 
     <!-- Footer Estándar Bancolombia -->
-     <!-- Footer -->
-     <div class="footer">
+    <!-- Footer -->
+    <div class="footer">
         <div class="container-aligned">
             <p>© 2025 Bancolombia. Todos los derechos reservados.</p>
             <p>
-                <a href="#">Términos y condiciones</a> | 
-                <a href="#">Política de privacidad</a> | 
+                <a href="#">Términos y condiciones</a> |
+                <a href="#">Política de privacidad</a> |
                 <a href="#">Ayuda</a>
             </p>
             <p>
-                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 | 
+                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 |
                 <i class="fas fa-map-marker-alt"></i> Sede principal: Medellín, Colombia
             </p>
         </div>
@@ -223,14 +227,14 @@
                 });
 
                 const resultado = await response.json();
-                
-                if(resultado.success) {
+
+                if (resultado.success) {
                     mostrarNotificacion('Modificación aplicada exitosamente', 'success');
                     // Actualizar la vista si es necesario
                 } else {
                     mostrarNotificacion(resultado.message, 'error');
                 }
-                
+
             } catch (error) {
                 mostrarNotificacion('Error de conexión', 'error');
             }
@@ -242,4 +246,5 @@
         }
     </script>
 </body>
+
 </html>

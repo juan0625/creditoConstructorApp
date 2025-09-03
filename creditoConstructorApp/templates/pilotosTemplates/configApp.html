@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,19 +10,19 @@
     <style>
         :root {
             /* ===== Colores principales (grises equivalentes) ===== */
-            --bancolombia-blue: #2C2A29;        
-            --bancolombia-light-blue: #5A5A5A;   
-            --bancolombia-green: #707070;       
-            --bancolombia-yellow: #D9D9D9;       
+            --bancolombia-blue: #2C2A29;
+            --bancolombia-light-blue: #5A5A5A;
+            --bancolombia-green: #707070;
+            --bancolombia-yellow: #D9D9D9;
 
             /* ===== Neutrales ===== */
-            --bancolombia-gray: #F5F5F5;         
-            --bancolombia-dark-gray: #1E1E1E;     
-            --text-secondary: #5A5A5A;            
-            --border-light: #E0E0E0;             
-            --pure-white: #FFFFFF;               
+            --bancolombia-gray: #F5F5F5;
+            --bancolombia-dark-gray: #1E1E1E;
+            --text-secondary: #5A5A5A;
+            --border-light: #E0E0E0;
+            --pure-white: #FFFFFF;
         }
-        
+
         body {
             font-family: "Cambria", serif;
             font-size: 18px;
@@ -42,11 +43,14 @@
             cursor: pointer;
             transition: background 0.3s;
         }
+
         .btn-primary:hover {
-            background-color: #1E1E1E; /* 10% más oscuro al hover */
+            background-color: #1E1E1E;
+            /* 10% más oscuro al hover */
         }
 
-        html, body {
+        html,
+        body {
             height: 100%;
             margin: 0;
         }
@@ -56,29 +60,29 @@
             flex-direction: column;
             min-height: 100vh;
         }
-        
+
         .config-container {
             background: white;
             border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             padding: 2rem;
             margin: 2rem auto;
             max-width: 1200px;
         }
-        
+
         .config-tabs .nav-link {
             color: var(--bancolombia-dark-gray);
             font-weight: 500;
             border: none;
             padding: 12px 20px;
         }
-        
+
         .config-tabs .nav-link.active {
             color: var(--bancolombia-blue);
             border-bottom: 3px solid var(--bancolombia-blue);
             background: transparent;
         }
-        
+
         .config-section {
             padding: 20px;
             border: 1px solid #eee;
@@ -86,75 +90,75 @@
             margin-bottom: 20px;
             background-color: #f9f9f9;
         }
-        
+
         .config-section h4 {
             color: var(--bancolombia-blue);
             border-bottom: 1px solid #ddd;
             padding-bottom: 10px;
         }
-        
+
         .field-item {
             display: flex;
             align-items: center;
             padding: 10px;
             border-bottom: 1px solid #eee;
         }
-        
+
         .field-item:last-child {
             border-bottom: none;
         }
-        
+
         .field-actions {
             margin-left: auto;
         }
-        
+
         .backup-card {
             border-left: 4px solid var(--bancolombia-green);
         }
-        
+
         .restore-card {
             border-left: 4px solid var(--bancolombia-blue);
         }
-        
+
         .danger-card {
             border-left: 4px solid var(--bancolombia-red);
         }
-        
+
         .badge-admin {
             background-color: var(--bancolombia-blue);
         }
-        
+
         .badge-supervisor {
             background-color: var(--bancolombia-light-blue);
         }
-        
+
         .permission-badge {
             font-size: 0.75rem;
             margin-left: 10px;
         }
-        
+
         .modal-header {
             background-color: var(--bancolombia-blue);
             color: white;
         }
-        
+
         .modal-success .modal-header {
             background-color: var(--bancolombia-green);
         }
-        
+
         .modal-warning .modal-header {
             background-color: var(--bancolombia-yellow);
             color: var(--bancolombia-dark-gray);
         }
-        
+
         .modal-danger .modal-header {
             background-color: var(--bancolombia-red);
         }
-        
+
         .modal-info .modal-header {
             background-color: var(--bancolombia-light-blue);
         }
-        
+
         .footer {
             background-color: var(--bancolombia-blue);
             color: white;
@@ -165,7 +169,7 @@
             position: sticky;
             top: 100%;
         }
-        
+
         .user-info {
             text-align: right;
             padding: 10px 20px;
@@ -176,35 +180,35 @@
             margin: 0 auto;
             width: 100%;
         }
-        
+
         .container-aligned {
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 20px;
             width: 100%;
         }
-        
+
         .breadcrumb {
             background-color: transparent;
             padding: 0;
             margin: 0;
             font-size: 0.9rem;
         }
-        
+
         .breadcrumb-item.active {
             color: var(--bancolombia-blue);
             font-weight: 600;
         }
-        
+
         .logo-container img {
             height: 50px;
             transition: transform 0.3s ease;
         }
-        
+
         .logo-container img:hover {
             transform: scale(1.05);
         }
-        
+
         .logo-container {
             text-align: center;
             padding: 10px 0;
@@ -217,9 +221,10 @@
     </style>
     <link rel="shortcut icon" href="{{ url_for('static', filename='LogoBancolombia.ico') }}">
 </head>
+
 <body>
-     <!-- Header con logo y usuario -->
-     <div class="header">
+    <!-- Header con logo y usuario -->
+    <div class="header">
         <div class="container-aligned">
             <div class="user-info">
                 <span class="role-badge me-3">{{ session.usuario.rol | title }}</span>
@@ -227,20 +232,21 @@
                 | <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
             </div>
             <div class="logo-container">
-                <img src="https://www.uam.edu.co/wp-content/uploads/2022/09/logo-bancolombia1.png" 
-                    alt="Bancolombia">
+                <img src="https://www.uam.edu.co/wp-content/uploads/2022/09/logo-bancolombia1.png" alt="Bancolombia">
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{{ url_for('menu_principal') }}"><i class="fas fa-home"></i> Menú Principal</a></li>
-                        <li class="breadcrumb-item active" aria-current="page"><i class="fas fa-user-tie"></i> Módulo Pilotos</li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('menu_principal') }}"><i
+                                    class="fas fa-home"></i> Menú Principal</a></li>
+                        <li class="breadcrumb-item active" aria-current="page"><i class="fas fa-user-tie"></i> Módulo
+                            Pilotos</li>
                     </ol>
                 </nav>
             </div>
         </div>
     </div>
 
-     <!-- Contenedor principal para asegurar altura total -->
-     <div class="contenido-principal d-flex flex-column min-vh-100">
+    <!-- Contenedor principal para asegurar altura total -->
+    <div class="contenido-principal d-flex flex-column min-vh-100">
         <div class="container flex-grow-1">
             <!-- Botón Volver -->
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -256,27 +262,32 @@
                 <!-- Pestañas -->
                 <ul class="nav config-tabs mb-4" id="configTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="fields-tab" data-bs-toggle="tab" data-bs-target="#fields" type="button">
+                        <button class="nav-link active" id="fields-tab" data-bs-toggle="tab" data-bs-target="#fields"
+                            type="button">
                             <i class="fas fa-list-alt me-2"></i>Campos
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="data-types-tab" data-bs-toggle="tab" data-bs-target="#data-types" type="button">
+                        <button class="nav-link" id="data-types-tab" data-bs-toggle="tab" data-bs-target="#data-types"
+                            type="button">
                             <i class="fas fa-database me-2"></i>Tipos de Datos
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="validations-tab" data-bs-toggle="tab" data-bs-target="#validations" type="button">
+                        <button class="nav-link" id="validations-tab" data-bs-toggle="tab" data-bs-target="#validations"
+                            type="button">
                             <i class="fas fa-check-circle me-2"></i>Validaciones
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="forms-tab" data-bs-toggle="tab" data-bs-target="#forms" type="button">
+                        <button class="nav-link" id="forms-tab" data-bs-toggle="tab" data-bs-target="#forms"
+                            type="button">
                             <i class="fas fa-file-alt me-2"></i>Formularios
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="database-tab" data-bs-toggle="tab" data-bs-target="#database" type="button">
+                        <button class="nav-link" id="database-tab" data-bs-toggle="tab" data-bs-target="#database"
+                            type="button">
                             <i class="fas fa-database me-2"></i>Base de Datos
                         </button>
                     </li>
@@ -289,7 +300,8 @@
                         <div class="config-section">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h4><i class="fas fa-list-ul me-2"></i>Administración de Campos</h4>
-                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#fieldModal">
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                                    data-bs-target="#fieldModal">
                                     <i class="fas fa-plus-circle me-1"></i> Nuevo Campo
                                 </button>
                             </div>
@@ -302,7 +314,8 @@
                         <div class="config-section">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h4><i class="fas fa-database me-2"></i>Tipos de Datos</h4>
-                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#dataTypeModal">
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                                    data-bs-target="#dataTypeModal">
                                     <i class="fas fa-plus-circle me-1"></i> Nuevo Tipo
                                 </button>
                             </div>
@@ -315,7 +328,8 @@
                         <div class="config-section">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h4><i class="fas fa-check-circle me-2"></i>Validaciones</h4>
-                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#validationModal">
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                                    data-bs-target="#validationModal">
                                     <i class="fas fa-plus-circle me-1"></i> Nueva Validación
                                 </button>
                             </div>
@@ -328,7 +342,8 @@
                         <div class="config-section">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h4><i class="fas fa-file-alt me-2"></i>Formularios</h4>
-                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#formModal">
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                                    data-bs-target="#formModal">
                                     <i class="fas fa-plus-circle me-1"></i> Nuevo Formulario
                                 </button>
                             </div>
@@ -342,7 +357,8 @@
                             <div class="col-md-6 mb-4">
                                 <div class="config-section backup-card">
                                     <h4><i class="fas fa-database me-2"></i>Respaldo de Datos</h4>
-                                    <p class="text-muted">Genere un archivo de respaldo completo de la base de datos.</p>
+                                    <p class="text-muted">Genere un archivo de respaldo completo de la base de datos.
+                                    </p>
                                     <button class="btn btn-success" id="btnBackup">
                                         <i class="fas fa-file-export me-2"></i>Generar Respaldo
                                     </button>
@@ -749,26 +765,26 @@
             const campo = appState.campos[index];
             const modal = new bootstrap.Modal(document.getElementById('fieldModal'));
             const form = document.getElementById('fieldForm');
-            
+
             form.querySelector('input').value = campo.nombre;
             form.querySelector('select').value = campo.tipo;
             form.querySelector('#fieldRequired').checked = campo.requerido;
-            
+
             form.onsubmit = (e) => {
                 e.preventDefault();
                 const formData = new FormData(form);
-                
+
                 appState.campos[index] = {
                     nombre: formData.get('nombre'),
                     tipo: formData.get('tipo'),
                     requerido: formData.get('fieldRequired') === 'on'
                 };
-                
+
                 renderFields();
                 modal.hide();
                 showModal('Éxito', 'Campo actualizado exitosamente', 'success');
             };
-            
+
             modal.show();
         }
 
@@ -776,35 +792,35 @@
             const tipo = appState.dataTypes[index];
             const modal = new bootstrap.Modal(document.getElementById('dataTypeModal'));
             const form = document.getElementById('dataTypeForm');
-            
+
             form.querySelector('#dataTypeName').value = tipo.nombre;
             form.querySelector('#dataTypeFormat').value = tipo.formato;
-            
+
             if (tipo.formato === 'Lista Desplegable') {
                 form.querySelector('#dataTypeOptions').value = tipo.opciones?.join(', ') || '';
                 document.getElementById('optionsContainer').style.display = 'block';
             } else {
                 document.getElementById('optionsContainer').style.display = 'none';
             }
-            
+
             form.onsubmit = (e) => {
                 e.preventDefault();
                 const updatedTipo = {
                     nombre: form.querySelector('#dataTypeName').value,
                     formato: form.querySelector('#dataTypeFormat').value
                 };
-                
+
                 if (updatedTipo.formato === 'Lista Desplegable') {
                     updatedTipo.opciones = form.querySelector('#dataTypeOptions').value.split(',').map(o => o.trim());
                 }
-                
+
                 appState.dataTypes[index] = updatedTipo;
                 renderDataTypes();
                 loadDataTypeOptions();
                 modal.hide();
                 showModal('Éxito', 'Tipo de dato actualizado exitosamente', 'success');
             };
-            
+
             modal.show();
         }
 
@@ -812,26 +828,26 @@
             const validacion = appState.validaciones[index];
             const modal = new bootstrap.Modal(document.getElementById('validationModal'));
             const form = document.getElementById('validationForm');
-            
+
             form.querySelectorAll('input')[0].value = validacion.nombre;
             form.querySelectorAll('input')[1].value = validacion.expresion;
             form.querySelector('textarea').value = validacion.mensaje;
-            
+
             form.onsubmit = (e) => {
                 e.preventDefault();
                 const formData = new FormData(form);
-                
+
                 appState.validaciones[index] = {
                     nombre: formData.get('nombre'),
                     expresion: formData.get('expresion'),
                     mensaje: formData.get('mensaje')
                 };
-                
+
                 renderValidations();
                 modal.hide();
                 showModal('Éxito', 'Validación actualizada exitosamente', 'success');
             };
-            
+
             modal.show();
         }
 
@@ -839,27 +855,27 @@
             const formulario = appState.formularios[index];
             const modal = new bootstrap.Modal(document.getElementById('formModal'));
             const form = document.getElementById('formForm');
-            
+
             form.querySelector('input').value = formulario.nombre;
             const select = document.getElementById('availableFields');
-            
+
             // Seleccionar los campos actuales
             Array.from(select.options).forEach(option => {
                 option.selected = formulario.campos.includes(option.value);
             });
-            
+
             form.onsubmit = (e) => {
                 e.preventDefault();
                 appState.formularios[index] = {
                     nombre: form.querySelector('input').value,
                     campos: Array.from(select.selectedOptions).map(o => o.value)
                 };
-                
+
                 renderForms();
                 modal.hide();
                 showModal('Éxito', 'Formulario actualizado exitosamente', 'success');
             };
-            
+
             modal.show();
         }
 
@@ -887,4 +903,5 @@
         }
     </script>
 </body>
+
 </html>

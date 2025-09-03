@@ -1,6 +1,7 @@
 <!-- gestionar.html -->
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,19 +11,19 @@
     <style>
         :root {
             /* ===== Colores principales (grises equivalentes) ===== */
-            --bancolombia-blue: #2C2A29;        
-            --bancolombia-light-blue: #5A5A5A;   
-            --bancolombia-green: #707070;       
-            --bancolombia-yellow: #D9D9D9;       
+            --bancolombia-blue: #2C2A29;
+            --bancolombia-light-blue: #5A5A5A;
+            --bancolombia-green: #707070;
+            --bancolombia-yellow: #D9D9D9;
 
             /* ===== Neutrales ===== */
-            --bancolombia-gray: #F5F5F5;         
-            --bancolombia-dark-gray: #1E1E1E;     
-            --text-secondary: #5A5A5A;            
-            --border-light: #E0E0E0;             
-            --pure-white: #FFFFFF;               
+            --bancolombia-gray: #F5F5F5;
+            --bancolombia-dark-gray: #1E1E1E;
+            --text-secondary: #5A5A5A;
+            --border-light: #E0E0E0;
+            --pure-white: #FFFFFF;
         }
-        
+
         body {
             font-family: "Cambria", serif;
             font-size: 18px;
@@ -43,32 +44,35 @@
             cursor: pointer;
             transition: background 0.3s;
         }
+
         .btn-primary:hover {
-            background-color: #1E1E1E; /* 10% más oscuro al hover */
+            background-color: #1E1E1E;
+            /* 10% más oscuro al hover */
         }
+
         .card-gestion {
             border: 2px solid #003366;
             border-radius: 15px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
-        
+
         .table-custom thead {
             background-color: #003366;
             color: white;
         }
-        
+
         .btn-accion {
             padding: 0.3rem 0.8rem;
             margin: 0 2px;
         }
-        
+
         .search-box {
             border: 2px solid #003366;
             border-radius: 25px;
             padding: 1.5rem;
             margin-bottom: 2rem;
         }
-        
+
         .alert-bancolombia {
             border: 1px solid #003366;
             border-left: 4px solid #003366;
@@ -76,6 +80,7 @@
     </style>
     <link rel="shortcut icon" href="{{ url_for('static', filename='LogoBancolombia.ico') }}">
 </head>
+
 <body>
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -92,22 +97,24 @@
     <!-- Contenido Principal -->
     <div class="container my-5">
         <div id="alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 1000;"></div>
-        
+
         <div class="card card-gestion">
             <div class="card-header bg-primary text-white">
                 <h4 class="mb-0"><i class="fas fa-tasks me-2"></i>Gestión de Proyectos</h4>
             </div>
-            
+
             <div class="card-body">
                 <!-- Buscador -->
                 <div class="search-box">
                     <form id="form-busqueda" onsubmit="buscarProyectos(event)">
                         <div class="row g-3">
                             <div class="col-md-4">
-                                <input type="text" class="form-control" id="buscar-proyecto" placeholder="Buscar por proyecto">
+                                <input type="text" class="form-control" id="buscar-proyecto"
+                                    placeholder="Buscar por proyecto">
                             </div>
                             <div class="col-md-4">
-                                <input type="text" class="form-control" id="buscar-titular" placeholder="Buscar por titular">
+                                <input type="text" class="form-control" id="buscar-titular"
+                                    placeholder="Buscar por titular">
                             </div>
                             <div class="col-md-3">
                                 <input type="text" class="form-control" id="buscar-nit" placeholder="NIT">
@@ -196,7 +203,7 @@
                     },
                     body: JSON.stringify(filtros)
                 });
-                
+
                 const proyectos = await response.json();
                 const tbody = document.getElementById('resultados-body');
                 tbody.innerHTML = '';
@@ -235,7 +242,7 @@
                     `;
                 });
 
-                document.getElementById('contador-resultados').textContent = 
+                document.getElementById('contador-resultados').textContent =
                     `Mostrando ${proyectos.length} resultados`;
             } catch (error) {
                 mostrarAlerta('Error al cargar proyectos', 'danger');
@@ -246,4 +253,5 @@
         document.addEventListener('DOMContentLoaded', () => cargarProyectos());
     </script>
 </body>
+
 </html>

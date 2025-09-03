@@ -1,30 +1,31 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Bancolombia - Crear Nuevo Proyecto</title>
-        <!-- Bootstrap CSS -->
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-        <!-- Font Awesome -->
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-        <style>
-            :root {
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bancolombia - Crear Nuevo Proyecto</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
             /* ===== Colores principales (grises equivalentes) ===== */
-            --bancolombia-blue: #2C2A29;        
-            --bancolombia-light-blue: #5A5A5A;   
-            --bancolombia-green: #707070;       
-            --bancolombia-yellow: #D9D9D9;       
+            --bancolombia-blue: #2C2A29;
+            --bancolombia-light-blue: #5A5A5A;
+            --bancolombia-green: #707070;
+            --bancolombia-yellow: #D9D9D9;
 
             /* ===== Neutrales ===== */
-            --bancolombia-gray: #F5F5F5;         
-            --bancolombia-dark-gray: #1E1E1E;     
-            --text-secondary: #5A5A5A;            
-            --border-light: #E0E0E0;             
-            --pure-white: #FFFFFF;               
+            --bancolombia-gray: #F5F5F5;
+            --bancolombia-dark-gray: #1E1E1E;
+            --text-secondary: #5A5A5A;
+            --border-light: #E0E0E0;
+            --pure-white: #FFFFFF;
         }
-        
+
         body {
             font-family: "Cambria", serif;
             font-size: 18px;
@@ -45,143 +46,153 @@
             cursor: pointer;
             transition: background 0.3s;
         }
+
         .btn-primary:hover {
-            background-color: #1E1E1E; /* 10% más oscuro al hover */
+            background-color: #1E1E1E;
+            /* 10% más oscuro al hover */
         }
-            
-            .header {
-                background-color: white;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                padding: 15px 0;
-                margin-bottom: 20px;
-            }
-            
-            .logo-container img {
-                height: 50px;
-            }
-            
-            .crear-container {
-                background: white;
-                border-radius: 10px;
-                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-                padding: 30px;
-                margin-bottom: 30px;
-            }
-            
-            .section-title {
-                color: var(--bancolombia-blue);
-                border-bottom: 2px solid var(--bancolombia-light-blue);
-                padding-bottom: 10px;
-                margin-bottom: 20px;
-            }
-            
-            .btn-bancolombia {
-                background-color: var(--bancolombia-blue);
-                color: white;
-            }
-            
-            .btn-bancolombia:hover {
-                background-color: var(--bancolombia-light-blue);
-                color: white;
-            }
-            
-            .form-section {
-                border-left: 4px solid var(--bancolombia-light-blue);
-                padding-left: 15px;
-                margin-bottom: 30px;
-            }
-            
-            .required-field::after {
-                content: " *";
-                color: red;
-            }
-            
-            .participante-item {
-                background-color: var(--bancolombia-gray);
-                padding: 15px;
-                border-radius: 5px;
-                margin-bottom: 15px;
-                position: relative;
-            }
-            
-            .remove-participante {
-                position: absolute;
-                right: 10px;
-                top: 10px;
-                color: var(--bancolombia-red);
-                cursor: pointer;
-            }
-            .footer {
-                background-color: var(--bancolombia-blue);
-                color: white;
-                padding: 20px 0;
-                text-align: center;
-                font-size: 0.9rem;
-                margin-top: 40px;
-            }
-            
-            .footer a {
-                color: var(--bancolombia-yellow);
-                text-decoration: none;
-            }
-            
-            .footer a:hover {
-                text-decoration: underline;
-            }
-    
-            .user-info {
-                text-align: right;
-                padding: 10px 20px;
-                background-color: var(--bancolombia-gray);
-                color: var(--bancolombia-dark-gray);
-                font-size: 0.9rem;
-                max-width: 1400px;
-                margin: 0 auto;
-                width: 100%;
-            }
-            /* Ajustes para mejor alineación */
-            .container-aligned {
-                max-width: 1200px;
-                margin: 0 auto;
-                padding: 0 20px;
-                width: 100%;
-            }
-            .breadcrumb {
-                background-color: transparent;
-                padding: 0;
-                margin: 0;
-                font-size: 0.9rem;
-            }
-            
-            .breadcrumb-item.active {
-                color: var(--bancolombia-blue);
-                font-weight: 600;
-            }
-             /* Efecto hover para el logo */
-             .logo-container img:hover {
-                transform: scale(1.05);
-            }
-            .logo-container {
-                text-align: center;
-                padding: 10px 0;
-                margin: 0 auto;
-                max-width: 1200px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            .alert-required {
-                border: 1px solid #ff4444 !important;
-            }
-             /* Añadir este estilo para ajustar el z-index de los dropdowns */
-            .choices__list--dropdown {
-                z-index: 1000 !important;
-            }
-            /* Añadir esto a tu CSS */
-            .is-invalid {
-                border-color: #dc3545 !important;
-                box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
-            }
+
+        .header {
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 15px 0;
+            margin-bottom: 20px;
+        }
+
+        .logo-container img {
+            height: 50px;
+        }
+
+        .crear-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            color: var(--bancolombia-blue);
+            border-bottom: 2px solid var(--bancolombia-light-blue);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn-bancolombia {
+            background-color: var(--bancolombia-blue);
+            color: white;
+        }
+
+        .btn-bancolombia:hover {
+            background-color: var(--bancolombia-light-blue);
+            color: white;
+        }
+
+        .form-section {
+            border-left: 4px solid var(--bancolombia-light-blue);
+            padding-left: 15px;
+            margin-bottom: 30px;
+        }
+
+        .required-field::after {
+            content: " *";
+            color: red;
+        }
+
+        .participante-item {
+            background-color: var(--bancolombia-gray);
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .remove-participante {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            color: var(--bancolombia-red);
+            cursor: pointer;
+        }
+
+        .footer {
+            background-color: var(--bancolombia-blue);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            font-size: 0.9rem;
+            margin-top: 40px;
+        }
+
+        .footer a {
+            color: var(--bancolombia-yellow);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .user-info {
+            text-align: right;
+            padding: 10px 20px;
+            background-color: var(--bancolombia-gray);
+            color: var(--bancolombia-dark-gray);
+            font-size: 0.9rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Ajustes para mejor alineación */
+        .container-aligned {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            width: 100%;
+        }
+
+        .breadcrumb {
+            background-color: transparent;
+            padding: 0;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        .breadcrumb-item.active {
+            color: var(--bancolombia-blue);
+            font-weight: 600;
+        }
+
+        /* Efecto hover para el logo */
+        .logo-container img:hover {
+            transform: scale(1.05);
+        }
+
+        .logo-container {
+            text-align: center;
+            padding: 10px 0;
+            margin: 0 auto;
+            max-width: 1200px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .alert-required {
+            border: 1px solid #ff4444 !important;
+        }
+
+        /* Añadir este estilo para ajustar el z-index de los dropdowns */
+        .choices__list--dropdown {
+            z-index: 1000 !important;
+        }
+
+        /* Añadir esto a tu CSS */
+        .is-invalid {
+            border-color: #dc3545 !important;
+            box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+        }
     </style>
     <link rel="shortcut icon" href="{{ url_for('static', filename='LogoBancolombia.ico') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
@@ -189,147 +200,148 @@
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-calc@0.7.0/lib/xlsx-calc.js"></script>
-    
 
-<!-- INICIO: sincronizacion localStorage <-> backend (proyectos, appData, idProyectoSeleccionado) -->
-<script>
-(function(){
-  const originalSet = Storage.prototype.setItem;
-  const originalRemove = Storage.prototype.removeItem;
 
-  async function fetchAndSetProyectos(){
-    try {
-      const res = await fetch('/api/proyectos');
-      if (!res.ok) return;
-      const data = await res.json();
-      try { originalSet.apply(localStorage, ['proyectos', JSON.stringify(data)]); } catch(e){}
-    } catch (e) {
-      console.warn('Error cargando proyectos desde servidor', e);
-    }
-  }
+    <!-- INICIO: sincronizacion localStorage <-> backend (proyectos, appData, idProyectoSeleccionado) -->
+    <script>
+        (function () {
+            const originalSet = Storage.prototype.setItem;
+            const originalRemove = Storage.prototype.removeItem;
 
-  async function fetchAndSetAppData(){
-    try {
-      const res = await fetch('/api/appData');
-      if (!res.ok) return;
-      const data = await res.json();
-      try { originalSet.apply(localStorage, ['appData', JSON.stringify(data)]); } catch(e){}
-    } catch (e) {
-      // ignore if endpoint not present
-    }
-  }
+            async function fetchAndSetProyectos() {
+                try {
+                    const res = await fetch('/api/proyectos');
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    try { originalSet.apply(localStorage, ['proyectos', JSON.stringify(data)]); } catch (e) { }
+                } catch (e) {
+                    console.warn('Error cargando proyectos desde servidor', e);
+                }
+            }
 
-  // Sync logic for 'proyectos' value: post each project (upsert)
-  function trySyncProyectosValue(value){
-    try {
-      const parsed = JSON.parse(value);
-      if (!Array.isArray(parsed)) return;
-      parsed.forEach(async (proj) => {
-        try {
-          await fetch('/api/proyectos', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(proj)
-          });
-        } catch (e) {
-          console.warn('Sync proyecto failed', e, proj && proj.id_proyecto);
-        }
-      });
-    } catch (e) {
-      // ignore non-json
-    }
-  }
+            async function fetchAndSetAppData() {
+                try {
+                    const res = await fetch('/api/appData');
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    try { originalSet.apply(localStorage, ['appData', JSON.stringify(data)]); } catch (e) { }
+                } catch (e) {
+                    // ignore if endpoint not present
+                }
+            }
 
-  // When proyectos removed -> delete all on server
-  async function tryRemoveAllProyectos(){
-    try {
-      const res = await fetch('/api/proyectos');
-      if (!res.ok) return;
-      const data = await res.json();
-      if (!Array.isArray(data)) return;
-      data.forEach(async (p) => {
-        try {
-          if (p && p.id_proyecto != null) {
-            await fetch('/api/proyectos/' + encodeURIComponent(p.id_proyecto), { method: 'DELETE' });
-          }
-        } catch (e) {
-          console.warn('Failed deleting proyecto', e, p && p.id_proyecto);
-        }
-      });
-    } catch (e) {
-      console.warn('Error removing proyectos from server', e);
-    }
-  }
+            // Sync logic for 'proyectos' value: post each project (upsert)
+            function trySyncProyectosValue(value) {
+                try {
+                    const parsed = JSON.parse(value);
+                    if (!Array.isArray(parsed)) return;
+                    parsed.forEach(async (proj) => {
+                        try {
+                            await fetch('/api/proyectos', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(proj)
+                            });
+                        } catch (e) {
+                            console.warn('Sync proyecto failed', e, proj && proj.id_proyecto);
+                        }
+                    });
+                } catch (e) {
+                    // ignore non-json
+                }
+            }
 
-  // Sync for appData -> PUT whole appData to server if endpoint exists
-  async function trySyncAppDataValue(value){
-    try {
-      await fetch('/api/appData', {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: value
-      });
-    } catch (e) {
-      // ignore errors
-    }
-  }
+            // When proyectos removed -> delete all on server
+            async function tryRemoveAllProyectos() {
+                try {
+                    const res = await fetch('/api/proyectos');
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (!Array.isArray(data)) return;
+                    data.forEach(async (p) => {
+                        try {
+                            if (p && p.id_proyecto != null) {
+                                await fetch('/api/proyectos/' + encodeURIComponent(p.id_proyecto), { method: 'DELETE' });
+                            }
+                        } catch (e) {
+                            console.warn('Failed deleting proyecto', e, p && p.id_proyecto);
+                        }
+                    });
+                } catch (e) {
+                    console.warn('Error removing proyectos from server', e);
+                }
+            }
 
-  // When idProyectoSeleccionado set, also sync to appData on server
-  function trySyncSelectedProject(value){
-    try {
-      // store in appData.selectedProject
-      trySyncAppDataValue(JSON.stringify({ selectedProject: value }));
-    } catch(e){}
-  }
+            // Sync for appData -> PUT whole appData to server if endpoint exists
+            async function trySyncAppDataValue(value) {
+                try {
+                    await fetch('/api/appData', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: value
+                    });
+                } catch (e) {
+                    // ignore errors
+                }
+            }
 
-  Storage.prototype.setItem = function(key, value) {
-    try { originalSet.apply(this, [key, value]); } catch(e){}
-    try {
-      if (key === 'proyectos') {
-        trySyncProyectosValue(value);
-      } else if (key === 'appData') {
-        trySyncAppDataValue(value);
-      } else if (key === 'idProyectoSeleccionado') {
-        trySyncSelectedProject(value);
-      }
-    } catch (e) {
-      console.warn('Error en setItem sync hook', e);
-    }
-  };
+            // When idProyectoSeleccionado set, also sync to appData on server
+            function trySyncSelectedProject(value) {
+                try {
+                    // store in appData.selectedProject
+                    trySyncAppDataValue(JSON.stringify({ selectedProject: value }));
+                } catch (e) { }
+            }
 
-  Storage.prototype.removeItem = function(key) {
-    try { originalRemove.apply(this, [key]); } catch(e){}
-    try {
-      if (key === 'proyectos') {
-        tryRemoveAllProyectos();
-      } else if (key === 'appData') {
-        trySyncAppDataValue(JSON.stringify({}));
-      } else if (key === 'idProyectoSeleccionado') {
-        trySyncSelectedProject('');
-      }
-    } catch (e) {
-      console.warn('Error en removeItem sync hook', e);
-    }
-  };
+            Storage.prototype.setItem = function (key, value) {
+                try { originalSet.apply(this, [key, value]); } catch (e) { }
+                try {
+                    if (key === 'proyectos') {
+                        trySyncProyectosValue(value);
+                    } else if (key === 'appData') {
+                        trySyncAppDataValue(value);
+                    } else if (key === 'idProyectoSeleccionado') {
+                        trySyncSelectedProject(value);
+                    }
+                } catch (e) {
+                    console.warn('Error en setItem sync hook', e);
+                }
+            };
 
-  // Initialize from server on load
-  function inicializar() {
-    fetchAndSetProyectos();
-    fetchAndSetAppData();
-  }
+            Storage.prototype.removeItem = function (key) {
+                try { originalRemove.apply(this, [key]); } catch (e) { }
+                try {
+                    if (key === 'proyectos') {
+                        tryRemoveAllProyectos();
+                    } else if (key === 'appData') {
+                        trySyncAppDataValue(JSON.stringify({}));
+                    } else if (key === 'idProyectoSeleccionado') {
+                        trySyncSelectedProject('');
+                    }
+                } catch (e) {
+                    console.warn('Error en removeItem sync hook', e);
+                }
+            };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', inicializar, {once:true});
-  } else {
-    inicializar();
-  }
-})();
-</script>
-<!-- FIN: sincronizacion localStorage <-> backend -->
+            // Initialize from server on load
+            function inicializar() {
+                fetchAndSetProyectos();
+                fetchAndSetAppData();
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', inicializar, { once: true });
+            } else {
+                inicializar();
+            }
+        })();
+    </script>
+    <!-- FIN: sincronizacion localStorage <-> backend -->
 </head>
+
 <body>
-     <!-- Header con logo y usuario -->
-     <div class="header">
+    <!-- Header con logo y usuario -->
+    <div class="header">
         <div class="container-aligned">
             <div class="user-info">
                 <span class="role-badge me-3">{{ session.usuario.rol | title }}</span>
@@ -337,18 +349,19 @@
                 | <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
             </div>
             <div class="logo-container">
-                <img src="https://www.uam.edu.co/wp-content/uploads/2022/09/logo-bancolombia1.png" 
-                     alt="Bancolombia">
+                <img src="https://www.uam.edu.co/wp-content/uploads/2022/09/logo-bancolombia1.png" alt="Bancolombia">
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{{ url_for('menu_principal') }}"><i class="fas fa-home"></i> Menú Principal</a></li>
-                        <li class="breadcrumb-item active" aria-current="page"><i class="fas fa-user-tie"></i> Módulo Pilotos</li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('menu_principal') }}"><i
+                                    class="fas fa-home"></i> Menú Principal</a></li>
+                        <li class="breadcrumb-item active" aria-current="page"><i class="fas fa-user-tie"></i> Módulo
+                            Pilotos</li>
                     </ol>
                 </nav>
             </div>
         </div>
     </div>
-    
+
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h3"><i class="fas fa-check-circle me-2"></i>Validación Condiciones 1er. Desembolso</h1>
@@ -362,7 +375,7 @@
                 <!-- Sección Validación Licencia -->
                 <div class="form-section">
                     <h2 class="section-title"><i class="fas fa-file-certificate me-2"></i>Validación de Licencia</h2>
-                    
+
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Validación Licencia Construcción</label>
@@ -373,7 +386,7 @@
                                 <option value="rechazado">Rechazado</option>
                             </select>
                         </div>
-                        
+
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Fecha Radicación Licencia</label>
                             <input type="date" class="form-control" name="fecha_radicacion">
@@ -389,25 +402,25 @@
                                 <option value="no">No</option>
                             </select>
                         </div>
-                        
+
                     </div>
                 </div>
 
                 <!-- Sección Datos Técnicos -->
                 <div class="form-section">
                     <h2 class="section-title"><i class="fas fa-ruler-combined me-2"></i>Datos Técnicos</h2>
-                    
+
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Meses Avanzados en Obra</label>
                             <input type="number" class="form-control" name="meses_avanzados" min="0">
                         </div>
-                        
+
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Plazo Ajustado</label>
                             <input type="text" class="form-control" name="plazo_ajustado" readonly>
                         </div>
-                        
+
                         <div class="col-md-4 mb-3">
                             <label class="form-label">ID Garantía</label>
                             <input type="number" class="form-control" name="id_garantia">
@@ -433,7 +446,7 @@
                 <!-- Sección Documentación -->
                 <div class="form-section">
                     <h2 class="section-title"><i class="fas fa-folder-open me-2"></i>Documentación</h2>
-                    
+
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label class="form-label">CASO PCP BIZAGI</label>
@@ -468,7 +481,7 @@
     </div>
 
     <!-- Mismo footer que el formulario principal -->
-    
+
     <script>
         const session = {
             usuario: {
@@ -482,10 +495,10 @@
             const form = document.getElementById('form-actividad3');
 
             // Definir campos requeridos por rol
-            const camposRequeridos = rolUsuario === 'auxiliar' 
-                ? ['meses_avanzados', 'id_garantia', 'control_cruzado', 
-                'fecha_primera_visita', 'caso_pcp_bizagi', 'caso_bizagi_juridico', 
-                'fecha_confirmacion', 'documentos']
+            const camposRequeridos = rolUsuario === 'auxiliar'
+                ? ['meses_avanzados', 'id_garantia', 'control_cruzado',
+                    'fecha_primera_visita', 'caso_pcp_bizagi', 'caso_bizagi_juridico',
+                    'fecha_confirmacion', 'documentos']
                 : ['validacion_licencia', 'fecha_radicacion', 'poliza_decenal'];
 
             // Resetear errores
@@ -508,7 +521,7 @@
             return isValid;
         }
         // Lógica para calcular plazo ajustado
-        document.querySelector('[name="meses_avanzados"]').addEventListener('input', function() {
+        document.querySelector('[name="meses_avanzados"]').addEventListener('input', function () {
             const meses = parseInt(this.value) || 0;
             const plazoAjustado = meses + 3; // Ejemplo de cálculo
             document.querySelector('[name="plazo_ajustado"]').value = `${plazoAjustado} meses`;
@@ -527,8 +540,8 @@
 
             // Campos de arquitecto
             const camposArquitecto = [
-                'validacion_licencia', 
-                'fecha_radicacion', 
+                'validacion_licencia',
+                'fecha_radicacion',
                 'poliza_decenal'
             ];
 
@@ -538,7 +551,7 @@
                     const input = document.querySelector(`[name="${campo}"]`);
                     if (input) {
                         input.value = proyecto[campo] || '';
-                        
+
                         // Bloquear según el tipo de campo
                         if (input.tagName === 'SELECT') {  // Si es un <select>
                             input.disabled = true;  // Deshabilitar el dropdown
@@ -552,7 +565,7 @@
             // Precargar ID de proyecto
             const inputHiddenId = document.getElementById('id_proyecto_hidden');
             if (inputHiddenId && idProyecto) inputHiddenId.value = idProyecto;
-            if(datosPrincipales) {
+            if (datosPrincipales) {
                 // Rellenar campos relevantes
                 document.querySelector('[name="id_garantia"]').value = datosPrincipales.id_garantia || '';
                 // ...otros campos necesarios
@@ -571,7 +584,7 @@
         function generarExcel(proyectos, usuario) {
             const KEYS = [
                 'id_proyecto', 'fecha_creacion', 'tipo_producto', 'rango_proyecto',
-                'grupoPrincipal', 'subgrupo_1', 'subgrupo_2', 'subgrupo_3', 
+                'grupoPrincipal', 'subgrupo_1', 'subgrupo_2', 'subgrupo_3',
                 'nit_grupo_riesgo', 'nit_titular', 'titular_credito',
                 'nombre_proyecto', 'tipo_inmuebles', 'segmento', 'ciudad', 'tipo_fiducia',
                 'fiduciaria', 'gerente', 'arquitecto', 'auxiliar', 'perito',
@@ -583,8 +596,8 @@
                 'tipo_credito', 'departamento', 'caso_pcp_bizagi', 'visitas_a_cobrar',
                 'cobrar_estudio_tecnico', 'fecha_aprobacion', 'alerta_fecha_aprobacion',
                 'vigencia_en_meses', 'instancia_aprobacion', 'condiciones_aprobacion',
-                'porcentaje_solicitado_financiables','validacion_licencia', 'fecha_radicacion',
-                'poliza_decenal', 'caso_bizagi_juridico','control_cruzado', 'fecha_confirmacion',
+                'porcentaje_solicitado_financiables', 'validacion_licencia', 'fecha_radicacion',
+                'poliza_decenal', 'caso_bizagi_juridico', 'control_cruzado', 'fecha_confirmacion',
                 'fecha_primera_visita', 'id_garantia', 'meses_avanzados', 'plazo_ajustado'
             ];
 
@@ -593,7 +606,7 @@
                 'monto_solicitado_lote', 'total_valor_aprobado', 'valor_lote',
                 'valor_total_proyecto', 'meses_programacion', 'total_inmuebles',
                 'meses_para_venta', 'visitas_a_cobrar', 'vigencia_en_meses',
-                'porcentaje_solicitado_financiables','meses_avanzados', 'plazo_ajustado'
+                'porcentaje_solicitado_financiables', 'meses_avanzados', 'plazo_ajustado'
             ];
 
             const proyectosLimpios = proyectos.map(p => {
@@ -601,12 +614,12 @@
                 KEYS.forEach(key => {
                     if (key === 'condiciones_aprobacion') {
                         // Convertir a texto separado por comas
-                        proyecto[key] = Array.isArray(p[key]) 
-                            ? p[key].join(', ') 
+                        proyecto[key] = Array.isArray(p[key])
+                            ? p[key].join(', ')
                             : p[key] || 'Sin condiciones';
                     } else {
-                        proyecto[key] = numericFields.includes(key) 
-                            ? cleanNumber(p[key]) 
+                        proyecto[key] = numericFields.includes(key)
+                            ? cleanNumber(p[key])
                             : p[key] || '';
                     }
                 });
@@ -615,28 +628,28 @@
 
             fetch('/exportar_excel', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ proyectos: proyectosLimpios })
             })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => Promise.reject(err));
-                }
-                return response.json();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                Swal.fire({
-                    title: 'Error',
-                    text: error.message || 'Error al comunicarse con el servidor',
-                    icon: 'error',
-                    confirmButtonText: 'Aceptar'
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => Promise.reject(err));
+                    }
+                    return response.json();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    Swal.fire({
+                        title: 'Error',
+                        text: error.message || 'Error al comunicarse con el servidor',
+                        icon: 'error',
+                        confirmButtonText: 'Aceptar'
+                    });
                 });
-            });
         }
 
         // Manejar envío del formulario
-        document.getElementById('form-actividad3').addEventListener('submit', function(e) {
+        document.getElementById('form-actividad3').addEventListener('submit', function (e) {
             e.preventDefault();
 
             // 1. Obtener ID del proyecto (existente)
@@ -678,15 +691,15 @@
             }
 
             localStorage.setItem('proyectos', JSON.stringify(proyectos));
-            generarExcel(proyectos); 
+            generarExcel(proyectos);
 
             // 4. Verificar campos completos (NUEVO)
             const proyectoActual = proyectos[index];
-            
+
             // Lista de todos los campos requeridos
             const camposRequeridos = [
                 'validacion_licencia', 'fecha_radicacion',
-                'poliza_decenal', 'caso_bizagi_juridico','control_cruzado', 'fecha_confirmacion',
+                'poliza_decenal', 'caso_bizagi_juridico', 'control_cruzado', 'fecha_confirmacion',
                 'fecha_primera_visita', 'id_garantia', 'meses_avanzados', 'plazo_ajustado'
             ];
 
@@ -697,37 +710,38 @@
 
             // 5. Mostrar mensaje y redirigir solo si está completo (Modificado)
             if (formularioCompleto) {
-                Swal.fire({ 
-                    title: 'Proyecto completo', 
-                    text: 'Todos los datos han sido registrados', 
-                    icon: 'success' 
+                Swal.fire({
+                    title: 'Proyecto completo',
+                    text: 'Todos los datos han sido registrados',
+                    icon: 'success'
                 }).then(() => {
                     window.location.href = "{{ url_for('seguimiento_Proyecto') }}";
                 });
             } else {
                 Swal.fire({
-                    title: 'Datos guardados', 
-                    text: 'Información parcial almacenada', 
+                    title: 'Datos guardados',
+                    text: 'Información parcial almacenada',
                     icon: 'success'
                 });
             }
         });
     </script>
     <!-- Footer Estándar Bancolombia -->
-     <!-- Footer -->
-     <div class="footer">
+    <!-- Footer -->
+    <div class="footer">
         <div class="container-aligned">
             <p>© 2025 Bancolombia. Todos los derechos reservados.</p>
             <p>
-                <a href="#">Términos y condiciones</a> | 
-                <a href="#">Política de privacidad</a> | 
+                <a href="#">Términos y condiciones</a> |
+                <a href="#">Política de privacidad</a> |
                 <a href="#">Ayuda</a>
             </p>
             <p>
-                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 | 
+                <i class="fas fa-phone"></i> Línea de atención: 01 8000 912 345 |
                 <i class="fas fa-map-marker-alt"></i> Sede principal: Medellín, Colombia
             </p>
         </div>
     </div>
 </body>
+
 </html>
