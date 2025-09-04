@@ -1513,6 +1513,9 @@
                     keyboard: true   // Permite cerrar con ESC
                 }
             );
+
+            mostrarHistorialLocal(idProyecto);
+
             modal.show();
 
         }
@@ -4123,7 +4126,7 @@
                         <textarea class="form-control" id="observacionDesembolso" rows="3"
                             placeholder="Escriba aquí la observación..."></textarea>
                     </div>
-                    {% endif %} 
+                    {% endif %}
                     <!-- Historial de observaciones -->
                     <div class="mt-4">
                         <h6><i class="fas fa-history me-2"></i>Historial de Observaciones</h6>
@@ -4135,7 +4138,7 @@
                     {% if session.usuario.rol == 'admin' or session.usuario.rol == 'arquitecto' %}
                     <button type="button" class="btn btn-primary" onclick="guardarObservacion()">Guardar
                         Cambios</button>
-                    {% endif %}    
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -4675,95 +4678,111 @@
 
         // Guardar observación
         function guardarObservacion() {
-        let idProyecto = document.getElementById("idProyectoSeleccionado")?.value?.trim();
-        if (!idProyecto) {
-            const idInput = document.getElementById("id_proyecto");
-            if (idInput) idProyecto = idInput.value.trim();
-        }
-
-        const observacion = document.getElementById("observacionDesembolso").value.trim();
-
-        if (!idProyecto) {
-            Swal.fire("Atención", "No se encontró el ID del proyecto", "warning");
-            return;
-        }
-        if (!observacion) {
-            Swal.fire("Atención", "Debe ingresar una observación", "warning");
-            return;
-        }
-        if (!usuarioSesion) {
-            Swal.fire("Atención", "No se encontró el usuario en sesión", "warning");
-            return;
-        }
-
-        fetch("/guardar_observacion", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-            id_proyecto: idProyecto, 
-            observacion: observacion,
-            usuario: usuarioSesion
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-            // Guardar también en localStorage
-            guardarHistorialLocal(idProyecto, observacion, usuarioSesion);
-
-            Swal.fire("Éxito", data.message, "success");
-            document.getElementById("observacionDesembolso").value = "";
-            mostrarHistorial(idProyecto); // refrescar historial en modal
-            } else {
-            Swal.fire("Error", data.message || "No se pudo guardar la observación", "error");
+            let idProyecto = document.getElementById("idProyectoSeleccionado")?.value?.trim();
+            if (!idProyecto) {
+                const idInput = document.getElementById("id_proyecto");
+                if (idInput) idProyecto = idInput.value.trim();
             }
-        })
-        .catch(err => {
-            Swal.fire("Error", "No se pudo guardar la observación", "error");
-        });
+
+            const observacion = document.getElementById("observacionDesembolso").value.trim();
+
+            if (!idProyecto) {
+                Swal.fire("Atención", "No se encontró el ID del proyecto", "warning");
+                return;
+            }
+            if (!observacion) {
+                Swal.fire("Atención", "Debe ingresar una observación", "warning");
+                return;
+            }
+            if (!usuarioSesion) {
+                Swal.fire("Atención", "No se encontró el usuario en sesión", "warning");
+                return;
+            }
+
+            fetch("/guardar_observacion", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id_proyecto: idProyecto,
+                    observacion: observacion,
+                    usuario: usuarioSesion
+                })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        // Guardar también en localStorage
+                        guardarHistorialLocal(idProyecto, observacion, usuarioSesion);
+
+                        Swal.fire("Éxito", data.message, "success");
+                        document.getElementById("observacionDesembolso").value = "";
+                        mostrarHistorialLocal(idProyecto); // refrescar historial en modal
+                    } else {
+                        Swal.fire("Error", data.message || "No se pudo guardar la observación", "error");
+                    }
+                })
+                .catch(err => {
+                    Swal.fire("Error", "No se pudo guardar la observación", "error");
+                });
         }
+
 
         // Guardar historial en localStorage
         function guardarHistorialLocal(idProyecto, observacion, usuario) {
-        const fecha = new Date().toLocaleDateString("es-CO");
-        const clave = "observaciones_" + idProyecto;
-        let historial = JSON.parse(localStorage.getItem(clave) || "[]");
+            const fecha = new Date().toLocaleString("es-CO"); // más preciso con hora
+            const clave = "observaciones_" + idProyecto;
+            let historial = JSON.parse(localStorage.getItem(clave) || "[]");
 
-        historial.push({
-            observacion: observacion,
-            usuario: usuario,
-            fecha: fecha
-        });
+            // Agregar al inicio para que lo más reciente quede arriba
+            historial.unshift({
+                observacion: observacion,
+                usuario: usuario,
+                fecha: fecha
+            });
 
-        localStorage.setItem(clave, JSON.stringify(historial));
+            localStorage.setItem(clave, JSON.stringify(historial));
         }
 
-        // Mostrar historial en el modal
-        function mostrarHistorial(idProyecto) {
-        const clave = "observaciones_" + idProyecto;
-        const historial = JSON.parse(localStorage.getItem(clave) || "[]");
+        function mostrarHistorialLocal(idProyecto) {
+            const contenedor = document.getElementById("historialObservaciones");
+            contenedor.innerHTML = "";
 
-        const contenedor = document.getElementById("historialObservaciones");
-        contenedor.innerHTML = "";
+            // Obtener historial completo desde localStorage
+            const clave = "observaciones_" + idProyecto;
+            let historial = JSON.parse(localStorage.getItem(clave) || "[]");
 
-        if (historial.length === 0) {
-            contenedor.innerHTML = "<p class='text-muted'>No hay observaciones previas</p>";
-            return;
+            if (!historial || historial.length === 0) {
+                contenedor.innerHTML = "<p class='text-muted'>No hay observaciones registradas</p>";
+                return;
+            }
+
+            // Ordenar por fecha: más reciente primero
+            historial.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+            // Crear tabla
+            let tabla = `<table class="table table-sm table-bordered">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Observación</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            historial.forEach(obs => {
+                tabla += `<tr>
+                    <td>${obs.fecha || '-'}</td>
+                    <td>${obs.usuario || '-'}</td>
+                    <td>${obs.observacion || '-'}</td>
+                </tr>`;
+            });
+
+            tabla += "</tbody></table>";
+            contenedor.innerHTML = tabla;
         }
 
-        const lista = document.createElement("ul");
-        lista.classList.add("list-group");
 
-        historial.forEach(obs => {
-            const item = document.createElement("li");
-            item.classList.add("list-group-item");
-            item.innerHTML = `<b>${obs.fecha}</b> - ${obs.usuario}: ${obs.observacion}`;
-            lista.appendChild(item);
-        });
-
-        contenedor.appendChild(lista);
-        }
-        
     </script>
     <!-- End consolidated script -->
 </body>
