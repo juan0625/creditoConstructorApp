@@ -1911,6 +1911,29 @@ def guardar_observacion():
     except Exception as e:
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+@app.route('/consultar_observaciones/<id_proyecto>', methods=['GET'])
+def consultar_observaciones(id_proyecto):
+    try:
+        datos_completos = leer_datos_completos()
+        proyectos_existentes = datos_completos.get('proyectos', [])
+
+        historial = []
+        for p in proyectos_existentes:
+            if str(p.get('id_proyecto', '')).strip() == str(id_proyecto).strip():
+                obs = {
+                    'observacion': p.get('observacion_desembolso', ''),
+                    'fecha': p.get('fecha_observacion_desembolso', ''),
+                    'usuario': p.get('usuario_observacion_desembolso', '')
+                }
+                if any(obs.values()):
+                    historial.append(obs)
+
+        return jsonify({'success': True, 'observaciones': historial})
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
           
 if __name__ == "__main__":
      app.run(host="0.0.0.0", port=5000)
