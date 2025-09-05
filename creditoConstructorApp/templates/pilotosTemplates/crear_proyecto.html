@@ -1101,7 +1101,7 @@
 
                 <!-- Sección 3: Montos y Valores -->
                 <div class="form-section">
-                    <h2 class="section-title"><i class="fas fa-money-bill-wave me-2"></i>Montos y Valores</h2>
+                    <h2 class="section-title"><i class="fas fa-money-bill-wave me-2"></i>Montos y Valores Solicitados</h2>
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Monto Solicitado 1 Desembolso</label>
@@ -1237,8 +1237,26 @@
                         </div>
                     </div>
 
+                    <!-- FORMULARIO: Condiciones de Aprobacion Lote -->
+                    <h2 class="section-title"><i class="fas fa-coins me-2"></i>Condiciones Desembolso Lote
+                    </h2>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <div class="border p-3" id="condiciones-lote-container">
+                                <div class="d-flex align-items-center mb-2">
+                                    <input type="text" class="form-control me-2" placeholder="Nueva condicion">
+                                    <button type="button" class="btn btn-sm btn-primary"
+                                        onclick="agregarCondicionLote()">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div id="lista-condiciones-lote"></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- ================== VALIDACIÓN DESEMBOLSO PREOPERATIVO ================== -->
-                    <h2 class="section-title"><i class="fas fa-check-circle me-2"></i>Condición Desembolso Preoperativo
+                    <h2 class="section-title"><i class="fas fa-check-circle me-2"></i>Condiciones Desembolso Preoperativo
                     </h2>
 
                     <div class="row mb-3">
@@ -1276,7 +1294,7 @@
                     <br><br>
 
                     <!-- ================== VALIDACIÓN DESEMBOLSO CONSTRUCTOR ================== -->
-                    <h2 class="section-title"><i class="fas fa-hard-hat me-2"></i>Condición Desembolso Constructor</h2>
+                    <h2 class="section-title"><i class="fas fa-hard-hat me-2"></i>Condiciones Desembolso Constructor</h2>
 
                     <div class="row mb-3">
                         <div class="col-md-4">
@@ -1325,7 +1343,7 @@
                     <div class="col-md-12">
                         <button type="button" id="btn-siguiente-paso" class="btn btn-bancolombia"
                             data-url="{{ url_for('validacion_condiciones') }}" disabled onclick="redirectTo(this)">
-                            Validación Desembolso Preoperativo y Constuctor
+                            Validación Condiciones
                         </button>
                     </div>
                 </div>
@@ -1337,7 +1355,7 @@
                     {% if session.usuario.rol in ['admin', 'arquitecto'] %}
                     <div>
                         <button type="button" class="btn btn-outline-success me-2" id="btn-importar">
-                            <i class="fas fa-file-import me-2"></i>Importar desde Excel
+                            <i class="fas fa-file-import me-2"></i>Importar Informe Técnico
                         </button>
                     </div>
                     {% endif %}
@@ -2380,6 +2398,187 @@
             participanteCount++;
         });
 
+        // ======================= LOTE =======================
+
+        // Funcion para agregar condiciones al lote
+        function agregarCondicionLote(texto = '', esEdicion = false, fecha = '') {
+            const input = document.querySelector('#condiciones-lote-container input[type="text"]');
+            const lista = document.getElementById('lista-condiciones-lote');
+            const condicionTexto = esEdicion ? texto : input.value.trim();
+
+            if (condicionTexto) {
+                const div = document.createElement('div');
+                div.className = 'form-check d-flex align-items-center mb-2';
+
+                // Checkbox
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'form-check-input me-2';
+
+                if (esEdicion && fecha) {
+                    checkbox.checked = true;
+                    checkbox.disabled = true;
+                    checkbox.setAttribute('data-fecha-aprobacion', fecha);
+                }
+
+                checkbox.addEventListener('change', function () {
+                    if (this.checked) {
+                        const fechaActual = getFechaBogotaSinZona();
+                        this.setAttribute('data-fecha-aprobacion', fechaActual);
+                        this.disabled = true;
+                    }
+                    actualizarEstadoBotonLote();
+                });
+
+                // Label
+                const label = document.createElement('label');
+                label.className = 'form-check-label flex-grow-1 me-2';
+                label.textContent = condicionTexto;
+
+                // Botones
+                const accionesDiv = document.createElement('div');
+                accionesDiv.className = 'btn-group';
+
+                const btnEditar = document.createElement('button');
+                btnEditar.type = 'button';
+                btnEditar.className = 'btn btn-sm btn-outline-warning me-1';
+                btnEditar.innerHTML = '<i class="fas fa-edit"></i>';
+                btnEditar.onclick = () => editarCondicionLote(div);
+
+                const btnEliminar = document.createElement('button');
+                btnEliminar.type = 'button';
+                btnEliminar.className = 'btn btn-sm btn-outline-danger';
+                btnEliminar.innerHTML = '<i class="fas fa-trash"></i>';
+                btnEliminar.onclick = () => eliminarCondicionLote(div);
+
+                accionesDiv.appendChild(btnEditar);
+                accionesDiv.appendChild(btnEliminar);
+
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                div.appendChild(accionesDiv);
+
+                if (!esEdicion) {
+                    lista.appendChild(div);
+                    input.value = '';
+                } else {
+                    lista.replaceChild(div, lista.children[indexEdicionLote]);
+                }
+
+                actualizarEstadoBotonLote();
+            }
+        }
+
+        function actualizarEstadoBotonLote() {
+            const checkboxes = document.querySelectorAll('#lista-condiciones-lote input[type="checkbox"]');
+            const algunaMarcada = Array.from(checkboxes).some(cb => cb.checked);
+            document.getElementById('btn-siguiente-paso').disabled = !aprobadas;
+        }
+
+        let condicionEditandoLote = null;
+
+        function editarCondicionLote(elementoDiv) {
+            const label = elementoDiv.querySelector('label');
+            const textoActual = label.textContent;
+
+            const inputEdit = document.createElement('input');
+            inputEdit.type = 'text';
+            inputEdit.className = 'form-control me-2';
+            inputEdit.value = textoActual;
+
+            const btnGuardar = document.createElement('button');
+            btnGuardar.type = 'button';
+            btnGuardar.className = 'btn btn-sm btn-success';
+            btnGuardar.innerHTML = '<i class="fas fa-save"></i>';
+
+            elementoDiv.querySelector('.btn-group').remove();
+            label.replaceWith(inputEdit);
+            elementoDiv.appendChild(btnGuardar);
+
+            btnGuardar.onclick = () => {
+                const nuevoTexto = inputEdit.value.trim();
+                if (nuevoTexto) {
+                    label.textContent = nuevoTexto;
+                    inputEdit.replaceWith(label);
+                    btnGuardar.remove();
+                    elementoDiv.appendChild(elementoDiv.querySelector('.btn-group'));
+                }
+            };
+        }
+
+        function eliminarCondicionLote(elementoDiv) {
+            Swal.fire({
+                title: 'Eliminar condicion',
+                text: '¿Estas seguro de eliminar esta condicion?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Si, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    elementoDiv.remove();
+                }
+            });
+        }
+
+        function obtenerCondicionesAprobacionLote() {
+            return Array.from(document.querySelectorAll('#lista-condiciones-lote .form-check')).map(div => {
+                const checkbox = div.querySelector('input[type="checkbox"]');
+                const texto = div.querySelector('label').textContent.trim();
+                const fecha = checkbox.getAttribute('data-fecha') || '';
+
+                return checkbox.checked
+                    ? `${texto} - OK (${fecha})`
+                    : texto; // Solo texto si no esta aprobado
+            });
+        }
+
+        function condicionesLoteCumplidas() {
+            const checkboxes = document.querySelectorAll('#lista-condiciones-lote input[type="checkbox"]');
+            if (!checkboxes || checkboxes.length === 0) return false;
+            return Array.from(checkboxes).every(cb => cb.checked === true);
+        }
+
+       
+
+        function cargarCondicionesLote(condicionesArray) {
+                const container = document.getElementById('lista-condiciones-lote');
+                container.innerHTML = '';
+
+                condicionesArray.forEach(cond => {
+                    // Convertir strings antiguos a objetos
+                    if (typeof cond === 'string') {
+                        const [texto, estado] = cond.split(' - OK');
+                        cond = {
+                            texto: texto.trim(),
+                            aprobado: estado !== undefined,
+                            fecha: estado?.match(/\((.*)\)/)?.[1] || ''
+                        };
+                    }
+
+                    const div = document.createElement('div');
+                    div.className = 'form-check mb-2';
+                    div.innerHTML = `
+                    <input type="checkbox" 
+                        class="form-check-input"
+                        ${cond.aprobado ? 'checked' : ''}
+                        ${cond.fecha ? `data-fecha="${cond.fecha}"` : ''}>
+                    <label class="form-check-label">${cond.texto}</label>
+                `;
+
+                    // Agregar evento al checkbox cargado
+                    div.querySelector('input').addEventListener('change', function () {
+                        if (this.checked) {
+                            this.setAttribute('data-fecha', getFechaBogotaSinZona());
+                        } else {
+                            this.removeAttribute('data-fecha');
+                        }
+                    });
+
+                    container.appendChild(div);
+                });
+            }
+
         function cargarCondiciones(condicionesArray) {
             const container = document.getElementById('lista-condiciones');
             container.innerHTML = '';
@@ -2505,7 +2704,7 @@
                 // Nuevos campos de aprobaciones GOSO
                 'tipo_credito', 'departamento', 'caso_pcp_bizagi', 'visitas_a_cobrar',
                 'cobrar_estudio_tecnico', 'fecha_aprobacion', 'alerta_fecha_aprobacion',
-                'vigencia_en_meses', 'instancia_aprobacion', 'condiciones_aprobacion', 'condiciones_constructor',
+                'vigencia_en_meses', 'instancia_aprobacion', 'condiciones_aprobacion', 'condiciones_constructor', 'condiciones_lote',
                 'porcentaje_solicitado_financiables', 'porcentaje_solicitado_financiables', 'porcentaje_preoperativo',
                 'tipo_porcentaje_preoperativo', 'porcentaje_constructor',
                 'tipo_porcentaje_constructor', 'porcentaje_recaudo_constructor', 'estado'
@@ -2522,7 +2721,7 @@
             const proyectosLimpios = proyectos.map(p => {
                 let proyecto = {};
                 KEYS.forEach(key => {
-                    if (key === 'condiciones_aprobacion' || key === 'condiciones_constructor') {
+                    if (key === 'condiciones_aprobacion' || key === 'condiciones_constructor' || key === 'condiciones_lote') {
                         proyecto[key] = Array.isArray(p[key])
                             ? p[key].join(', ')
                             : p[key] || 'Sin condiciones';
@@ -2668,6 +2867,28 @@
                         document.getElementById('btn-siguiente-paso').disabled = !todasAprobadas;
                     } else {
                         // Otros roles: Al menos una aprobada
+                        const algunaAprobada = Array.from(checkboxes).some(cb => cb.checked);
+                        document.getElementById('btn-siguiente-paso').disabled = !algunaAprobada;
+                    }
+                }
+
+                if (proyecto.condiciones_lote) {
+                    cargarCondicionesLote(proyecto.condiciones_lote);
+
+                    const checkboxes = document.querySelectorAll('#lista-condiciones-lote input[type="checkbox"]');
+                    checkboxes.forEach(checkbox => {
+                        if (checkbox.checked) {
+                            checkbox.disabled = true;
+                            if (!checkbox.dataset.fecha) {
+                                checkbox.setAttribute('data-fecha', getFechaBogotaSinZona());
+                            }
+                        }
+                    });
+
+                    if (session.usuario.rol === 'arquitecto') {
+                        const todasAprobadas = Array.from(checkboxes).every(cb => cb.checked);
+                        document.getElementById('btn-siguiente-paso').disabled = !todasAprobadas;
+                    } else {
                         const algunaAprobada = Array.from(checkboxes).some(cb => cb.checked);
                         document.getElementById('btn-siguiente-paso').disabled = !algunaAprobada;
                     }
@@ -2898,6 +3119,12 @@
                     const texto = div.querySelector('label').textContent.trim(); // Texto real del label
                     return checkbox.checked ? `${texto} - OK - ${fechaBogota}` : `${texto} - ${fechaBogota}`;
                 }),
+                // Guardar en proyecto
+                condiciones_lote: Array.from(document.querySelectorAll('#lista-condiciones-lote .form-check')).map(div => {
+                    const checkbox = div.querySelector('input');
+                    const texto = div.querySelector('label').textContent.trim();
+                    return checkbox.checked ? `${texto} - OK - ${fechaBogota}` : `${texto} - ${fechaBogota}`;
+                }),
 
             };
 
@@ -3048,6 +3275,7 @@
                 instancia_aprobacion: getVal('[name="instancia_aprobacion"]'),
                 condiciones_aprobacion: obtenerCondicionesAprobacion(),
                 condiciones_constructor: obtenerCondicionesAprobacionConstructor(),
+                condiciones_lote: obtenerCondicionesAprobacionLote(),
                 porcentaje_solicitado_financiables: calcularPorcentajeFinanciables(),
                 'porcentaje_preoperativo': getVal('[name="porcentaje_preoperativo"]', 'number'),
                 'tipo_porcentaje_preoperativo': getVal('[name="tipo_porcentaje_preoperativo"]'),
@@ -3076,7 +3304,8 @@
             try {
                 const preCumplidas = condicionesPreoperativoCumplidas();
                 const consCumplidas = condicionesConstructorCumplidas();
-                if (preCumplidas && consCumplidas) {
+                const consCumplidasLote = condicionesLoteCumplidas();
+                if (preCumplidas && consCumplidas && consCumplidasLote ) {
                     proyecto.estado = 'aprobado sin desembolsar';
                 } else {
                     if (existingIndex !== -1 && all[existingIndex] && all[existingIndex].estado) {
@@ -3111,6 +3340,7 @@
                     alerta_fecha_aprobacion: getFechaBogotaSinZona(), // Actualizar fecha de modificación
                     condiciones_aprobacion: proyecto.condiciones_aprobacion || all[existingIndex].condiciones_aprobacion,
                     condiciones_constructor: proyecto.condiciones_constructor || all[existingIndex].condiciones_constructor,
+                    condiciones_lote: proyecto.condiciones_lote || all[existingIndex].condiciones_lote,
                     porcentaje_solicitado_financiables: proyecto.porcentaje_solicitado_financiables || all[existingIndex].porcentaje_solicitado_financiables
                 };
 
@@ -3343,6 +3573,12 @@
                             default: ''
                         },
                         condiciones_aprobacion: {
+                            hoja: null,
+                            cell: null,
+                            type: 'array',
+                            default: []
+                        },
+                        condiciones_lote: {
                             hoja: null,
                             cell: null,
                             type: 'array',
@@ -3581,7 +3817,6 @@
             if (!checkboxes || checkboxes.length === 0) return false;
             return Array.from(checkboxes).every(cb => cb.checked === true);
         }
-
 
         // 3. Modificar evento change en checkboxes para guardar fecha única
         document.querySelectorAll('#lista-condiciones input[type="checkbox"]').forEach(checkbox => {
@@ -3996,7 +4231,7 @@
         function actualizarEstadoBotonConstructor() {
             const checkboxes = document.querySelectorAll('#lista-condiciones-constructor input[type="checkbox"]');
             const aprobadas = Array.from(checkboxes).some(cb => cb.checked);
-            // Si también quieres deshabilitar otro botón para constructor, cámbialo aquí
+            document.getElementById('btn-siguiente-paso').disabled = !aprobadas;
         }
 
         let condicionEditandoConstructor = null;
