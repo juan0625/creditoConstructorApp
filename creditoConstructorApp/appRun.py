@@ -547,7 +547,7 @@ def subir_base_principal():
             "valor_desembolsar_preoperativo", "valor_desembolsar_constructor",
             "maximo_desembolsar_constructor", "maximo_desembolsar_superavit",
             "condiciones_especiales", "fecha_observacion_control", "valor_ampliacion",
-            "observacion_control", 'condiciones_constructor', 'porcentaje_preoperativo','tipo_porcentaje_preoperativo',
+            "observacion_control", 'condiciones_constructor', 'condiciones_lote' , 'porcentaje_preoperativo','tipo_porcentaje_preoperativo',
             'porcentaje_constructor', 'tipo_porcentaje_constructor', 'porcentaje_recaudo_constructor', "estado"  
         ]
 
@@ -892,6 +892,12 @@ def exportar_excel():
                     proyecto['condiciones_constructor'] = proyecto['condiciones_constructor'].split('; ')
                 elif not isinstance(proyecto['condiciones_constructor'], list):
                     proyecto['condiciones_constructor'] = []
+                    
+            if 'condiciones_lote' in proyecto:
+                if isinstance(proyecto['condiciones_lote'], str):
+                    proyecto['condiciones_lote'] = proyecto['condiciones_lote'].split('; ')
+                elif not isinstance(proyecto['condiciones_lote'], list):
+                    proyecto['condiciones_lote'] = []        
 
             if 'observacion_control' in proyecto and proyecto['observacion_control']:
                 proyecto['observacion_control'] = str(proyecto['observacion_control']).replace('\n', ' | ')
@@ -993,7 +999,7 @@ def exportar_excel():
         # Asegurar columnas mínimas
         columnas_esperadas = [
             'id_proyecto', 'nombre_proyecto', 'fecha_creacion',
-            'condiciones_aprobacion', 'condiciones_constructor',
+            'condiciones_aprobacion', 'condiciones_constructor', 'condiciones_lote',
             'observacion_control', 'desembolsos_diarios'
         ]
         
@@ -1600,8 +1606,9 @@ def actualizar_estado_proyecto(proyecto_id):
 @app.route('/api/cambiar_estados', methods=['POST'])
 def api_cambiar_estados():
     """
-    Espera JSON: { proyectos: [ { id_proyecto, nombre_proyecto, estado }, ... ] }
-    Actualiza local JSON (LOCAL_STORAGE_PATH) y regenera (opcional) Excel base.
+    Espera JSON: { proyectos: [ { id_proyecto, estado }, ... ] }
+    Actualiza los estados de proyectos en la base (LOCAL_STORAGE_PATH)
+    y regenera el Excel principal en EXPORTAR_RUTA/Base_principal_proyectos.xlsx.
     """
     try:
         payload = request.get_json(force=True)
@@ -1609,12 +1616,13 @@ def api_cambiar_estados():
         if not rows:
             return jsonify({'success': False, 'message': 'No se recibieron proyectos'}), 400
 
+        # Leer datos completos
         datos = leer_datos_completos()
         proyectos = datos.get('proyectos', [])
+        app_data = datos.get('appData', {})
 
-        updated = 0
-        no_encontrados = 0
-        mapa = { str(p.get('id_proyecto') or p.get('id') or '').strip(): p for p in proyectos if isinstance(p, dict) }
+        mapa = {str(p.get('id_proyecto') or '').strip(): p for p in proyectos if isinstance(p, dict)}
+        updated, no_encontrados = 0, 0
 
         for r in rows:
             pid = str(r.get('id_proyecto') or '').strip()
@@ -1625,31 +1633,78 @@ def api_cambiar_estados():
                 mapa[pid]['estado'] = nuevo_estado
                 updated += 1
             else:
-                # opcional: no crear nuevos proyectos automáticamente
                 no_encontrados += 1
 
-        # Volver a lista y guardar
+        # Reemplazar lista de proyectos
         proyectos_nuevos = list(mapa.values())
-        guardar_datos_completos({'proyectos': proyectos_nuevos, 'appData': datos.get('appData', {})})
 
-        # Intentar regenerar Excel principal para reflejar estados (si EXCEL_PATH es utilizable)
+        # Guardar en JSON local
+        guardar_datos_completos({'proyectos': proyectos_nuevos, 'appData': app_data})
+
+        # 🔹 Regenerar Excel igual que en exportar_excel
         try:
-            df = pd.DataFrame(proyectos_nuevos)
-            # Usamos columnas comunes si existen, para no romper otras hojas
-            cols = ['id_proyecto', 'nombre_proyecto', 'estado', 'fecha_creacion']
-            cols_present = [c for c in cols if c in df.columns]
-            if not cols_present:
-                # si no están esas columnas, al menos guardamos todo
-                df_to_save = df
-            else:
-                df_to_save = df[cols_present]
+            df = pd.DataFrame(proyectos_nuevos).fillna('')
+            if df.empty:
+                raise Exception("No hay proyectos para exportar.")
 
-            # Guardar como xlsx en EXCEL_PATH (sobrescribe la hoja principal)
-            df_to_save.to_excel(EXCEL_PATH, index=False)
+            # Asegurar que id_proyecto es string y único
+            if 'id_proyecto' in df.columns:
+                df['id_proyecto'] = df['id_proyecto'].astype(str).str.strip()
+                df = consolidate_duplicate_columns(df)
+
+            # Asegurar columnas mínimas
+            columnas_esperadas = [
+                'id_proyecto', 'nombre_proyecto', 'fecha_creacion',
+                'condiciones_aprobacion', 'condiciones_constructor',
+                'condiciones_lote', 'observacion_control',
+                'desembolsos_diarios', 'estado'
+            ]
+            for col in columnas_esperadas:
+                if col not in df.columns:
+                    df[col] = ''
+
+            # Reordenar
+            cols_extra = [c for c in df.columns if c not in columnas_esperadas]
+            orden_final = columnas_esperadas + cols_extra
+            df = df[orden_final]
+
+            # Guardar en la misma base principal
+            base_path = os.path.join(EXPORTAR_RUTA, 'Base_principal_proyectos.xlsx')
+            df_for_excel = sanitize_dataframe_for_excel(df, date_format='%d/%m/%Y')
+
+            with pd.ExcelWriter(base_path, engine='openpyxl') as writer:
+                df_for_excel.to_excel(writer, index=False, sheet_name='Proyectos')
+                ws = writer.sheets['Proyectos']
+
+                # Proteger hoja
+                ws.protection.sheet = True
+                ws.protection.set_password('Riesgos2025*')
+                ws.protection.autoFilter = True
+                ws.protection.sort = True
+                ws.protection.insertRows = False
+                ws.protection.deleteRows = False
+
+                # Ajustar ancho columnas
+                for column in ws.columns:
+                    try:
+                        max_length = max(len(str(cell.value)) if cell.value else 0 for cell in column)
+                        ws.column_dimensions[column[0].column_letter].width = min(max_length + 2, 150)
+                    except Exception:
+                        pass
+
+                # Congelar encabezado
+                ws.freeze_panes = "A2"
+
         except Exception as e:
-            app.logger.warning(f'No se pudo regenerar EXCEL_PATH: {e}')
+            app.logger.warning(f"No se pudo regenerar Excel: {e}")
 
-        return jsonify({'success': True, 'actualizados': updated, 'no_encontrados': no_encontrados}), 200
+        return jsonify({
+            'success': True,
+            'message': f"Se actualizaron {updated} proyectos, {no_encontrados} no encontrados. Excel regenerado en Base_principal_proyectos.xlsx",
+            'actualizados': updated,
+            'no_encontrados': no_encontrados,
+            'archivo_base': 'Base_principal_proyectos.xlsx'
+        }), 200
 
     except Exception as e:
         app.logger.exception("Error en api_cambiar_estados")
